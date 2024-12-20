@@ -12,6 +12,17 @@
     <string name="home_history">History</string>
     <string name="home_recommend">Recommend</string>
 
+                 android:text="@string/sync_use_ftp"
+        android:text="@string/sync_ftp_server" />
+        android:hint="@string/sync_ftp_server_hint"
+            android:text="@string/sync_ftp_username" />
+            android:text="@string/sync_ftp_Password" />
+                    android:text="@string/sync_use_gist"
+            android:text="@string/sync_gist_url" />
+            android:text="@string/sync_gist_token" />
+            android:text="@string/dialog_positive"
+    android:text="@string/dialog_negative"
+
     <!-- Sync -->
     <string name="sync_setting">Sync Setting</string>
     <string name="sync_now">Sync</string>
@@ -23,8 +34,13 @@
     <string name="sync_samba_server_hint">smb://ServerName/FolerName/TV.json</string>
     <string name="sync_samba_username">Samba Username</string>
     <string name="sync_samba_Password">Samba Password</string>
+
+    <string name="sync_use_ftp">Enable FTP Sync</string>
     <string name="sync_gist">2. Gist</string>
+    <string name="sync_use_gist">Enable Gist Sync</string>
+    <string name="sync_gist_url">Gist URL</string>
     <string name="sync_gist_token">Gist Token</string>
+
     <string name="sync_google_drive">3. Google Drive</string>
     <string name="sync_google_drive_token">Google Drive Token</string>
     <string name="sync_webdav">4. Webdav</string>

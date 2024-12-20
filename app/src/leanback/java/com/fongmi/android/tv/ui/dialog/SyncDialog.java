@@ -8,6 +8,7 @@ import android.view.WindowManager;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.FragmentActivity;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Setting;
 //import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Config;
@@ -23,6 +24,9 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+//import java.util.Locale;
+//import android.content.Intent;
+//import com.fongmi.android.tv.R;
 
 
 public class SyncDialog{ // implements DialogInterface.OnDismissListener {
@@ -62,16 +66,27 @@ public class SyncDialog{ // implements DialogInterface.OnDismissListener {
         binding.ftpServer.setText(Setting.getFtpUri());
         binding.ftpUsername.setText(Setting.getFtpUsername());
         binding.ftpPassword.setText(Setting.getFtpPassword());
+
+
+        binding.syncUseFtpText.setText(getSwitch(Setting.isUseFtp()));
+        binding.syncUseGistText.setText(getSwitch(Setting.isUseGist()));
+        binding.syncGistUrl.setText(Setting.getGistUrl());
+        binding.syncGistToken.setText(Setting.getGistToken());
+
     }
 
     private void initEvent() {
         EventBus.getDefault().register(this);
         binding.positive.setOnClickListener(this::onPositive);
         binding.negative.setOnClickListener(this::onNegative);
+        binding.syncUseFtp.setOnClickListener(this::setUseFtp);
+        binding.syncUseGist.setOnClickListener(this::setUseGist);
         binding.ftpServer.addTextChangedListener(new CustomTextListener() {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 detect(s.toString());
+
+
             }
         });
     }
@@ -81,10 +96,28 @@ public class SyncDialog{ // implements DialogInterface.OnDismissListener {
         Setting.putFtpPassword(binding.ftpPassword.getText().toString().trim());
         Setting.putFtpUsername(binding.ftpUsername.getText().toString().trim());
         Setting.putFtpUri(binding.ftpServer.getText().toString().trim());
+
+        Setting.putGistUrl(binding.syncGistUrl.getText().toString().trim());
+        Setting.putGistUrl(binding.syncGistToken.getText().toString().trim());
         dialog.dismiss();
 
 
     }
+
+    private String getSwitch(boolean value) {
+        String string = ResUtil.getString(value ? R.string.setting_on : R.string.setting_off);
+        return string;
+    }
+
+    private void setUseFtp(View view) {
+        Setting.putUseFtp(!Setting.isUseFtp());
+        binding.syncUseFtpText.setText(getSwitch(Setting.isUseFtp()));
+    }
+    private void setUseGist(View view) {
+        Setting.putUseGist(!Setting.isUseGist());
+        binding.syncUseGistText.setText(getSwitch(Setting.isUseGist()));
+    }
+
 
     private void onNegative(View view) {
         dialog.dismiss();

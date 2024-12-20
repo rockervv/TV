@@ -34,7 +34,7 @@ import java.util.List;
 //import com.fongmi.android.tv.ui.activity.HistoryActivity;
 //import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.event.RefreshEvent;
-import com.fongmi.android.tv.ui.activity.HistoryActivity;
+//import com.fongmi.android.tv.ui.activity.HistoryActivity;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
@@ -72,21 +72,25 @@ public class HistorySyncManager {
 //    }
 
     public static void init (String uri, String username, String password) {
-        init (uri, username, password, false, false);
+        init (uri, username, password, false);
     }
 
-    public static void init (String uri, String username, String password, boolean isFTP, boolean isGist) {
+    public static void init (String uri, String username, String password, boolean isFTP) {
         String urikeep = uri + ".k.txt";
         ftpManager = new FtpManager(uri, username, password);
         ftpManagerk = new FtpManager(urikeep, username, password);
         useFTP = isFTP;
-        useGist = isGist;
+        //useGist = isGist;
     }
 
     public static void initGist (String gurl, String gtoken) {
+        initGist (gurl, gtoken, false);
+    }
+
+    public static void initGist (String gurl, String gtoken, boolean isGist) {
         ftpManager.initGist(gurl, gtoken);
         ftpManagerk.initGist(gurl, gtoken);
-        useGist = true;
+        useGist = isGist;
     }
 
     private static void syncKeep() {
@@ -168,7 +172,7 @@ public class HistorySyncManager {
             } catch (IOException e) {
                 Log.e("Keep", "Gist upload", e);
             }
-            RefreshEvent.keep();
+            //RefreshEvent.keep();
 
             //syncKeep();
         }
@@ -235,7 +239,7 @@ public class HistorySyncManager {
                 Log.e("History", "Gist upload", e);
                 //Notify.show(R.string.sync_fail);
             }
-            RefreshEvent.history();
+            //RefreshEvent.history();
 
         }
     }
@@ -246,12 +250,12 @@ public class HistorySyncManager {
     }
 
     public static void SyncHistory() {
-        if (ftpManagerk.isServerReachable)
+        if (useFTP || useGist)
             new SyncHistoryTask().execute();
     }
 
     public static void SyncKeep() {
-        if (ftpManager.isServerReachable)
+        if (useFTP || useGist)
             new SyncKeepTask().execute();
     }
 

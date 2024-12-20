@@ -120,3 +120,4 @@
 -dontwarn org.osgi.framework.FrameworkUtil
 -dontwarn org.osgi.framework.SynchronousBundleListener
 -dontwarn springfox.documentation.spring.web.json.Json
+-dontwarn org.glassfish.jersey.internal.spi.AutoDiscoverable

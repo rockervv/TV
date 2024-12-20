@@ -35,10 +35,12 @@ android {
         }
         arm64_v8a {
             dimension "abi"
+            //noinspection ChromeOsAbiSupport
             ndk { abiFilters "arm64-v8a" }
         }
         armeabi_v7a {
             dimension "abi"
+            //noinspection ChromeOsAbiSupport
             ndk { abiFilters "armeabi-v7a" }
         }
         leanback {
@@ -46,6 +48,7 @@ android {
         }
         x86 {
             dimension 'abi'
+            //noinspection ChromeOsAbiSupport
             ndk { abiFilters "x86" }
         }
         x86_64 {
@@ -94,8 +97,9 @@ android {
         }
     }
 
-    android.applicationVariants.all { variant ->
-        if (variant.buildType.name == 'release' && variant.productFlavors[0].name == 'mobile') {
+    //android.applicationVariants.all { variant ->
+    android.applicationVariants.configureEach { variant ->
+            if (variant.buildType.name == 'release' && variant.productFlavors[0].name == 'mobile') {
             //variant.mergeAssets.doLast {
             variant.mergeAssetsProvider.get().doLast {
                 delete(fileTree(dir: variant.mergeAssets.outputDir, includes: ['x5.tbs.apk']))
@@ -170,7 +174,7 @@ dependencies {
     implementation(ext: 'aar', name: 'dlna-core-release', group: 'fongmi', version: 'release')
     implementation(ext: 'aar', name: 'dlna-dmc-release', group: 'fongmi', version: 'release')
     implementation(ext: 'aar', name: 'dlna-dmr-release', group: 'fongmi', version: 'release')
-    implementation files('libs\\commons-net-3.11.1.jar')
+    implementation files('libs/commons-net-3.11.1.jar')
     //implementation files('libs/fastjson-2.0.9.jar')
     //implementation files('libs/fastjson2-2.0.53.jar')
     leanbackImplementation 'androidx.leanback:leanback:1.2.0-alpha04'
@@ -185,4 +189,4 @@ dependencies {
 
     //implementation 'org.glassfish.jersey.core:jersey-server:2.46'  // Replace with your version
     //implementation 'org.glassfish.jersey.core:jersey-client:2.46'  // Optional if using Jersey client
-};
+}

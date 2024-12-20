@@ -115,8 +115,8 @@ public class App extends Application {
         OkHttp.get().setDoh(Doh.objectFrom(Setting.getDoh()));
 
         //HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword());
-        HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword());
-        HistorySyncManager.initGist( "1de074cade4ca85c981c801a45eaac5e",  "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");
+        HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword(), Setting.isUseFtp());
+        HistorySyncManager.initGist( Setting.getGistUrl(),  Setting.getGistToken(), Setting.isUseGist());
         HistorySyncManager.SyncAll();
         //new SyncTask().execute();
 

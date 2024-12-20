@@ -57,19 +57,17 @@ public class FtpManager {
             this.username = username;
             this.password = password;
             parseUrl(ftpUrl);
-            this.isServerReachable = !this.server.trim().isEmpty() && !this.server.isEmpty() && !this.path.trim().equalsIgnoreCase("");
-            this.useGist = false;
+            this.isServerReachable = this.server != null && !this.server.trim().isEmpty() && this.path != null &&  !this.path.trim().equalsIgnoreCase("");
 
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void parseUrl(String ftpUrl) throws URISyntaxException {
+    private void parseUrl(String ftpUrl) throws URISyntaxException, NullPointerException  {
         URI uri = new URI(ftpUrl);
         this.server = uri.getHost();
         this.path= uri.getPath();
-        this.useFTPS = uri.getScheme().equalsIgnoreCase("ftps");
         this.port = (uri.getPort() == -1) ? useFTPS ? 990 : 21 : uri.getPort();
 
         if (this.username.trim().isEmpty() || this.password.trim().isEmpty() || this.username.trim().equalsIgnoreCase("") || this.password.trim().equalsIgnoreCase(""))

@@ -1,5 +1,6 @@
 package com.github.kiulian.downloader.cipher;
 
+
 import java.util.List;
 import java.util.Map;
 
@@ -21,4 +22,5 @@ public class DefaultCipher implements Cipher {
         }
         return String.valueOf(signature);
     }
+
 }

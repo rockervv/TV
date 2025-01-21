@@ -1,15 +1,16 @@
 package com.github.kiulian.downloader.model;
 
-import com.google.gson.JsonObject;
+import com.alibaba.fastjson.JSONObject;
 
+// Video item of a list (playlist, or search result).
 public class AbstractListVideoDetails extends AbstractVideoDetails {
 
-    public AbstractListVideoDetails(JsonObject json) {
+    public AbstractListVideoDetails(JSONObject json) {
         super(json);
-        author = Utils.parseRuns(json.getAsJsonObject("shortBylineText"));
-        JsonObject jsonTitle = json.getAsJsonObject("title");
-        if (jsonTitle.has("simpleText")) {
-            title = jsonTitle.get("simpleText").getAsString();
+        author = Utils.parseRuns(json.getJSONObject("shortBylineText"));
+        JSONObject jsonTitle = json.getJSONObject("title");
+        if (jsonTitle.containsKey("simpleText")) {
+            title = jsonTitle.getString("simpleText");
         } else {
             title = Utils.parseRuns(jsonTitle);
         }

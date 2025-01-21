@@ -1,9 +1,10 @@
 package com.github.kiulian.downloader.model.subtitles;
 
+
+
 import java.util.regex.Pattern;
 
 public class SubtitlesInfo {
-
     private static final Pattern fmtRegex = Pattern.compile("&fmt=[^&]*");
     private static final Pattern tlangRegex = Pattern.compile("&tlang=[^&]*");
 
@@ -40,4 +41,5 @@ public class SubtitlesInfo {
     public boolean isFromCaptions() {
         return fromCaptions;
     }
+
 }

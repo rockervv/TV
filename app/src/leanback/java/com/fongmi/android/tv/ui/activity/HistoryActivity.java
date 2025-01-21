@@ -2,14 +2,18 @@ package com.fongmi.android.tv.ui.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+//import android.util.Log;
 import android.view.View;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.viewbinding.ViewBinding;
 
+
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
+//import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.bean.History;
+import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.databinding.ActivityHistoryBinding;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.ui.adapter.HistoryAdapter;
@@ -30,6 +34,11 @@ public class HistoryActivity extends BaseActivity implements HistoryAdapter.OnCl
         activity.startActivity(new Intent(activity, HistoryActivity.class));
     }
 
+    private void doSync() {
+        HistorySyncManager.SyncHistory();
+    }
+
+
     @Override
     protected ViewBinding getBinding() {
         return mBinding = ActivityHistoryBinding.inflate(getLayoutInflater());
@@ -37,8 +46,10 @@ public class HistoryActivity extends BaseActivity implements HistoryAdapter.OnCl
 
     @Override
     protected void initView() {
+        doSync();
         setRecyclerView();
         getHistory();
+
     }
 
     @Override
@@ -123,6 +134,7 @@ public class HistoryActivity extends BaseActivity implements HistoryAdapter.OnCl
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        //doSync();
         RefreshEvent.history();
     }
 

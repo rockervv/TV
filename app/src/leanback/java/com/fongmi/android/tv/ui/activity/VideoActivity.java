@@ -555,8 +555,8 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         mViewModel.playerContent(getKey(), flag.getFlag(), episode.getUrl());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         updateHistory(episode, replay);
-        mPlayers.clear();
-        mPlayers.stop();
+        //mPlayers.clear();
+        //mPlayers.stop();
         showProgress();
         setMetadata();
         hidePreview();
@@ -994,6 +994,8 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void onReset(boolean replay) {
+        mPlayers.clear();
+        mPlayers.stop();
         mClock.setCallback(null);
         if (mFlagAdapter.size() == 0) return;
         if (mEpisodeAdapter.size() == 0) return;

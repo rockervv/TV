@@ -16,8 +16,15 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TimeZone;
 
 @Entity
 public class History {
@@ -58,7 +65,10 @@ public class History {
     private int scale;
     @SerializedName("cid")
     private int cid;
-
+    @SerializedName("lastUpdated")
+    private long lastUpdated = getCurrentUTCTime();
+    @SerializedName("deleted")
+    private boolean deleted = false;
     public static History objectFrom(String str) {
         return App.gson().fromJson(str, History.class);
     }
@@ -73,6 +83,10 @@ public class History {
         this.speed = 1;
         this.scale = -1;
         this.player = -1;
+    }
+
+    public static List<History> getAll() {
+        return AppDatabase.get().getHistoryDao().getAll();
     }
 
     @NonNull
@@ -212,6 +226,19 @@ public class History {
         this.cid = cid;
     }
 
+    public long getLastUpdated() {
+        return lastUpdated;
+    }
+    public void setLastUpdated(long lastUpdated) {
+        this.lastUpdated = lastUpdated;
+    }
+    public boolean isDeleted() {
+        return deleted;
+    }
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
+    }
+
     public String getSiteName() {
         return VodConfig.get().getSite(getSiteKey()).getName();
     }
@@ -300,8 +327,14 @@ public class History {
     }
 
     public History delete() {
-        AppDatabase.get().getHistoryDao().delete(VodConfig.getCid(), getKey());
-        AppDatabase.get().getTrackDao().delete(getKey());
+        //soft delete
+        setDeleted(true);
+        setLastUpdated(System.currentTimeMillis());
+        AppDatabase.get().getHistoryDao().insertOrUpdate(this);
+        //hard delete
+        //AppDatabase.get().getHistoryDao().delete(VodConfig.getCid(), getKey());
+        //AppDatabase.get().getTrackDao().delete(getKey());
+
         return this;
     }
 
@@ -351,6 +384,65 @@ public class History {
             startSync(targets);
             RefreshEvent.history();
         });
+    }
+
+    private static long getCurrentUTCTime() {
+        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        return calendar.getTimeInMillis();
+    }
+    public static List<History> syncLists(List<History> list1, List<History> list2) {
+        Map<String, History> mergedMap = new HashMap<>();
+        // Process items from both lists
+        for (List<History> list : Arrays.asList(list1, list2)) {
+            for (History item : list) {
+                String key = item.getKey();
+                //if (!item.isDeleted() && item.lastUpdate.days - Datetime.days > xxx) { //TODO or noTodo: lastupdated is more xx days then remove from the mergedMap for hard delete
+                if (mergedMap.containsKey(key)) {
+                    History existingItem = mergedMap.get(key);
+                    if (item.isDeleted() || Objects.requireNonNull(existingItem).isDeleted()) {
+                        item.setDeleted(true);
+                        assert existingItem != null;
+                        existingItem.setDeleted(true);
+                    }
+                    if (item.getLastUpdated() > existingItem.getLastUpdated()) {
+                        updateAllColumns(existingItem, item);
+                    } else if (item.getPosition() > existingItem.getPosition()) {
+                        updateAllColumns(existingItem, item);
+                    }
+                } else {
+                    mergedMap.put(key, item);
+                }
+//                } else {
+//                    // If item is marked as deleted, remove it from the merged map
+//                    mergedMap.remove(key);
+//                }
+            }
+        }
+        List<History> result = new ArrayList<>(mergedMap.values());
+        //insertOrUpdate(result);
+        return result;
+    }
+    public static void insertOrUpdate(List<History> items) {
+        AppDatabase.get().getHistoryDao().insertOrUpdate(items);
+    }
+    private static void updateAllColumns(History existingItem, History newItem) {
+        existingItem.setVodPic(newItem.getVodPic());
+        existingItem.setVodName(newItem.getVodName());
+        existingItem.setVodFlag(newItem.getVodFlag());
+        existingItem.setVodRemarks(newItem.getVodRemarks());
+        existingItem.setEpisodeUrl(newItem.getEpisodeUrl());
+        existingItem.setRevSort(newItem.isRevSort());
+        existingItem.setRevPlay(newItem.isRevPlay());
+        existingItem.setCreateTime(newItem.getCreateTime());
+        existingItem.setOpening(newItem.getOpening());
+        existingItem.setEnding(newItem.getEnding());
+        existingItem.setPosition(newItem.getPosition());
+        existingItem.setDuration(newItem.getDuration());
+        existingItem.setSpeed(newItem.getSpeed());
+        existingItem.setPlayer(newItem.getPlayer());
+        existingItem.setScale(newItem.getScale());
+        existingItem.setCid(newItem.getCid());
+        existingItem.setLastUpdated(newItem.getLastUpdated());
     }
 
     @NonNull

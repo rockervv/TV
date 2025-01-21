@@ -1,26 +1,30 @@
 package com.github.kiulian.downloader.model.videos.formats;
 
+
+import com.alibaba.fastjson.JSONObject;
 import com.github.kiulian.downloader.model.videos.quality.AudioQuality;
-import com.google.gson.JsonObject;
 
 public class AudioFormat extends Format {
 
     private final Integer averageBitrate;
     private final Integer audioSampleRate;
-    private AudioQuality audioQuality;
+    private final AudioQuality audioQuality;
 
-    public AudioFormat(JsonObject json, boolean isAdaptive, String clientVersion) {
+    public AudioFormat(JSONObject json, boolean isAdaptive, String clientVersion) {
         super(json, isAdaptive, clientVersion);
-        audioSampleRate = json.get("audioSampleRate").getAsInt();
-        averageBitrate = json.get("averageBitrate").getAsInt();
-        if (json.has("audioQuality")) {
-            String[] split = json.get("audioQuality").getAsString().split("_");
+        audioSampleRate = json.getInteger("audioSampleRate");
+        averageBitrate = json.getInteger("averageBitrate");
+
+        AudioQuality audioQuality = null;
+        if (json.containsKey("audioQuality")) {
+            String[] split = json.getString("audioQuality").split("_");
             String quality = split[split.length - 1].toLowerCase();
             try {
                 audioQuality = AudioQuality.valueOf(quality);
             } catch (IllegalArgumentException ignore) {
             }
         }
+        this.audioQuality = audioQuality;
     }
 
     @Override

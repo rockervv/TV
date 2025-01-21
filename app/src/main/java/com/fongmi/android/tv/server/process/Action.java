@@ -44,16 +44,37 @@ public class Action implements Process {
     @Override
     public NanoHTTPD.Response doResponse(NanoHTTPD.IHTTPSession session, String path, Map<String, String> files) {
         Map<String, String> params = session.getParms();
-        String param = params.get("do");
-        if ("file".equals(param)) onFile(params);
-        else if ("push".equals(param)) onPush(params);
-        else if ("cast".equals(param)) onCast(params);
-        else if ("sync".equals(param)) onSync(params);
-        else if ("search".equals(param)) onSearch(params);
-        else if ("setting".equals(param)) onSetting(params);
-        else if ("refresh".equals(param)) onRefresh(params);
-        else if ("transmit".equals(param)) onTransmit(params, files);
+        switch (Objects.requireNonNullElse(params.get("do"), "")) {
+            case "search":
+                onSearch(params);
+                break;
+            case "push":
+                onPush(params);
+                break;
+            case "setting":
+                onSetting(params);
+                break;
+            case "file":
+                onFile(params);
+                break;
+            case "refresh":
+                onRefresh(params);
+                break;
+            case "cast":
+                onCast(params);
+                break;
+            case "sync":
+                onSync(params);
+                break;
+            case "transmit":
+                onTransmit(params, files);
+                break;
+            default:
+                return Nano.error(null);
+        }
         return Nano.success();
+
+
     }
 
     private void onSearch(Map<String, String> params) {
@@ -106,6 +127,7 @@ public class Action implements Process {
         boolean keep = Objects.equals(params.get("type"), "keep");
         boolean force = Objects.equals(params.get("force"), "true");
         boolean history = Objects.equals(params.get("type"), "history");
+
         String mode = Objects.requireNonNullElse(params.get("mode"), "0");
         if (params.get("device") != null && (mode.equals("0") || mode.equals("2"))) {
             Device device = Device.objectFrom(params.get("device"));

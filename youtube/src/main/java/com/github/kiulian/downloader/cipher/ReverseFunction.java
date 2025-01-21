@@ -1,5 +1,6 @@
 package com.github.kiulian.downloader.cipher;
 
+
 class ReverseFunction implements CipherFunction {
 
     @Override
@@ -7,4 +8,5 @@ class ReverseFunction implements CipherFunction {
         StringBuilder sb = new StringBuilder().append(array);
         return sb.reverse().toString().toCharArray();
     }
+
 }

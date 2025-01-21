@@ -2,13 +2,16 @@ package com.fongmi.android.tv.ui.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+//import android.util.Log;
 
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.Product;
+//import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Config;
+import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.databinding.ActivityKeepBinding;
 import com.fongmi.android.tv.event.RefreshEvent;
@@ -39,6 +42,19 @@ public class KeepActivity extends BaseActivity implements KeepAdapter.OnClickLis
     protected void initView() {
         setRecyclerView();
         getKeep();
+        doSync();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        doSync();
+        RefreshEvent.keep();
+    }
+
+    private void doSync()
+    {
+        HistorySyncManager.SyncKeep();
     }
 
     private void setRecyclerView() {

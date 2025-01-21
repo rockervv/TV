@@ -1,5 +1,6 @@
 package com.github.kiulian.downloader.cipher;
 
+
 class SwapFunctionV1 implements CipherFunction {
 
     @Override
@@ -10,4 +11,5 @@ class SwapFunctionV1 implements CipherFunction {
         array[position] = c;
         return array;
     }
+
 }

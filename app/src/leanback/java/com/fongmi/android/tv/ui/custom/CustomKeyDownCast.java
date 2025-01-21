@@ -17,6 +17,7 @@ public class CustomKeyDownCast extends GestureDetector.SimpleOnGestureListener {
     private final Listener listener;
     private boolean changeSpeed;
     private int holdTime;
+    private static int holdcnt;
 
     public static CustomKeyDownCast create(Activity activity) {
         return new CustomKeyDownCast(activity);
@@ -25,6 +26,7 @@ public class CustomKeyDownCast extends GestureDetector.SimpleOnGestureListener {
     private CustomKeyDownCast(Activity activity) {
         this.detector = new GestureDetector(activity, this);
         this.listener = (Listener) activity;
+        holdcnt = 0;
     }
 
     public boolean onTouchEvent(MotionEvent e) {
@@ -79,15 +81,22 @@ public class CustomKeyDownCast extends GestureDetector.SimpleOnGestureListener {
     }
 
     private int addTime() {
-        return holdTime = holdTime + Constant.INTERVAL_SEEK;
+        //holdcnt = holdcnt + 1;
+        //return holdTime = holdTime + Constant.INTERVAL_SEEK * (holdcnt > 5 ? holdcnt - 5 : 1);
+        return holdTime = (int) (holdTime + Constant.INTERVAL_SEEK * Math.pow(2,(int) (++holdcnt/10)));
+
     }
 
     private int subTime() {
-        return holdTime = holdTime - Constant.INTERVAL_SEEK;
+        //holdcnt = holdcnt + 1;
+        //return holdTime = holdTime - Constant.INTERVAL_SEEK * (holdcnt > 5 ? holdcnt - 5 : 1);
+        return holdTime = (int) (holdTime - Constant.INTERVAL_SEEK * Math.pow(2,(int) (++holdcnt/10)));
+        //return holdTime = holdTime - Constant.INTERVAL_SEEK;
     }
 
     public void resetTime() {
         holdTime = 0;
+        holdcnt = 0;
     }
 
     public interface Listener {

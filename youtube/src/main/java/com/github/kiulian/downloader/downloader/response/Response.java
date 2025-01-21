@@ -1,5 +1,6 @@
 package com.github.kiulian.downloader.downloader.response;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 

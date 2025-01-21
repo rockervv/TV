@@ -32,6 +32,8 @@ public class CustomKeyDownVod extends GestureDetector.SimpleOnGestureListener {
     private float bright;
     private float volume;
     private int holdTime;
+    private int holdcnt;
+
 
     public static CustomKeyDownVod create(Activity activity, View videoView) {
         return new CustomKeyDownVod(activity, videoView);
@@ -120,15 +122,21 @@ public class CustomKeyDownVod extends GestureDetector.SimpleOnGestureListener {
     }
 
     private int addTime() {
-        return holdTime = holdTime + Constant.INTERVAL_SEEK;
+        //return holdTime = holdTime + Constant.INTERVAL_SEEK;
+        return holdTime = (int) (holdTime + Constant.INTERVAL_SEEK * Math.pow(2,(int) (++holdcnt/10)));
+
     }
 
     private int subTime() {
-        return holdTime = holdTime - Constant.INTERVAL_SEEK;
+
+        //return holdTime = holdTime - Constant.INTERVAL_SEEK;
+        return holdTime = (int) (holdTime - Constant.INTERVAL_SEEK * Math.pow(2,(int) (++holdcnt/10)));
+
     }
 
     public void resetTime() {
         holdTime = 0;
+        holdcnt = 0;
     }
 
     private void checkFunc(float distanceX, float distanceY, MotionEvent e2) {

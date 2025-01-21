@@ -11,6 +11,7 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.databinding.ActivitySettingPlayerBinding;
 import com.fongmi.android.tv.impl.BufferCallback;
+import com.fongmi.android.tv.impl.SyncCallback;
 import com.fongmi.android.tv.impl.UaCallback;
 import com.fongmi.android.tv.player.Players;
 import com.fongmi.android.tv.ui.base.BaseActivity;
@@ -18,7 +19,7 @@ import com.fongmi.android.tv.ui.dialog.BufferDialog;
 import com.fongmi.android.tv.ui.dialog.UaDialog;
 import com.fongmi.android.tv.utils.ResUtil;
 
-public class SettingPlayerActivity extends BaseActivity implements UaCallback, BufferCallback {
+public class SettingPlayerActivity extends BaseActivity implements UaCallback, BufferCallback, SyncCallback {
 
     private ActivitySettingPlayerBinding mBinding;
     private String[] caption;
@@ -164,5 +165,6 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, B
         if (Setting.isCaption()) startActivity(new Intent(Settings.ACTION_CAPTIONING_SETTINGS));
         return Setting.isCaption();
     }
-
+    @Override
+    public void setSync() {    }
 }

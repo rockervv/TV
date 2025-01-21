@@ -12,6 +12,28 @@
     <string name="home_history">最近观看</string>
     <string name="home_recommend">更新推荐</string>
 
+    <!-- Sync -->
+    <string name="sync_setting">同步设定</string>
+    <string name="sync_now">同步</string>
+    <string name="sync_ftp_server">1. FTP/FTPS</string>
+    <string name="sync_ftp_server_hint">ftps://ServerName/FolerName/TV.json</string>
+    <string name="sync_ftp_username">FTP Username</string>
+    <string name="sync_ftp_Password">FTP Password</string>
+    <string name="sync_samba_server">5. Samba主机路径</string>
+    <string name="sync_samba_server_hint">smb://ServerName/FolerName/TV.json</string>
+    <string name="sync_samba_username">Samba Username</string>
+    <string name="sync_samba_Password">Samba Password</string>
+    <string name="sync_gist">2. Gist</string>
+    <string name="sync_gist_token">Gist Token</string>
+    <string name="sync_google_drive">3. Google Drive</string>
+    <string name="sync_google_drive_token">Google Drive Token</string>
+    <string name="sync_webdav">4. Webdav</string>
+    <string name="sync_webdav_username">4. Webdav Username</string>
+    <string name="sync_webdav_Password">4. Webdav Password</string>
+    <string name="sync_server_err">History sync server is unreachable</string>
+    <string name="sync_success">History data is Synchronized</string>
+    <string name="sync_fail">History data synchronization fail</string>
+
     <!-- Collect -->
     <string name="collect_result">“<xliff:g name="name">%s</xliff:g>”的搜索结果</string>
 

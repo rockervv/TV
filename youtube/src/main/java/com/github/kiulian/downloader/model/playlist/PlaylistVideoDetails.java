@@ -1,23 +1,24 @@
 package com.github.kiulian.downloader.model.playlist;
 
+import com.alibaba.fastjson.JSONObject;
 import com.github.kiulian.downloader.model.AbstractListVideoDetails;
-import com.google.gson.JsonObject;
 
 public class PlaylistVideoDetails extends AbstractListVideoDetails {
 
     private int index;
     private boolean isPlayable;
 
-    public PlaylistVideoDetails(JsonObject json) {
+    public PlaylistVideoDetails(JSONObject json) {
         super(json);
         if (!thumbnails().isEmpty()) {
             // Otherwise, contains "/hqdefault.jpg?"
             isLive = thumbnails().get(0).contains("/hqdefault_live.jpg?");
         }
-        if (json.has("index")) {
-            index = json.getAsJsonObject("index").get("simpleText").getAsInt();
+
+        if (json.containsKey("index")) {
+            index = json.getJSONObject("index").getIntValue("simpleText");
         }
-        isPlayable = json.get("isPlayable").getAsBoolean();
+        isPlayable = json.getBooleanValue("isPlayable");
     }
 
     @Override

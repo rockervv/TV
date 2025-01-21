@@ -1,5 +1,6 @@
 package com.github.kiulian.downloader.downloader.request;
 
+
 public class RequestWebpage extends RequestRaw<RequestWebpage> {
 
     protected final String url;

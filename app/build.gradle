@@ -4,8 +4,8 @@ plugins {
 
 android {
     namespace 'com.fongmi.android.tv'
-
     compileSdk 35
+
     flavorDimensions = ["mode", "api", "abi"]
 
     defaultConfig {
@@ -14,30 +14,24 @@ android {
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
         versionCode 258
-        versionName "2.5.8"
+        versionName "Rocker-2.5.8"
         javaCompileOptions {
             annotationProcessorOptions {
-                arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
+                //arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
+                arguments = ["room.schemaLocation": "$projectDir/schemas".toString(), "eventBusIndex": "com.fongmi.android.tv.event.EventIndex"]
             }
         }
     }
 
     productFlavors {
-        leanback {
-            dimension "mode"
-        }
         mobile {
-            dimension "mode"
+            dimension 'mode'
         }
         java {
             dimension "api"
         }
         python {
             dimension "api"
-        }
-        x86 {
-            dimension "abi"
-            ndk { abiFilters "x86" }
         }
         arm64_v8a {
             dimension "abi"
@@ -46,6 +40,16 @@ android {
         armeabi_v7a {
             dimension "abi"
             ndk { abiFilters "armeabi-v7a" }
+        }
+        leanback {
+            dimension 'mode'
+        }
+        x86 {
+            dimension 'abi'
+            ndk { abiFilters "x86" }
+        }
+        x86_64 {
+            dimension 'abi'
         }
     }
 
@@ -59,12 +63,25 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
+        }
+    }
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/beans.xml']
+
+            // Exclude META-INF/NOTICE.markdown from the APK/AAR
+            //exclude 'META-INF/NOTICE.markdown'
+            // Optionally, you can also exclude other common conflicting files
+
+            excludes += ['META-INF/NOTICE.md']
+            excludes += ['META-INF/NOTICE.txt']
+            excludes += ['META-INF/NOTICE.markdown']
+            excludes += ['META-INF/LICENSE.txt']
+            excludes += ['META-INF/LICENSE.md']
         }
     }
 
-    packagingOptions {
-        exclude 'META-INF/beans.xml'
-    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
@@ -73,13 +90,14 @@ android {
 
     android.applicationVariants.configureEach { variant ->
         variant.outputs.configureEach { output ->
-            outputFileName = "${variant.productFlavors[0].name}-${variant.productFlavors[1].name}-${variant.productFlavors[2].name}.apk"
+            outputFileName = "${variant.productFlavors[0].name}-${variant.productFlavors[1].name}-${variant.productFlavors[2].name}-${variant.buildType.name}.apk"
         }
     }
 
     android.applicationVariants.all { variant ->
         if (variant.buildType.name == 'release' && variant.productFlavors[0].name == 'mobile') {
-            variant.mergeAssets.doLast {
+            //variant.mergeAssets.doLast {
+            variant.mergeAssetsProvider.get().doLast {
                 delete(fileTree(dir: variant.mergeAssets.outputDir, includes: ['x5.tbs.apk']))
             }
         }
@@ -143,11 +161,18 @@ dependencies {
     implementation 'org.fourthline.cling:cling-support:2.1.2-SNAPSHOT'
     implementation 'org.greenrobot:eventbus:3.3.1'
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    //implementation 'commons-net:commons-net:3.9.0'
+    //implementation("commons-net:commons-net:3.11.1")
+    implementation 'com.google.code.gson:gson:2.11.0'
+
     implementation('org.simpleframework:simple-xml:2.7.1') { exclude group: 'stax', module: 'stax-api' exclude group: 'xpp3', module: 'xpp3' }
     implementation(ext: 'aar', name: 'danmaku', group: 'fongmi', version: 'release')
     implementation(ext: 'aar', name: 'dlna-core-release', group: 'fongmi', version: 'release')
     implementation(ext: 'aar', name: 'dlna-dmc-release', group: 'fongmi', version: 'release')
     implementation(ext: 'aar', name: 'dlna-dmr-release', group: 'fongmi', version: 'release')
+    implementation files('libs\\commons-net-3.11.1.jar')
+    //implementation files('libs/fastjson-2.0.9.jar')
+    //implementation files('libs/fastjson2-2.0.53.jar')
     leanbackImplementation 'androidx.leanback:leanback:1.2.0-alpha04'
     leanbackImplementation 'com.github.hedzr:android-file-chooser:v1.2.0-final'
     leanbackImplementation 'com.github.JessYanCoding:AndroidAutoSize:1.2.1'
@@ -156,4 +181,8 @@ dependencies {
     mobileImplementation('com.journeyapps:zxing-android-embedded:4.3.0') { transitive = false }
     annotationProcessor 'androidx.room:room-compiler:2.6.1'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
-}
+    annotationProcessor 'org.greenrobot:eventbus-annotation-processor:3.3.1'
+
+    //implementation 'org.glassfish.jersey.core:jersey-server:2.46'  // Replace with your version
+    //implementation 'org.glassfish.jersey.core:jersey-client:2.46'  // Optional if using Jersey client
+};

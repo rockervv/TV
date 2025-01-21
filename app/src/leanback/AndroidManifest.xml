@@ -150,6 +150,11 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"
             android:screenOrientation="sensorLandscape" />
 
+<!--         <activity-->
+<!--            android:name=".ui.activity.SettingSyncActivity"-->
+<!--            android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"-->
+<!--            android:screenOrientation="sensorLandscape" />-->
+
         <activity
             android:name=".ui.activity.SettingDanmuActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"

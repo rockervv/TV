@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import java.lang.Math;
 
 import androidx.annotation.NonNull;
 
@@ -22,6 +23,7 @@ public class CustomKeyDownLive extends GestureDetector.SimpleOnGestureListener {
     private final StringBuilder text;
     private final Listener listener;
     private int holdTime;
+    private int holdcnt;
 
     private final Runnable runnable = new Runnable() {
         @Override
@@ -124,15 +126,24 @@ public class CustomKeyDownLive extends GestureDetector.SimpleOnGestureListener {
     }
 
     private int addTime() {
-        return holdTime = holdTime + Constant.INTERVAL_SEEK;
+        //holdcnt = holdcnt + 1;
+        //return holdTime = holdTime + Constant.INTERVAL_SEEK * ((holdcnt > 10 ? (holdcnt - 10)/2 : 0) + 1);
+        return holdTime = (int) (holdTime + Constant.INTERVAL_SEEK * Math.pow(2,(int) (++holdcnt/10)));
+
+        //return holdTime = holdTime + Constant.INTERVAL_SEEK;
     }
 
     private int subTime() {
-        return holdTime = holdTime - Constant.INTERVAL_SEEK;
+        //holdcnt = holdcnt + 1;
+        //return holdTime = holdTime - Constant.INTERVAL_SEEK * ((holdcnt > 10 ? (holdcnt - 10)/2 : 0) + 1);
+        return holdTime = (int) (holdTime - Constant.INTERVAL_SEEK * Math.pow(2,(int) (++holdcnt/10)));
+
+        //return holdTime = holdTime - Constant.INTERVAL_SEEK;
     }
 
     public void resetTime() {
         holdTime = 0;
+        holdcnt = 0;
     }
 
     public interface Listener {

@@ -1,14 +1,12 @@
 package com.github.kiulian.downloader.cipher;
 
+
 import com.github.kiulian.downloader.YoutubeException;
 import com.github.kiulian.downloader.downloader.Downloader;
 import com.github.kiulian.downloader.downloader.request.RequestWebpage;
 import com.github.kiulian.downloader.downloader.response.Response;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -252,4 +250,5 @@ public class CachedCipherFactory implements CipherFactory {
         }
         throw new YoutubeException.CipherException("Map function not found");
     }
+
 }

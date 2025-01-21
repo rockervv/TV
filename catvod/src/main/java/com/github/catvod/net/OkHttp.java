@@ -24,6 +24,9 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.dnsoverhttps.DnsOverHttps;
+//import okhttp3.logging-interceptor;
+import okhttp3.logging.HttpLoggingInterceptor;
+
 
 public class OkHttp {
 
@@ -35,6 +38,8 @@ public class OkHttp {
     private DnsOverHttps dns;
     private OkHttpClient client;
     private OkProxySelector selector;
+
+    //private HttpLoggingInterceptor logger;
 
     static {
         defaultSelector = ProxySelector.getDefault();
@@ -58,6 +63,8 @@ public class OkHttp {
         client = null;
     }
 
+    //public static HttpLoggingInterceptor Logger() { return get().logger != null ? get().logger : HttpLoggingInterceptor(); }
+
     public void setProxy(String proxy) {
         ProxySelector.setDefault(TextUtils.isEmpty(proxy) ? defaultSelector : selector());
         if (!TextUtils.isEmpty(proxy)) selector().setProxy(proxy);
@@ -76,11 +83,14 @@ public class OkHttp {
     }
 
     public static OkHttpClient client(int timeout) {
-        return client().newBuilder().connectTimeout(timeout, TimeUnit.MILLISECONDS).readTimeout(timeout, TimeUnit.MILLISECONDS).writeTimeout(timeout, TimeUnit.MILLISECONDS).build();
+        //return client().newBuilder().connectTimeout(timeout, TimeUnit.MILLISECONDS).readTimeout(timeout, TimeUnit.MILLISECONDS).writeTimeout(timeout, TimeUnit.MILLISECONDS).build();
+        return client().newBuilder().addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC)).connectTimeout(timeout, TimeUnit.MILLISECONDS).readTimeout(timeout, TimeUnit.MILLISECONDS).writeTimeout(timeout, TimeUnit.MILLISECONDS).build();
+
     }
 
     public static OkHttpClient noRedirect(int timeout) {
-        return client().newBuilder().connectTimeout(timeout, TimeUnit.MILLISECONDS).readTimeout(timeout, TimeUnit.MILLISECONDS).writeTimeout(timeout, TimeUnit.MILLISECONDS).followRedirects(false).followSslRedirects(false).build();
+        //return client().newBuilder().connectTimeout(timeout, TimeUnit.MILLISECONDS).readTimeout(timeout, TimeUnit.MILLISECONDS).writeTimeout(timeout, TimeUnit.MILLISECONDS).followRedirects(false).followSslRedirects(false).build();
+        return client().newBuilder().addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC)).connectTimeout(timeout, TimeUnit.MILLISECONDS).readTimeout(timeout, TimeUnit.MILLISECONDS).writeTimeout(timeout, TimeUnit.MILLISECONDS).followRedirects(false).followSslRedirects(false).build();
     }
 
     public static OkHttpClient client(boolean redirect, int timeout) {

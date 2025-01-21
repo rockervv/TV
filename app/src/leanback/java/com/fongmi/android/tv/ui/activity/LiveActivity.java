@@ -805,7 +805,9 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, GroupP
                 mBinding.display.size.setText(mPlayers.getSizeText());
                 break;
             case Player.STATE_ENDED:
-                nextEpg();
+                if (mPlayers.isVod()) nextChannel();
+                else  nextEpg();
+
                 break;
         }
     }
@@ -866,16 +868,18 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, GroupP
 
     private void onError(ErrorEvent event) {
         onErrorPlayer(event);
-        startFlow();
+        if (!mPlayers.isVod())
+            startFlow();
     }
 
     private void startFlow() {
-        if (!Setting.isChange()) return;
+        //if (!Setting.isChange()) return;
         if (!mChannel.isLast()) {
             nextLine(true);
         } else if (isGone(mBinding.recycler)) {
             mChannel.setLine(0);
             nextChannel();
+
         }
     }
 
@@ -898,10 +902,11 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, GroupP
     }
 
     public void nextEpg() {
+        //Notify.show("nextEPG");
         int position = mChannel.getData().getSelected() + 1;
         boolean limit = position > mEpgDataAdapter.size() - 1;
         if (!limit) onItemClick(mChannel.getData().getList().get(position));
-        else nextChannel();
+
     }
 
     private void prevLine() {

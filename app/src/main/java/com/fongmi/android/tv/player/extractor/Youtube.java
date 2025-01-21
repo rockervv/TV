@@ -16,6 +16,7 @@ import com.github.kiulian.downloader.model.videos.VideoInfo;
 import com.github.kiulian.downloader.model.videos.formats.AudioFormat;
 import com.github.kiulian.downloader.model.videos.formats.Format;
 import com.github.kiulian.downloader.model.videos.formats.VideoFormat;
+import com.github.kiulian.downloader.downloader.client.ClientType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +35,7 @@ public class Youtube implements Source.Extractor {
     private static YoutubeDownloader downloader;
 
     private static YoutubeDownloader getDownloader() {
-        return downloader = downloader == null ? new YoutubeDownloader(OkHttp.client()) : downloader;
+        return downloader = downloader == null ? new YoutubeDownloader() : downloader;
     }
 
     @Override
@@ -47,10 +48,14 @@ public class Youtube implements Source.Extractor {
         Matcher matcher = PATTERN_VID.matcher(url);
         if (!matcher.find()) return "";
         String videoId = matcher.group();
-        RequestVideoInfo request = new RequestVideoInfo(videoId);
+        RequestVideoInfo request = new RequestVideoInfo(videoId)
+                .clientType(ClientType.IOS);
         VideoInfo info = getDownloader().getVideoInfo(request).data();
+
+
+
         if (info == null || info.details() == null) throw new ExtractException("");
-        return info.details().isLive() ? info.details().liveUrl() : getMpdWithBase64(info);
+        return info.details().isLive() || info.details().isHLS() ? info.details().liveUrl() : getMpdWithBase64(info);
     }
 
     private String getMpdWithBase64(VideoInfo info) {

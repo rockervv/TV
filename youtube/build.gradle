@@ -16,4 +16,12 @@ android {
 dependencies {
     implementation 'com.google.code.gson:gson:' + gsonVersion
     implementation 'com.squareup.okhttp3:okhttp:' + okhttpVersion
+    implementation 'com.alibaba:fastjson:1.2.83'
+    implementation 'org.glassfish.jersey.core:jersey-server:2.46'
+    //implementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    //implementation('org.junit.jupiter:')
+    //implementation files('../../java-youtube-downloader/junit-jupiter-api-5.11.4.jar')
+    //implementation files('../../java-youtube-downloader/junit-jupiter-engine-5.3.2.jar ')
+
+    //implementation files('../app/libs/fastjson-2.0.9.jar')
 }

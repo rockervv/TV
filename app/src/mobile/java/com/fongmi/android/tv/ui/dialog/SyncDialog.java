@@ -20,7 +20,7 @@ import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Device;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Keep;
-import com.fongmi.android.tv.databinding.DialogDeviceBinding;
+import com.fongmi.android.tv.databinding.DialogSyncBinding;
 import com.fongmi.android.tv.event.ScanEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.ui.activity.ScanActivity;
@@ -49,7 +49,7 @@ public class SyncDialog extends BaseDialog implements DeviceAdapter.OnClickListe
     private final FormBody.Builder body;
     private final OkHttpClient client;
     private final TypedArray mode;
-    private DialogDeviceBinding binding;
+    private DialogSyncBinding binding;
     private DeviceAdapter adapter;
     private String type;
 
@@ -89,7 +89,7 @@ public class SyncDialog extends BaseDialog implements DeviceAdapter.OnClickListe
 
     @Override
     protected ViewBinding getBinding(@NonNull LayoutInflater inflater, @Nullable ViewGroup container) {
-        return binding = DialogDeviceBinding.inflate(inflater, container, false);
+        return binding = DialogSyncBinding.inflate(inflater, container, false);
     }
 
     @Override

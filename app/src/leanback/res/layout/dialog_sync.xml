@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+                android:id="@+id/syncUseFtp"
+        	android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/selector_text"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+        	android:nextFocusDown="@id/ftpServer"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    android:text="@string/sync_use_ftp"
+        	    android:textColor="@color/white"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/syncUseFtpText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+        	    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    tools:text="Off" />
+
+    </LinearLayout>
+
+
+    <TextView
+        android:id="@+id/ftpLocation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:ellipsize="end"
+        android:focusable="true"
+        android:lineSpacingExtra="4dp"
+        android:maxLines="3"
+        android:textColor="@color/grey_700"
+        android:textSize="18sp"
+        android:text="@string/sync_ftp_server" />
+
+
+
+    <com.fongmi.android.tv.ui.custom.CustomEditText
+        android:id="@+id/ftpServer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:hint="@string/sync_ftp_server_hint"
+        android:imeOptions="actionDone"
+        android:importantForAutofill="no"
+        android:inputType="text"
+        android:nextFocusDown="@id/ftpUsername"
+        android:singleLine="true"
+        android:textSize="18sp" />
+
+
+
+    <LinearLayout
+        android:id="@+id/ftpUserNamePanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/ftpUsernameLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:lineSpacingExtra="4dp"
+            android:maxLines="3"
+            android:textColor="@color/grey_700"
+            android:textSize="18sp"
+            android:text="@string/sync_ftp_username" />
+
+        <com.fongmi.android.tv.ui.custom.CustomEditText
+            android:id="@+id/ftpUsername"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint=""
+            android:imeOptions="actionDone"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:nextFocusDown="@id/ftpPassword"
+            android:singleLine="true"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/ftpPasswordPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+
+
+        <TextView
+            android:id="@+id/ftpPasswordLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/grey_700"
+            android:textSize="18sp"
+            android:text="@string/sync_ftp_Password" />
+
+        <com.fongmi.android.tv.ui.custom.CustomEditText
+            android:id="@+id/ftpPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint=""
+            android:imeOptions="actionDone"
+            android:importantForAutofill="no"
+            android:inputType="textVisiblePassword"
+            android:nextFocusDown="@id/syncUseGist"
+            android:singleLine="true"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <LinearLayout
+                android:id="@+id/syncUseGist"
+        	android:layout_width="match_parent"
+	        android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/selector_text"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusDown="@id/syncGistUrl"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    android:text="@string/sync_use_gist"
+        	    android:textColor="@color/white"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/syncUseGistText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+        	    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    tools:text="Off" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/syncGistPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/syncGistUrlLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/grey_700"
+            android:textSize="18sp"
+            android:text="@string/sync_gist_url" />
+
+        <com.fongmi.android.tv.ui.custom.CustomEditText
+            android:id="@+id/syncGistUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="1de074cade4ca85c981c801a45eaac5ee"
+            android:imeOptions="actionDone"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:nextFocusDown="@id/syncGistToken"
+            android:singleLine="true"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/syncGistTokenPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+
+        <TextView
+            android:id="@+id/syncGistTokenLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:ellipsize="end"
+            android:focusable="true"
+            android:lineSpacingExtra="4dp"
+            android:maxLines="3"
+            android:textColor="@color/grey_700"
+            android:textSize="18sp"
+            android:text="@string/sync_gist_token" />
+
+        <com.fongmi.android.tv.ui.custom.CustomEditText
+            android:id="@+id/syncGistToken"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="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c"
+            android:imeOptions="actionDone"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:nextFocusDown="@id/positive"
+            android:singleLine="true"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:id="@+id/bottom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/positive"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:layout_weight="1"
+            android:background="@drawable/selector_text"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:singleLine="true"
+            android:text="@string/dialog_positive"
+            android:textColor="@color/white"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/negative"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/selector_text"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:singleLine="true"
+            android:text="@string/dialog_negative"
+            android:textColor="@color/white"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+</LinearLayout>

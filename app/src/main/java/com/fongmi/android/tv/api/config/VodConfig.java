@@ -4,6 +4,7 @@ import android.text.TextUtils;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.api.Decoder;
 import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.bean.Config;
@@ -219,6 +220,9 @@ public class VodConfig {
         setFlags(Json.safeListString(object, "flags"));
         setWall(Json.safeString(object, "wallpaper"));
         setAds(Json.safeListString(object, "ads"));
+        setGistU(Json.safeString(object, "gisturl"));
+        setGistT(Json.safeString(object, "gisttoken"));
+
     }
 
     private String parseApi(String api) {
@@ -341,4 +345,19 @@ public class VodConfig {
         boolean load = !TextUtils.isEmpty(wall) && WallConfig.get().needSync(wall);
         if (load) WallConfig.get().config(Config.find(wall, config.getName(), 2).update());
     }
+
+    private void setGistU(String gistU) {
+        //this.gistU = gistU;
+        boolean load = !TextUtils.isEmpty(gistU);
+        //if (load) WallConfig.get().config(Config.find(wall, config.getName(), 2).update());
+        if (load) Setting.putGistUrl(gistU.trim());
+    }
+
+    private void setGistT(String gistT) {
+        //this.gistT = gistT;
+        boolean load = !TextUtils.isEmpty(gistT);
+        //if (load) WallConfig.get().config(Config.find(wall, config.getName(), 2).update());
+        if (load) Setting.putGistUrl(gistT.trim());
+    }
+
 }

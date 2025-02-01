@@ -98,7 +98,7 @@ public class SyncDialog{ // implements DialogInterface.OnDismissListener {
         Setting.putFtpUri(binding.ftpServer.getText().toString().trim());
 
         Setting.putGistUrl(binding.syncGistUrl.getText().toString().trim());
-        Setting.putGistUrl(binding.syncGistToken.getText().toString().trim());
+        Setting.putGistToken(binding.syncGistToken.getText().toString().trim());
         dialog.dismiss();
 
 

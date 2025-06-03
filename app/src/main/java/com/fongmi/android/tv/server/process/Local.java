@@ -47,7 +47,7 @@ public class Local implements Process {
             if (file.isFile()) return getFile(headers, file, NanoHTTPD.getMimeTypeForFile(path));
             throw new FileNotFoundException();
         } catch (Exception e) {
-            return Nano.error(e.getMessage());
+            return Nano.error("Get Local File:" + path + "error: " + e.getMessage());
         }
     }
 

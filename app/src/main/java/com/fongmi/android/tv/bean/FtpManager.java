@@ -38,8 +38,8 @@ public class FtpManager {
     public boolean isServerReachable;
 
     public void initGist(String gurl, String gtoken) {
-        this.gisturl = gurl;
-        this.gisttoken = "https://api.github.com/gists/" + gtoken;
+        this.gisturl = "https://api.github.com/gists/" + gurl;
+        this.gisttoken = gtoken;
         this.useGist = true;
     }
     public FtpManager(String server, String path, int port, String username, String password, boolean useFTPS) {

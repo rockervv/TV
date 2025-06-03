@@ -1,6 +1,7 @@
 package com.fongmi.android.tv;
 
 import android.app.Activity;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 
@@ -40,11 +41,13 @@ public class Updater implements Download.Callback {
     }
 
     private String getJson() {
-        return Github.getJson(dev, BuildConfig.FLAVOR_mode);
+        return Github.getJson(dev, BuildConfig.FLAVOR_mode); //leanback
     }
 
     private String getApk() {
-        return Github.getApk(dev, BuildConfig.FLAVOR_mode + "-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi);
+        return Github.getApk(dev, BuildConfig.FLAVOR_mode + "-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi); //leanback-python-x86_64-release
+
+        //return Github.getApk(dev, BuildConfig.FLAVOR); //leanbackPythonX86_64
     }
 
     public Updater force() {
@@ -72,19 +75,27 @@ public class Updater implements Download.Callback {
         App.execute(() -> doInBackground(activity));
     }
 
+
+    //VERSION_CODE = 258;
+    //VERSION_NAME = "Rocker-2.5.8";
     private boolean need(int code, String name) {
+        Log.d("Updater", name + " code: " + code );
         return Setting.getUpdate() && (dev ? !name.equals(BuildConfig.VERSION_NAME) && code >= BuildConfig.VERSION_CODE : code > BuildConfig.VERSION_CODE);
     }
 
     private void doInBackground(Activity activity) {
+        String url = getJson();
         try {
-            JSONObject object = new JSONObject(OkHttp.string(getJson()));
+            String Jsondata = OkHttp.string(url);
+            JSONObject object = new JSONObject(Jsondata);
             String name = object.optString("name");
             String desc = object.optString("desc");
             int code = object.optInt("code");
             if (need(code, name)) App.post(() -> show(activity, name, desc));
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.d("Updater", url + " error: " + e);
+
+            //e.printStackTrace();
         }
     }
 

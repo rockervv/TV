@@ -19,18 +19,25 @@ import com.github.catvod.utils.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LiveParser {
 
+    private static final Pattern CATCHUP_REPLACE = Pattern.compile(".*catchup-replace=\"(.?|.+?)\".*");
     private static final Pattern CATCHUP_SOURCE = Pattern.compile(".*catchup-source=\"(.?|.+?)\".*");
     private static final Pattern CATCHUP = Pattern.compile(".*catchup=\"(.?|.+?)\".*");
+    private static final Pattern TVG_CHNO = Pattern.compile(".*tvg-chno=\"(.?|.+?)\".*");
+
     private static final Pattern TVG_NAME = Pattern.compile(".*tvg-name=\"(.?|.+?)\".*");
     private static final Pattern TVG_LOGO = Pattern.compile(".*tvg-logo=\"(.?|.+?)\".*");
     private static final Pattern TVG_URL = Pattern.compile(".*x-tvg-url=\"(.?|.+?)\".*");
+    private static final Pattern URL_TVG = Pattern.compile(".*url-tvg=\"(.?|.+?)\".*");
+
     private static final Pattern GROUP = Pattern.compile(".*group-title=\"(.?|.+?)\".*");
     private static final Pattern NAME = Pattern.compile(".*,(.+?)$");
+    private static final Pattern M3U = Pattern.compile("#EXTM3U|#EXTINF");
 
     private static String extract(String line, Pattern pattern) {
         Matcher matcher = pattern.matcher(line.trim());
@@ -48,12 +55,15 @@ public class LiveParser {
     public static void text(Live live, String text) {
         int number = 0;
         if (live.getGroups().size() > 0) return;
+        if (M3U.matcher(text).find()) m3u(live, text); else txt(live, text);
+
         text = text.replace("\r\n", "\n");
         if (text.contains("#EXTM3U")) m3u(live, text);
         else txt(live, text);
         for (Group group : live.getGroups()) {
             for (Channel channel : group.getChannel()) {
-                channel.setNumber(++number);
+                //channel.setNumber(++number);
+                if (channel.getNumber().isEmpty()) channel.setNumber(++number);
                 channel.live(live);
             }
         }
@@ -85,15 +95,18 @@ public class LiveParser {
             } else if (line.startsWith("#EXTM3U")) {
                 catchup.setType(extract(line, CATCHUP));
                 catchup.setSource(extract(line, CATCHUP_SOURCE));
+                catchup.setReplace(extract(line, CATCHUP_REPLACE));
                 if (live.getEpg().isEmpty()) live.setEpg(extract(line, TVG_URL));
             } else if (line.startsWith("#EXTINF:")) {
                 Group group = live.find(Group.create(extract(line, GROUP), live.isPass()));
                 channel = group.find(Channel.create(extract(line, NAME)));
                 channel.setTvgName(extract(line, TVG_NAME));
+                channel.setNumber(extract(line, TVG_CHNO));
                 channel.setLogo(extract(line, TVG_LOGO));
                 Catchup unknown = Catchup.create();
                 unknown.setType(extract(line, CATCHUP));
                 unknown.setSource(extract(line, CATCHUP_SOURCE));
+                unknown.setReplace(extract(line, CATCHUP_REPLACE));
                 channel.setCatchup(Catchup.decide(unknown, catchup));
             } else if (!line.startsWith("#") && line.contains("://")) {
                 String[] split = line.split("\\|");

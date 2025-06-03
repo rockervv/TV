@@ -16,9 +16,11 @@ import android.text.TextUtils;
 import androidx.annotation.NonNull;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
+import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.util.EventLogger;
 import androidx.media3.ui.PlayerView;
 
@@ -37,6 +39,7 @@ import com.fongmi.android.tv.event.PlayerEvent;
 import com.fongmi.android.tv.impl.ParseCallback;
 import com.fongmi.android.tv.impl.SessionCallback;
 import com.fongmi.android.tv.player.exo.ExoUtil;
+import com.fongmi.android.tv.player.exo.MediaSourceFactory;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
@@ -47,6 +50,7 @@ import com.github.catvod.utils.Path;
 import com.google.common.net.HttpHeaders;
 import com.orhanobut.logger.Logger;
 
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Formatter;
@@ -54,6 +58,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.io.UnsupportedEncodingException;
 
 import master.flame.danmaku.controller.DrawHandler;
 import master.flame.danmaku.danmaku.model.BaseDanmaku;
@@ -62,9 +67,15 @@ import master.flame.danmaku.ui.widget.DanmakuView;
 import tv.danmaku.ijk.media.player.IMediaPlayer;
 import tv.danmaku.ijk.media.player.ui.IjkVideoView;
 
+import android.os.Handler;
+import android.os.Looper;
+
+
 public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCallback, DrawHandler.Callback {
 
     private static final String TAG = Players.class.getSimpleName();
+    private static String proxyurl;
+
 
     public static final int SYS = 0;
     public static final int IJK = 1;
@@ -125,6 +136,9 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
         return player == SYS || player == IJK;
     }
 
+    private void initProxy() {
+        proxyurl = Server.get().getAddress("/m3u8?url=");
+    }
     private Players(Activity activity) {
         player = Setting.getPlayer();
         decode = Setting.getDecode(player);
@@ -132,7 +146,11 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
         runnable = ErrorEvent::timeout;
         formatter = new Formatter(builder, Locale.getDefault());
         position = C.TIME_UNSET;
+        initProxy();
         createSession(activity);
+
+
+
     }
 
     private void createSession(Activity activity) {
@@ -357,7 +375,8 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
 
     public String addSpeed() {
         float speed = getSpeed();
-        float addon = speed >= 2 ? 1f : 0.25f;
+        float addon = speed >= 2 ? 0.2f : 0.1f;
+        //float addon = speed >= 2 ? 1f : 0.25f;
         speed = speed >= 5 ? 0.25f : Math.min(speed + addon, 5.0f);
         return setSpeed(speed);
     }
@@ -550,10 +569,73 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
     }
 
     private void setMediaSource(Map<String, String> headers, String url, String format, Drm drm, List<Sub> subs, int timeout) {
-        if (isIjk() && ijkPlayer != null) ijkPlayer.setMediaSource(IjkUtil.getSource(this.headers = checkUa(headers), this.url = url), position);
-        if (isExo() && exoPlayer != null) exoPlayer.setMediaItem(ExoUtil.getMediaItem(this.headers = checkUa(headers), UrlUtil.uri(this.url = url), this.format = format, this.drm = drm, checkSub(this.subs = subs), decode), position);
-        if (isExo() && exoPlayer != null) exoPlayer.prepare();
+
+        //ADFilter.setM3U8ParseListener((adCount, adSeconds) -> {
+            //App.post(() -> Notify.show("已過濾廣告段數：" + adCount + "，總長：" + adSeconds + " 秒"));
+            //Notify.show("已過濾廣告段數：" + adCount + "，總長：" + adSeconds + " 秒");
+        //});
+
+        if (true == false ){
+            if (isIjk() && ijkPlayer != null) {
+
+            IjkUtil.getSourceAsync(ijkPlayer.getContext(), this.headers = checkUa(headers), this.url = url, mediaSource -> {
+                ijkPlayer.setMediaSource(mediaSource, position);
+            });
+            //MediaSource source = IjkUtil.getSource(this.headers = checkUa(headers), this.url = url),
+            //ijkPlayer.setMediaSource(source, position);
+            }
+
+            else
+            if (isExo() && exoPlayer != null) {
+                MediaItem item = ExoUtil.getMediaItem(this.headers = checkUa(headers),
+                        UrlUtil.uri(this.url = url),
+                        this.format = format,
+                        this.drm = drm,
+                        checkSub(this.subs = subs), decode);
+                MediaSourceFactory factory = new MediaSourceFactory();
+                //factory.createMediaSource(item);
+
+                MediaSource source = factory.createMediaSource(item);
+                Notify.show("new source");
+
+
+                //exoPlayer.setMediaItem(item, position);
+                exoPlayer.setMediaSource(source, position);
+                exoPlayer.prepare();
+            }
+        }
+
+        try {
+            if (url.startsWith(proxyurl))
+            {
+
+            }
+            else {
+                url = proxyurl + URLEncoder.encode(url, "UTF-8");
+            }
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace(); // 或自訂錯誤處理邏輯
+        }
+
+        if (isIjk() && ijkPlayer != null) {
+            tv.danmaku.ijk.media.player.MediaSource source = IjkUtil.getSource(this.headers = checkUa(headers), this.url = url);
+            ijkPlayer.setMediaSource(source, position);
+        }
+        if (isExo() && exoPlayer != null) {
+            MediaItem item = ExoUtil.getMediaItem(this.headers = checkUa(headers),
+                    UrlUtil.uri(this.url = url),
+                    this.format = format,
+                    this.drm = drm,
+                    checkSub(this.subs = subs), decode);
+
+            exoPlayer.setMediaItem(item, position);
+            exoPlayer.prepare();
+
+        }
+
+
         App.post(runnable, timeout);
+
         PlayerEvent.prepare();
         Logger.t(TAG).d(url);
     }

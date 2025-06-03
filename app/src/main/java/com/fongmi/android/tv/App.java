@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 import androidx.core.os.HandlerCompat;
 
 import com.fongmi.android.tv.api.config.LiveConfig;
+import com.fongmi.android.tv.player.ADFilter;
 import com.fongmi.android.tv.ui.activity.CrashActivity;
 import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.utils.LanguageUtil;
@@ -154,6 +155,21 @@ public class App extends Application {
 
             @Override
             public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {
+            }
+        });
+
+        ADFilter.setM3U8ParseListener(new ADFilter.M3U8ParseListener() {
+            @Override
+            public void onAdSegmentsFiltered(int adCount, double adSeconds) {
+                // 切回主執行緒（UI Thread）
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    // 在這裡操作 UI 或觸發其他主線邏輯
+                    //Toast.makeText(context, "ADs filtered: " + adCount + " segments, " + adSeconds + " seconds", Toast.LENGTH_SHORT).show();
+                    if (adCount > 0)
+                        Notify.show("過濾 " + adCount + " 廣告，共：" + adSeconds+ " 秒");
+                    else if (adCount < 0)
+                        Notify.show("廣告過濾失敗");
+                });
             }
         });
 

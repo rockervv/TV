@@ -33,6 +33,7 @@ public class VodConfig {
     private List<Parse> parses;
     private List<String> flags;
     private List<String> ads;
+    private List<String> parseAds;
     private boolean loadLive;
     private Config config;
     private Parse parse;
@@ -81,6 +82,7 @@ public class VodConfig {
         this.parse = null;
         this.config = Config.vod();
         this.ads = new ArrayList<>();
+        this.parseAds = new ArrayList<>();
         this.doh = new ArrayList<>();
         this.rules = new ArrayList<>();
         this.sites = new ArrayList<>();
@@ -100,6 +102,7 @@ public class VodConfig {
         this.home = null;
         this.parse = null;
         this.ads.clear();
+        this.parseAds.clear();
         this.doh.clear();
         this.rules.clear();
         this.sites.clear();
@@ -167,6 +170,7 @@ public class VodConfig {
             if (loadLive && object.has("lives")) initLive(object);
             String notice = Json.safeString(object, "notice");
             config.logo(Json.safeString(object, "logo"));
+
             App.post(() -> callback.success(notice));
             config.json(object.toString()).update();
             App.post(callback::success);
@@ -220,6 +224,7 @@ public class VodConfig {
         setFlags(Json.safeListString(object, "flags"));
         setWall(Json.safeString(object, "wallpaper"));
         setAds(Json.safeListString(object, "ads"));
+        setparseAds(Json.safeListString(object, "parseAds"));
         setGistU(Json.safeString(object, "gisturl"));
         setGistT(Json.safeString(object, "gisttoken"));
 
@@ -295,9 +300,15 @@ public class VodConfig {
     public List<String> getAds() {
         return ads == null ? Collections.emptyList() : ads;
     }
+    public List<String> getparseAds() {
+        return parseAds == null ? Collections.emptyList() : parseAds;
+    }
 
     private void setAds(List<String> ads) {
         this.ads = ads;
+    }
+    private void setparseAds(List<String> parseAds) {
+        this.parseAds = parseAds;
     }
 
     public Config getConfig() {
@@ -357,7 +368,7 @@ public class VodConfig {
         //this.gistT = gistT;
         boolean load = !TextUtils.isEmpty(gistT);
         //if (load) WallConfig.get().config(Config.find(wall, config.getName(), 2).update());
-        if (load) Setting.putGistUrl(gistT.trim());
+        if (load) Setting.putGistToken(gistT.trim());
     }
 
 }

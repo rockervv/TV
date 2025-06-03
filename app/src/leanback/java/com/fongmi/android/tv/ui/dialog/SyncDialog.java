@@ -12,6 +12,7 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Setting;
 //import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Config;
+import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.databinding.DialogSyncBinding;
 import com.fongmi.android.tv.event.ServerEvent;
 //import com.fongmi.android.tv.impl.SyncCallback;
@@ -99,6 +100,10 @@ public class SyncDialog{ // implements DialogInterface.OnDismissListener {
 
         Setting.putGistUrl(binding.syncGistUrl.getText().toString().trim());
         Setting.putGistToken(binding.syncGistToken.getText().toString().trim());
+
+        HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword(), Setting.isUseFtp());
+        HistorySyncManager.initGist( Setting.getGistUrl(),  Setting.getGistToken(), Setting.isUseGist());
+
         dialog.dismiss();
 
 

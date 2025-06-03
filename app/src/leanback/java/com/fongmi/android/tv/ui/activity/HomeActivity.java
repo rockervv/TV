@@ -13,9 +13,12 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentStatePagerAdapter;
+
+import androidx.leanback.widget.VerticalGridView;
 import androidx.leanback.widget.ArrayObjectAdapter;
 import androidx.leanback.widget.ItemBridgeAdapter;
 import androidx.leanback.widget.OnChildViewHolderSelectedListener;
+
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
@@ -69,6 +72,8 @@ import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.utils.Prefers;
 import com.github.catvod.utils.Trans;
 import com.permissionx.guolindev.PermissionX;
+
+
 
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
@@ -161,11 +166,19 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         }
     }
 
+
+
     private void setRecyclerView() {
         setHomeUI();
         mBinding.recycler.setHorizontalSpacing(ResUtil.dp2px(16));
         mBinding.recycler.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
-        mBinding.recycler.setAdapter(new ItemBridgeAdapter(mAdapter = new ArrayObjectAdapter(new TypePresenter(this))));
+
+        // 不設選中監聽，不用處理高亮
+        mBinding.recycler.setAdapter(new ItemBridgeAdapter(
+                mAdapter = new ArrayObjectAdapter(new TypePresenter(this))
+        ));
+
+
     }
 
     private void setHomeUI() {
@@ -476,7 +489,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void setLogo() {
-        Glide.with(App.get()).load(UrlUtil.convert(VodConfig.get().getConfig().getLogo())).circleCrop().override(Target.SIZE_ORIGINAL, Target.SIZE_ORIGINAL).listener(getListener()).into(mBinding.logo);
+        //Glide.with(App.get()).load(UrlUtil.convert(VodConfig.get().getConfig().getLogo())).circleCrop().override(Target.SIZE_ORIGINAL, Target.SIZE_ORIGINAL).listener(getListener()).into(mBinding.logo);
     }
 
     private RequestListener<Drawable> getListener() {

@@ -70,7 +70,7 @@ public class Action implements Process {
                 onTransmit(params, files);
                 break;
             default:
-                return Nano.error(null);
+                return Nano.error("Action Response: " + path );
         }
         return Nano.success();
 

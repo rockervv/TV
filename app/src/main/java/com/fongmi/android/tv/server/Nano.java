@@ -2,6 +2,8 @@ package com.fongmi.android.tv.server;
 
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.bean.Device;
+import com.fongmi.android.tv.server.process.TS;
+import com.fongmi.android.tv.server.process.M3U8;
 import com.fongmi.android.tv.server.process.Action;
 import com.fongmi.android.tv.server.process.Cache;
 import com.fongmi.android.tv.server.process.Local;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.net.*;
 
 import fi.iki.elonen.NanoHTTPD;
 
@@ -33,8 +36,11 @@ public class Nano extends NanoHTTPD {
     }
 
     private void addProcess() {
-        process = new ArrayList<>();
+        process = new ArrayList<Process>();
         process.add(new Action());
+        process.add(new Cache());
+        process.add(new M3U8());
+        process.add(new TS());
         process.add(new Cache());
         process.add(new Local());
         process.add(new Media());
@@ -75,7 +81,9 @@ public class Nano extends NanoHTTPD {
         if (url.startsWith("/tvbus")) return success(LiveConfig.getResp());
         if (url.startsWith("/device")) return success(Device.get().toString());
         for (Process process : process) if (process.isRequest(session, url)) return process.doResponse(session, url, files);
-        return getAssets(url.substring(1));
+        if (url.startsWith("/index.html"))
+            return getAssets(url.substring(1));
+        return doProxy(session);  // fallback 成為普通 HTTP proxy
     }
 
     private void parse(IHTTPSession session, Map<String, String> files) {
@@ -90,6 +98,30 @@ public class Nano extends NanoHTTPD {
         } catch (Exception ignored) {
         }
     }
+
+    private Response doProxy(IHTTPSession session) {
+        String fullUrl = session.getUri().substring(1); // 把 `/https://xxx` 拿掉開頭的 `/`
+        if (!fullUrl.startsWith("http")) {
+            return error("Invalid proxy URL: " + fullUrl);
+        }
+
+        try {
+            URL url = new URL(fullUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(10000);
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+
+            InputStream is = conn.getInputStream();
+            String mime = conn.getContentType();
+            int length = conn.getContentLength();
+
+            return NanoHTTPD.newFixedLengthResponse(Response.Status.OK, mime, is, length);
+        } catch (Exception e) {
+            return error("Proxy Error: " + e.getMessage());
+        }
+    }
+
 
     private Response go() {
         Go.start();

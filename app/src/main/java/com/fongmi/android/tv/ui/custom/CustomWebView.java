@@ -204,6 +204,10 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
         for (String ad : LiveConfig.get().getAds()) if (host.contains(ad)) return true;
         for (String ad : VodConfig.get().getAds()) if (Pattern.compile(ad).matcher(host).find()) return true;
         for (String ad : LiveConfig.get().getAds()) if (Pattern.compile(ad).matcher(host).find()) return true;
+
+        for (String ad : VodConfig.get().getparseAds()) if (host.contains(ad)) return true;
+        for (String ad : VodConfig.get().getparseAds()) if (Pattern.compile(ad).matcher(host).find()) return true;
+
         return false;
     }
 

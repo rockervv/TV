@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.ui.activity;
 
+import static com.fongmi.android.tv.bean.History.getCurrentUTCTime;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -1381,6 +1383,9 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
                 setDefaultTrack();
                 setTrackVisible(true);
                 mHistory.setPlayer(mPlayers.getPlayer());
+                //20250511
+                mHistory.setLastUpdated(getCurrentUTCTime());
+                mHistory.update();
                 mBinding.widget.size.setText(mPlayers.getSizeText());
                 mBinding.display.size.setText(mPlayers.getSizeText());
                 break;

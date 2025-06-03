@@ -93,6 +93,7 @@ public class HistoryActivity extends BaseActivity implements HistoryAdapter.OnCl
     @Override
     public void onItemDelete(History item) {
         mBinding.delete.setFocusable(false);
+        item.setLastUpdated(0);
         int index = mAdapter.delete(item.delete());
         if (mAdapter.getItemCount() == 0) mAdapter.setDelete(false);
         App.post(() -> {
@@ -108,7 +109,8 @@ public class HistoryActivity extends BaseActivity implements HistoryAdapter.OnCl
 
     @Override
     public boolean onLongClick() {
-        mAdapter.setDelete(true);
+        if (mAdapter.isDelete()) HistorySyncManager.SyncHistory();
+        mAdapter.setDelete(!mAdapter.isDelete());
         return true;
     }
 

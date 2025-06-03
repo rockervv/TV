@@ -44,10 +44,17 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.lang.reflect.Type;
 import java.util.TimeZone;
 import java.util.Calendar;
-
+import android.os.Handler;
+import android.os.Looper;
+//import android.content.Context;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 public class HistorySyncManager {
 
 
@@ -55,6 +62,10 @@ public class HistorySyncManager {
     private static FtpManager ftpManagerk;
     private static boolean useGist = false;
     private static boolean useFTP = false;
+
+    private static long ServerHupdated = 0;
+    private static long ServerKupdated = 0;
+
     private static class Loader {
         static volatile HistorySyncManager INSTANCE = new HistorySyncManager();
     }
@@ -94,25 +105,26 @@ public class HistorySyncManager {
     }
 
     private static void syncKeep() {
-        String jsonData;
-        Gson gson;
+        //String jsonData;
+        //Gson gson;
         if (!useFTP && !useGist) {
             return;
-        } else {
-            jsonData = null;
-            gson = new Gson();
-            if (useFTP) {
-                try {
-                    jsonData = ftpManagerk.downloadJsonFileAsString(null);///USB2T/(Documents)/(TVBox)/TV2/TV.json");
-                } catch (IOException e) {
-                    Log.e("Keep", "FTP download", e);
-                }
-            }
-            if (useGist) {
-                String jsontmp = ftpManagerk.downloadGistJsonFileAsString("keep.json");///USB2T/(Documents)/(TVBox)/TV2/TV.json");
-                if (jsonData == null) jsonData = jsontmp;
+        }
+
+        String jsonData = null;
+        if (useFTP) {
+            try {
+                jsonData = ftpManagerk.downloadJsonFileAsString(null);///USB2T/(Documents)/(TVBox)/TV2/TV.json");
+            } catch (IOException e) {
+                Log.e("Keep", "FTP download", e);
             }
         }
+        if (useGist) {
+            //String jsontmp = ftpManagerk.downloadGistJsonFileAsString("keep.json");///USB2T/(Documents)/(TVBox)/TV2/TV.json");
+            //if (jsonData == null) jsonData = jsontmp;
+            jsonData = ftpManagerk.downloadGistJsonFileAsString("keep.json");
+        }
+
         //JsonObject jsonObject;
         //if (jsonData != null) {
         //    jsonObject = App.gson().fromJson(jsonData, JsonObject.class);
@@ -129,8 +141,10 @@ public class HistorySyncManager {
         List<Keep> sqliteItems = Keep.getAll();
         //JsonObject vodobj = jsonObject.getAsJsonObject("")
         //getJSONObject("videoDetails");
-        JsonObject jsonObject = jsonData==null? new JsonObject(): gson.fromJson(jsonData, JsonObject.class);
-        List<Keep> ftpItems = jsonData==null? new ArrayList<>(): get().parseKeepList(jsonData);
+
+
+        //JsonObject jsonObject = jsonData==null? new JsonObject(): gson.fromJson(jsonData, JsonObject.class);
+        //List<Keep> ftpItems = jsonData==null? new ArrayList<>(): get().parseKeepList(jsonData);
             //List<Keep> ftpItems = Keep.arrayFrom(jsonData);
 
             //JsonObject jsonObject = jsonData==null? new JsonObject(): App.gson().fromJson(jsonData, JsonObject.class);
@@ -138,7 +152,23 @@ public class HistorySyncManager {
             //List<Keep> sqliteItems =AppDatabase.get().getHistoryDao().getAll();
             //List<Keep> vod = Keep.getVod();
             //List<Keep> live = Keep.getLive();
-        if (ftpItems == null) ftpItems = new ArrayList<>();
+        //if (ftpItems == null) ftpItems = new ArrayList<>();
+        //JSONObject jsonObject = null;
+        List<Keep> ftpItems = null;
+
+        try {
+            //jsonObject = new JSONObject(jsonData);
+            ftpItems = get().parseKeepList(jsonData);
+        } catch (Exception e) {
+            Log.e ("GIST", "Error fetch/parse Keep gist json: " + e.toString());
+            //jsonObject = new JSONObject ();
+            ftpItems = new ArrayList<>();
+        }
+
+        if (ftpItems == null) {
+            ftpItems = new ArrayList<>();
+        }
+
         List<Keep> newMergedItems = Keep.syncLists(sqliteItems, ftpItems);
             //App.gson().toJson(Keep.getVod()));
             //App.gson().toJson(Config.findUrls()));
@@ -153,9 +183,27 @@ public class HistorySyncManager {
             //        //AppDatabase.get().getHistoryDao().deleteHard();
             //    }
             //});
-        Keep.sync(newMergedItems);
-        jsonObject.add("Keep", App.gson().toJsonTree(newMergedItems));
-        String updatedJsonString = App.gson().toJson(jsonObject);
+        //if (ServerKupdated > Keep.GetUptime()) {
+            Keep.sync(newMergedItems);
+        //    return;
+        //}
+
+
+        JSONObject newJson = new JSONObject();
+
+        try {
+            newJson.put ("Uptime", System.currentTimeMillis());
+            newJson.put ("Keep", new JSONArray (App.gson().toJson(newMergedItems)));
+
+        } catch (Exception e) {
+            Log.e ("Gist", "Error finalize Json");
+        }
+        String updatedJsonString = newJson.toString();
+
+
+
+        //jsonObject.add("Keep", App.gson().toJsonTree(newMergedItems));
+        //String updatedJsonString = App.gson().toJson(jsonObject);
 
         if (useFTP) {
             try {
@@ -166,7 +214,7 @@ public class HistorySyncManager {
             }
         }
 
-        if (useGist && newMergedItems.size() != ftpItems.size()) {
+        if (useGist) {
             try {
                 ftpManagerk.uploadGistJsonString(updatedJsonString, "keep.json");
             } catch (IOException e) {
@@ -180,34 +228,49 @@ public class HistorySyncManager {
     }
 
     private static void syncHistory() {
-        String jsonData;
-        Gson gson;
 
         if (!useFTP && !useGist) {
             return;
-        } else {
-            jsonData = null;
-            gson = new Gson();
-            if (useFTP) {
-                try {
-                    jsonData = ftpManager.downloadJsonFileAsString(null);///USB2T/(Documents)/(TVBox)/TV2/TV.json");
-                } catch (IOException e) {
-                    Log.e("History", "FTP download", e);
-                }
-            }
-            if (useGist) {
-                String jsontmp = ftpManager.downloadGistJsonFileAsString("tv.json");///USB2T/(Documents)/(TVBox)/TV2/TV.json");
-                if (jsonData == null) jsonData = jsontmp;
+        }
+
+        String jsonData = null;
+        //Gson gson = new Gson();
+
+        if (useFTP) {
+            try {
+                jsonData = ftpManager.downloadJsonFileAsString(null);///USB2T/(Documents)/(TVBox)/TV2/TV.json");
+            } catch (IOException e) {
+                Log.e("History", "FTP download", e);
             }
         }
-        JsonObject jsonObject = jsonData==null? new JsonObject(): gson.fromJson(jsonData, JsonObject.class);
-        List<History> ftpItems = jsonData==null? new ArrayList<>(): get().parseHistoryList (jsonData);
-        if (ftpItems == null) ftpItems = new ArrayList<>();
+        if (useGist) {
+            //String jsontmp = ftpManager.downloadGistJsonFileAsString("tv.json");///USB2T/(Documents)/(TVBox)/TV2/TV.json");
+            //if (jsonData == null) jsonData = jsontmp;
+            jsonData = ftpManager.downloadGistJsonFileAsString("tv.json");
+        }
+        //Original version:
+        //JsonObject jsonObject = jsonData==null? new JsonObject(): gson.fromJson(jsonData, JsonObject.class);
+        //List<History> ftpItems = jsonData==null? new ArrayList<>(): get().parseHistoryList (jsonData);
+        //if (ftpItems == null) ftpItems = new ArrayList<>();
 
+
+        //JSONObject jsonObject = null;
+        List<History> ftpItems = null;
+
+        try {
+            //jsonObject = new JSONObject(jsonData);
+            ftpItems = get().parseHistoryList(jsonData);
+        } catch (Exception e) {
+            Log.e ("GIST", "Error fetch/parse history gist :" + e.toString());
+            //jsonObject = new JSONObject ();
+            ftpItems = new ArrayList<>();
+        }
+        if (ftpItems == null) {
+            ftpItems = new ArrayList<>();
+        }
         List<History> sqliteItems =AppDatabase.get().getHistoryDao().getAll();
         List<History> newMergedItems = History.syncLists(sqliteItems, ftpItems);
-
-
+        Log.d("SyncHistory", "SQL: " + sqliteItems.size() + " merge to remot: " + ftpItems.size());
             //AppDatabase.get().runInTransaction(new Runnable() {
             //    @Override
             //    public void run() {
@@ -216,9 +279,29 @@ public class HistorySyncManager {
             //        //AppDatabase.get().getHistoryDao().deleteHard();
             //    }
             //});
+        //if (ServerHupdated > History.GetUptime()) {
+            Log.d ("HistorySync", "Result : " + newMergedItems.size() + " at " + ServerHupdated +  " vs " + History.GetUptime());
+        //}
         History.sync(newMergedItems);
-        jsonObject.add("History", gson.toJsonTree(newMergedItems));
-        String updatedJsonString = gson.toJson(jsonObject);
+            //return;
+        //}
+
+        //original version
+        //jsonObject.add("History", gson.toJsonTree(newMergedItems));
+        //String updatedJsonString = gson.toJson(jsonObject);
+
+        JSONObject newJson = new JSONObject();
+
+        try {
+            //newJson.put ("Uptime", History.GetUptime());
+            newJson.put ("Uptime", System.currentTimeMillis());
+            newJson.put ("History", new JSONArray (App.gson().toJson(newMergedItems)));
+
+        } catch (Exception e) {
+            Log.e ("Gist", "Error finalize Json");
+        }
+        String updatedJsonString = newJson.toString();
+
             //ftpManager.uploadJsonString(updatedJsonString, "/USB2T/(Documents)/(TVBox)/TV2/TV.json");
         if (useFTP) {
             try {
@@ -229,7 +312,7 @@ public class HistorySyncManager {
                 //Notify.show(R.string.sync_fail);
             }
         }
-        if (useGist && newMergedItems.size() != ftpItems.size()) {
+        if (useGist) {
             try {
                 ftpManager.uploadGistJsonString(updatedJsonString, "tv.json");
                 //Notify.show(R.string.sync_success);
@@ -248,48 +331,94 @@ public class HistorySyncManager {
         SyncHistory();
         SyncKeep();
     }
+    //通用的執行緒池管理類（例如：TaskExecutor），所有背景任務都透過它執行。
+    public static class TaskExecutor {
+        private static final ExecutorService executor = Executors.newSingleThreadExecutor();
+        private static final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+        public static void runOnBackground(Runnable task) {
+            executor.execute(task);
+        }
+
+        public static void runOnMain(Runnable task) {
+            mainHandler.post(task);
+        }
+    }
+
 
     public static void SyncHistory() {
         if (useFTP || useGist)
-            new SyncHistoryTask().execute();
+            //new SyncHistoryTask().execute();
+            new SyncHistoryTask().run();
     }
 
     public static void SyncKeep() {
         if (useFTP || useGist)
-            new SyncKeepTask().execute();
+            //new SyncKeepTask().execute();
+            new SyncKeepTask().run();
     }
 
-    private static class SyncHistoryTask extends android.os.AsyncTask<Void, Void, Void> {
-        @Override
-        protected Void doInBackground(Void... voids) {
-            try {
-                syncHistory();
-            } catch (Exception e) {
-                Log.e("Sync", "Error during History sync operation", e);
-            }
-            return null;
+    public static class SyncHistoryTask {
+        public static void run() {
+            TaskExecutor.runOnBackground(() -> {
+                try {
+                    syncHistory();
+                } catch (Exception e) {
+                    Log.e("Sync", "Error during History sync operation", e);
+                }
+                TaskExecutor.runOnMain(() ->
+                        Log.d("Sync", "Sync History operation completed")
+                );
+            });
         }
-        @Override
-        protected void onPostExecute(Void result) {
-            Log.d("Sync", "Sync History operation completed");
+    }
+    //public static class SyncHistoryTask {
+    //    public static void run() {
+    //        Executors.newSingleThreadExecutor().execute(() -> {
+    //            try {
+    //                syncHistory();
+    //            } catch (Exception e) {
+    //                Log.e("Sync", "Error during History sync operation", e);
+    //            }
+    //            new Handler(Looper.getMainLooper()).post(() ->
+    //                    Log.d("Sync", "Sync History operation completed")
+    //            );
+    //        });
+    //    }
+    //}
+
+    public static class SyncKeepTask {
+        public static void run() {
+            Executors.newSingleThreadExecutor().execute(() -> {
+                try {
+                    syncKeep();
+                } catch (Exception e) {
+                    Log.e("Sync", "Error during Keep sync operation", e);
+                }
+
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Log.d("Sync", "Sync History operation completed")
+                );
+            });
         }
     }
 
-    private static class SyncKeepTask extends android.os.AsyncTask<Void, Void, Void> {
-        @Override
-        protected Void doInBackground(Void... voids) {
-            try {
-                syncKeep();
-            } catch (Exception e) {
-                Log.e("Sync", "Error during Keep sync operation", e);
-            }
-            return null;
-        }
-        @Override
-        protected void onPostExecute(Void result) {
-            Log.d("Sync", "Sync Keep operation completed");
-        }
-    }
+
+    //private static class SyncKeepTask extends android.os.AsyncTask<Void, Void, Void> {
+    //    @Override
+    //    protected Void doInBackground(Void... voids) {
+    //        try {
+    //            syncKeep();
+    //        } catch (Exception e) {
+    //            Log.e("Sync", "Error during Keep sync operation", e);
+    //        }
+    //        return null;
+    //    }
+    //    @Override
+    //    protected void onPostExecute(Void result) {
+    //        Log.d("Sync", "Sync Keep operation completed");
+    //    }
+    //}
 
     public List<Keep> parseKeepList(String jsonString){
         Gson gson = new GsonBuilder()
@@ -314,8 +443,13 @@ public class HistorySyncManager {
                 .create();
 
         JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
-        if (jsonObject.has("keep")) {
-            String keepArrayString = jsonObject.getAsJsonArray("keep").toString();
+        if (jsonObject.has("Uptime")) {
+            //ServerKupdated = jsonObject.getAsJsonObject("Uptime").getAsLong();
+            ServerKupdated = jsonObject.getAsJsonPrimitive("Uptime").getAsLong();
+        }
+
+        if (jsonObject.has("Keep")) {
+            String keepArrayString = jsonObject.getAsJsonArray("Keep").toString();
 
             Type listType = new TypeToken<List<Keep>>(){}.getType();
             return gson.fromJson(keepArrayString, listType);
@@ -359,6 +493,9 @@ public class HistorySyncManager {
 
 
         JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
+        if (jsonObject.has("Uptime")) {
+            ServerHupdated = jsonObject.getAsJsonPrimitive("Uptime").getAsLong();
+        }
         if (jsonObject.has("History")) {
             String keepArrayString = jsonObject.getAsJsonArray("History").toString();
 

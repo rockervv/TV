@@ -69,6 +69,8 @@ public class History {
     private long lastUpdated = getCurrentUTCTime();
     @SerializedName("deleted")
     private boolean deleted = false;
+    private static long Uptime = 0;
+
     public static History objectFrom(String str) {
         return App.gson().fromJson(str, History.class);
     }
@@ -323,18 +325,32 @@ public class History {
 
     public History save() {
         AppDatabase.get().getHistoryDao().insertOrUpdate(this);
+        if (this.getLastUpdated() > Uptime) Uptime = this.getLastUpdated();
         return this;
     }
 
     public History delete() {
-        //soft delete
-        setDeleted(true);
-        setLastUpdated(System.currentTimeMillis());
-        AppDatabase.get().getHistoryDao().insertOrUpdate(this);
-        //hard delete
-        //AppDatabase.get().getHistoryDao().delete(VodConfig.getCid(), getKey());
-        //AppDatabase.get().getTrackDao().delete(getKey());
 
+        //hard delete
+        if (getLastUpdated() == 0 || isDeleted()) {
+        //if (getLastUpdated() == 0 ) {
+
+            setDeleted(true);
+            AppDatabase.get().getHistoryDao().insertOrUpdate(this);
+            //AppDatabase.get().getHistoryDao().deleteHard(VodConfig.getCid(), getKey());
+            //AppDatabase.get().getTrackDao().delete(getKey());
+
+        } else if (getLastUpdated() > 0 && ((System.currentTimeMillis() - getLastUpdated()) / 1000 > 86400 * 90)) {
+            //AppDatabase.get().getHistoryDao().delete(VodConfig.getCid(), getKey());
+            AppDatabase.get().getHistoryDao().deleteHard(VodConfig.getCid(), getKey());
+            AppDatabase.get().getTrackDao().delete(getKey());
+
+        } else {
+            //soft delete
+            setDeleted(true);
+            //setLastUpdated(System.currentTimeMillis());
+            AppDatabase.get().getHistoryDao().insertOrUpdate(this);
+        }
         return this;
     }
 
@@ -386,20 +402,90 @@ public class History {
         });
     }
 
-    private static long getCurrentUTCTime() {
+    public static long getCurrentUTCTime() {
         Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         return calendar.getTimeInMillis();
     }
-    public static List<History> syncLists(List<History> list1, List<History> list2) {
+
+    public static long GetUptime() { return Uptime;}
+
+    public static List<History> syncLists(List<History> localList, List<History> remoteList) {
+        Map<String, History> mergedMap = new HashMap<>();
+        long now = getCurrentUTCTime();
+        long ninetyDaysInMillis = 86400L * 1000 * 90;
+
+        // 第一階段：先處理 localList，保留刪除標記與新資料
+        for (History item : localList) {
+            String key = item.getKey();
+            long lastUpdated = item.getLastUpdated();
+
+            // 標記已過期的資料
+            if ((now - lastUpdated) > ninetyDaysInMillis) item.setDeleted (true);
+
+            // 直接放進 mergedMap
+            mergedMap.put(key, item); // 不論是否 deleted，因為 local 為主
+        }
+
+        // 第二階段：處理 remoteList，僅當 local 沒有此 key 時才放入
+        for (History item : remoteList) {
+            String key = item.getKey();
+            long lastUpdated = item.getLastUpdated();
+
+            // 跳過已過期或已刪除資料
+            if (item.isDeleted()) continue;
+            if ((now - lastUpdated) > ninetyDaysInMillis) continue;
+
+            History localItem = mergedMap.get(key);
+            if (localItem == null) {
+                // local 沒有此資料，加入 remote
+                mergedMap.put(key, item);
+            } else if (!localItem.isDeleted()) {
+                if (item.getLastUpdated() > localItem.getLastUpdated()
+                        ||item.getPosition() > localItem.getPosition()) {
+                    updateAllColumns(localItem, item);
+                }
+                //mergedMap.put(key, item);
+            }
+
+        }
+        List<History> result = new ArrayList<>();
+        for (History item : mergedMap.values()) {
+            long lastUpdated = item.getLastUpdated();
+            boolean expired = (now - lastUpdated) > ninetyDaysInMillis;
+            if (!(item.isDeleted() && expired)) {
+                result.add(item);
+            }
+        }
+        return result;
+        //return new ArrayList<>(mergedMap.values());
+    }
+
+    public static List<History> syncLists(int old, List<History> localList, List<History> remoteList) {
         Map<String, History> mergedMap = new HashMap<>();
         // Process items from both lists
-        for (List<History> list : Arrays.asList(list1, list2)) {
+        for (List<History> list : Arrays.asList(localList, remoteList)) {
             for (History item : list) {
                 String key = item.getKey();
+                //undelete all.
+                //item.deleted = false;
+                long lastupdated = item.getLastUpdated();
+                if (lastupdated > Uptime) Uptime = lastupdated;
+                //if (item.isDeleted() || lastupdated == 0) continue;
+                if ((getCurrentUTCTime() - lastupdated)/1000 > 86400 * 30 * 3 ) item.setLastUpdated(0);
+
                 //if (!item.isDeleted() && item.lastUpdate.days - Datetime.days > xxx) { //TODO or noTodo: lastupdated is more xx days then remove from the mergedMap for hard delete
+
                 if (mergedMap.containsKey(key)) {
                     History existingItem = mergedMap.get(key);
-                    if (item.isDeleted() || Objects.requireNonNull(existingItem).isDeleted()) {
+                    //暫時先忽略isDeleted.
+                    if (item.getLastUpdated() == 0)
+                    {
+                        item.setDeleted(true);
+                        assert existingItem != null;
+                        existingItem.setDeleted(true);
+                        continue;
+                    }
+                    if ((item.isDeleted() || Objects.requireNonNull(existingItem).isDeleted())) {
                         item.setDeleted(true);
                         assert existingItem != null;
                         existingItem.setDeleted(true);
@@ -417,6 +503,7 @@ public class History {
 //                    mergedMap.remove(key);
 //                }
             }
+
         }
         List<History> result = new ArrayList<>(mergedMap.values());
         //insertOrUpdate(result);

@@ -1,10 +1,11 @@
 package com.fongmi.android.tv.bean;
 
-import android.net.Uri;
+//import android.net.Uri;
 import android.text.TextUtils;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,12 +19,14 @@ public class Catchup {
     private String regex;
     @SerializedName("source")
     private String source;
-
+    @SerializedName("replace")
+    private String replace;
     public static Catchup PLTV() {
         Catchup item = new Catchup();
         item.setDays("7");
         item.setType("append");
         item.setRegex("/PLTV/");
+        item.setReplace("/PLTV/,/TVOD/");
         item.setSource("?playseek=${(b)yyyyMMddHHmmss}-${(e)yyyyMMddHHmmss}");
         return item;
     }
@@ -62,6 +65,15 @@ public class Catchup {
         this.regex = regex;
     }
 
+    public String getReplace() {
+        return TextUtils.isEmpty(replace) ? "" : replace;
+    }
+
+    public void setReplace(String replace) {
+        this.replace = replace;
+    }
+
+
     public String getSource() {
         return TextUtils.isEmpty(source) ? "" : source;
     }
@@ -86,9 +98,17 @@ public class Catchup {
         return getType().equals("default");
     }
 
-    private String format(String url, String result) {
-        if (!TextUtils.isEmpty(Uri.parse(url).getQuery())) result = result.replace("?", "&");
-        if (url.contains("/PLTV/")) url = url.replace("/PLTV/", "/TVOD/");
+    // private String format(String url, String result) {
+    //     if (!TextUtils.isEmpty(Uri.parse(url).getQuery())) result = result.replace("?", "&");
+    //     if (url.contains("/PLTV/")) url = url.replace("/PLTV/", "/TVOD/");
+    //     return url + result;
+    // }
+    //
+
+    private String append(String url, String result) {
+        String[] splits = getReplace().split(",");
+        if (splits.length == 2) url = url.replaceAll(splits[0], splits[1]);
+        if (!TextUtils.isEmpty(URI.create(url).getQuery())) result = result.replace("?", "&");
         return url + result;
     }
 
@@ -97,6 +117,7 @@ public class Catchup {
         if (data.isInRange()) return url;
         Matcher matcher = Pattern.compile("(\\$\\{[^}]*\\})").matcher(result);
         while (matcher.find()) result = result.replace(matcher.group(1), data.format(matcher.group(1)));
-        return isDefault() ? result : format(url, result);
+        //return isDefault() ? result : format(url, result);
+        return isDefault() ? result : append(url, result);
     }
 }

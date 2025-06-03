@@ -13,8 +13,8 @@ android {
         minSdk 21
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
-        versionCode 258
-        versionName "Rocker-2.5.8"
+        versionCode 260
+        versionName "Rocker-2.6.0"
         javaCompileOptions {
             annotationProcessorOptions {
                 //arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
@@ -131,7 +131,9 @@ dependencies {
     implementation project(':ijkplayer')
     implementation 'androidx.media3:media3-datasource-okhttp:' + media3Version
     implementation 'androidx.media3:media3-datasource-rtmp:' + media3Version
+    implementation "androidx.media3:media3-datasource:" + media3Version
     implementation 'androidx.media3:media3-exoplayer:' + media3Version
+    //implementation 'androidx.media3:media3-exoplayer-core:' + media3Version
     implementation 'androidx.media3:media3-exoplayer-dash:' + media3Version
     implementation 'androidx.media3:media3-exoplayer-hls:' + media3Version
     implementation 'androidx.media3:media3-exoplayer-rtsp:' + media3Version
@@ -168,6 +170,8 @@ dependencies {
     //implementation 'commons-net:commons-net:3.9.0'
     //implementation("commons-net:commons-net:3.11.1")
     implementation 'com.google.code.gson:gson:2.11.0'
+    implementation "androidx.viewpager2:viewpager2:1.0.0"
+
 
     implementation('org.simpleframework:simple-xml:2.7.1') { exclude group: 'stax', module: 'stax-api' exclude group: 'xpp3', module: 'xpp3' }
     implementation(ext: 'aar', name: 'danmaku', group: 'fongmi', version: 'release')

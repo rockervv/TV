@@ -284,7 +284,8 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         SyncDialog.create(this).show();
     }
     private void onSync(View view) {
-        HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword());
+        //HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword());
+        HistorySyncManager.SyncAll();
     }
 
     private void setWallDefault(View view) {

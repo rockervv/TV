@@ -23,7 +23,7 @@ public class Parse implements Process {
             String html = String.format(Asset.read("parse.html"), jxs, url);
             return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_HTML, html);
         } catch (Exception e) {
-            return Nano.error(e.getMessage());
+            return Nano.error("Parse Error: " + e.getMessage());
         }
     }
 }

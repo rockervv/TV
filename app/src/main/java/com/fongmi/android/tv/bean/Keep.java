@@ -40,6 +40,8 @@ public class Keep {
     @SerializedName("cid")
     private int cid;
 
+    private static long Uptime;
+
     public static List<Keep> arrayFrom(String str) {
         Type listType = new TypeToken<List<Keep>>() {}.getType();
         List<Keep> items = App.gson().fromJson(str, listType);
@@ -194,7 +196,7 @@ public class Keep {
         });
     }
 
-
+    public static long GetUptime() {return Uptime;}
     public static List<Keep> syncLists(List<Keep> list1, List<Keep> list2) {
         Map<String, Keep> mergedMap = new HashMap<>();
         // Process items from both lists
@@ -202,6 +204,8 @@ public class Keep {
             for (Keep item : list) {
                 String key = item.getKey();
                 //if (!item.isDeleted() && item.lastUpdate.days - Datetime.days > xxx) { //TODO or noTodo: lastupdated is more xx days then remove from the mergedMap for hard delete
+                if (item.getCreateTime() > Uptime) Uptime = item.getCreateTime();
+
                 Keep existingItem = mergedMap.get(key);
                 if (existingItem != null) {
                     if (item.getCreateTime() > existingItem.getCreateTime()) {

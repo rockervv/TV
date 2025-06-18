@@ -13,8 +13,8 @@ android {
         minSdk 21
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
-        versionCode 260
-        versionName "Rocker-2.6.0"
+        versionCode 262
+        versionName "Rocker-2.6.2"
         javaCompileOptions {
             annotationProcessorOptions {
                 //arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]

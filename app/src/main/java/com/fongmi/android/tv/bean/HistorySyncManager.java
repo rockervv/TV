@@ -246,7 +246,11 @@ public class HistorySyncManager {
         if (useGist) {
             //String jsontmp = ftpManager.downloadGistJsonFileAsString("tv.json");///USB2T/(Documents)/(TVBox)/TV2/TV.json");
             //if (jsonData == null) jsonData = jsontmp;
-            jsonData = ftpManager.downloadGistJsonFileAsString("tv.json");
+            try {
+                jsonData = ftpManager.downloadGistJsonFileAsString("tv.json");
+            } catch (Exception e) {
+                Log.d ("SyncHistGist", "tv.json error:", e);
+            }
         }
         //Original version:
         //JsonObject jsonObject = jsonData==null? new JsonObject(): gson.fromJson(jsonData, JsonObject.class);
@@ -255,22 +259,22 @@ public class HistorySyncManager {
 
 
         //JSONObject jsonObject = null;
-        List<History> ftpItems = null;
+        List<History> remoteItems = null;
 
         try {
             //jsonObject = new JSONObject(jsonData);
-            ftpItems = get().parseHistoryList(jsonData);
+            remoteItems = get().parseHistoryList(jsonData);
         } catch (Exception e) {
-            Log.e ("GIST", "Error fetch/parse history gist :" + e.toString());
+            Log.e ("GIST", "Error fetch/parse history gist :" + e);
             //jsonObject = new JSONObject ();
-            ftpItems = new ArrayList<>();
+            remoteItems = new ArrayList<>();
         }
-        if (ftpItems == null) {
-            ftpItems = new ArrayList<>();
+        if (remoteItems == null) {
+            remoteItems = new ArrayList<>();
         }
         List<History> sqliteItems =AppDatabase.get().getHistoryDao().getAll();
-        List<History> newMergedItems = History.syncLists(sqliteItems, ftpItems);
-        Log.d("SyncHistory", "SQL: " + sqliteItems.size() + " merge to remot: " + ftpItems.size());
+        List<History> newMergedItems = History.syncLists(sqliteItems, remoteItems);
+        Log.d("SyncHistory", "SQL: " + sqliteItems.size() + " merge to remot: " + remoteItems.size());
             //AppDatabase.get().runInTransaction(new Runnable() {
             //    @Override
             //    public void run() {

@@ -204,14 +204,33 @@ public class FtpManager {
             URL url = new URL(gisturl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            //conn.setRequestProperty("Authorization", "token " + gisttoken);
-            conn.setRequestProperty("Authorization", "Bearer " + gisttoken);
-            //conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
-            conn.setRequestProperty("Accept", "application/vnd.github+json");
+            String authString = new String();
+            authString = (!gisttoken.startsWith("github_pat_") ? "token ": "") + gisttoken;
+
+            conn.setRequestProperty("Authorization",  authString);
+            //conn.setRequestProperty("Authorization", "Bearer " + gisttoken);
+            conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
+            //conn.setRequestProperty("Accept", "application/vnd.github+json");
             conn.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
 
-            if (conn.getResponseCode() != 200) {
-                throw new RuntimeException("Failed : HTTP error code : " + conn.getResponseCode());
+            int responseCode = conn.getResponseCode();
+            if ( responseCode != 200) {
+                StringBuffer response = new StringBuffer();
+
+                try {
+                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                    String inputLine;
+
+                    while ((inputLine = in.readLine()) != null) {
+                        response.append(inputLine);
+                    }
+                    in.close();
+                } catch (Exception e) {
+                    response.append(e.toString());
+                }
+
+                Log.d ("Gist", "Response: (" + responseCode + ") ->" + response.toString());
+                //throw new RuntimeException("Failed : HTTP error code : " + conn.getResponseCode());
             }
 
             BufferedReader br = new BufferedReader(new InputStreamReader((conn.getInputStream())));

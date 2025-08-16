@@ -7,13 +7,16 @@ android {
     namespace 'com.undcover.freedom.pyramid'
 
     compileSdk 35
-    flavorDimensions = ["abi"]
 
     defaultConfig {
         minSdk 21
+        //noinspection ExpiredTargetSdkVersion
         targetSdk 28
         python {
             version "3.8"
+            buildPython "C:/Users/Rocker Cheng/AppData/Local/Microsoft/WindowsApps/python3.8.exe"
+            //"C:/Python38/python.exe" // 替換為實際路徑
+
             pip {
                 install "lxml"
                 install "ujson"
@@ -24,30 +27,27 @@ android {
                 install 'beautifulsoup4'
             }
         }
+
+            // ✅ Set ABI filter here instead of using productFlavors
+        ndk {
+                abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        }
     }
 
-    productFlavors {
-        x86 {
-            dimension "abi"
-            ndk { abiFilters "x86" }
-        }
-        arm64_v8a {
-            dimension "abi"
-            ndk { abiFilters "arm64-v8a" }
-        }
-        armeabi_v7a {
-            dimension "abi"
-            ndk { abiFilters "armeabi-v7a" }
-        }
-    }
+
 
     sourceSets {
         main {
             python.srcDirs = ["src/main/python"]
         }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
 }
 
 dependencies {
     implementation project(':catvod')
 }
+

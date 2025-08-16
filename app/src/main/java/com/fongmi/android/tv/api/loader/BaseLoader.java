@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.api.loader;
 
+import android.util.Log;
+
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Live;
@@ -40,13 +42,22 @@ public class BaseLoader {
         this.jsLoader.clear();
     }
 
+    public JsLoader getJsLoader() {
+        return jsLoader;
+    }
+
     public Spider getSpider(String key, String api, String ext, String jar) {
-        boolean js = api.contains(".js");
-        boolean py = api.contains(".py");
+        if (api == null || api.isEmpty()) return new SpiderNull();
+
         boolean csp = api.startsWith("csp_");
+        if (csp) return jarLoader.getSpider(key, api, ext, jar);
+
+        String file = api.substring(api.lastIndexOf("/") + 1);
+        boolean js = file.contains(".js");
+        boolean py = file.contains(".py");
         if (py) return pyLoader.getSpider(key, api, ext);
         else if (js) return jsLoader.getSpider(key, api, ext);
-        else if (csp) return jarLoader.getSpider(key, api, ext, jar);
+
         else return new SpiderNull();
     }
 
@@ -60,15 +71,25 @@ public class BaseLoader {
     }
 
     public void setRecent(String key, String api, String jar) {
-        boolean js = api.contains(".js");
-        boolean py = api.contains(".py");
         boolean csp = api.startsWith("csp_");
+        if (csp) {
+            jarLoader.setRecent(jar);
+            return;
+        }
+
+        String file = api.substring(api.lastIndexOf("/") + 1);
+        boolean js = file.contains(".js");
+        boolean py = file.contains(".py");
+
         if (js) jsLoader.setRecent(key);
         else if (py) pyLoader.setRecent(key);
-        else if (csp) jarLoader.setRecent(jar);
     }
 
     public Object[] proxyLocal(Map<String, String> params) {
+        String url = params.get("url");
+        String doType = params.get("do");
+        Log.d("ProxyLocal", "do=" + doType + " url=" + url);
+
         if ("js".equals(params.get("do"))) {
             return jsLoader.proxyInvoke(params);
         } else if ("py".equals(params.get("do"))) {

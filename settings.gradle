@@ -18,6 +18,7 @@ dependencyResolutionManagement {
         maven {
             url "https://jitpack.io"
         }
+        maven { url "https://chaquo.com/maven" }
         maven {
             url "http://4thline.org/m2"
             allowInsecureProtocol = true
@@ -35,4 +36,5 @@ include ':youtube'
 include ':jianpian'
 include ':forcetech'
 include ':ijkplayer'
+include ':pyramid'
 rootProject.name = "TV"

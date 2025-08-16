@@ -340,7 +340,9 @@ public class History {
             //AppDatabase.get().getHistoryDao().deleteHard(VodConfig.getCid(), getKey());
             //AppDatabase.get().getTrackDao().delete(getKey());
 
-        } else if (getLastUpdated() > 0 && ((System.currentTimeMillis() - getLastUpdated()) / 1000 > 86400 * 90)) {
+        } else if (getLastUpdated() > 0 &&
+                ((System.currentTimeMillis() - getCreateTime()) / 1000 > 86400 * 90) &&
+                ((System.currentTimeMillis() - getLastUpdated()) / 1000 > 86400 * 60)) {
             //AppDatabase.get().getHistoryDao().delete(VodConfig.getCid(), getKey());
             AppDatabase.get().getHistoryDao().deleteHard(VodConfig.getCid(), getKey());
             AppDatabase.get().getTrackDao().delete(getKey());

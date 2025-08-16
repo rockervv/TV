@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.api.loader;
 
 import android.content.Context;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.github.catvod.crawler.Spider;
@@ -33,12 +34,25 @@ public class PyLoader {
     private void init() {
         try {
             loader = Class.forName("com.undcover.freedom.pyramid.Loader").newInstance();
-        } catch (Throwable ignored) {
+            if (loader == null) {
+                Log.d("PyLoader", "Loader instance is null after initialization!");
+            } else {
+                Log.d("PyLoader", "Loader instance created: " + loader.getClass().getName());
+            }
+        } catch (Throwable e) {
+            Log.e("PyLoader", "Failed to create Loader instance", e);
+            loader = null;
+
         }
     }
 
     public Spider getSpider(String key, String api, String ext) {
         try {
+            if (loader == null) {
+                Log.d("PyLoader", "Loader is null, cannot get spider: " + api);
+                return new SpiderNull();
+            }
+
             if (spiders.containsKey(key)) return spiders.get(key);
             Method method = loader.getClass().getMethod("spider", Context.class, String.class);
             Spider spider = (Spider) method.invoke(loader, App.get(), api);

@@ -265,9 +265,9 @@ public class HistorySyncManager {
             //jsonObject = new JSONObject(jsonData);
             remoteItems = get().parseHistoryList(jsonData);
         } catch (Exception e) {
-            Log.e ("GIST", "Error fetch/parse history gist :" + e);
+            Log.e ("SyncHistory", "Error fetch/parse history gist :" + e);
             //jsonObject = new JSONObject ();
-            remoteItems = new ArrayList<>();
+            //remoteItems = new ArrayList<>();
         }
         if (remoteItems == null) {
             remoteItems = new ArrayList<>();
@@ -284,7 +284,7 @@ public class HistorySyncManager {
             //    }
             //});
         //if (ServerHupdated > History.GetUptime()) {
-            Log.d ("HistorySync", "Result : " + newMergedItems.size() + " at " + ServerHupdated +  " vs " + History.GetUptime());
+            Log.d ("SyncHistory", "Result : " + newMergedItems.size() + " at " + ServerHupdated +  " vs " + History.GetUptime());
         //}
         History.sync(newMergedItems);
             //return;
@@ -302,7 +302,7 @@ public class HistorySyncManager {
             newJson.put ("History", new JSONArray (App.gson().toJson(newMergedItems)));
 
         } catch (Exception e) {
-            Log.e ("Gist", "Error finalize Json");
+            Log.e ("SyncHistory", "Error finalize Json");
         }
         String updatedJsonString = newJson.toString();
 
@@ -312,7 +312,7 @@ public class HistorySyncManager {
                 ftpManager.uploadJsonString(updatedJsonString, null);
             } catch (IOException e) {
                 //e.printStackTrace();
-                Log.e("History", "FTP upload", e);
+                Log.e("SyncHistory", "FTP upload", e);
                 //Notify.show(R.string.sync_fail);
             }
         }
@@ -323,7 +323,7 @@ public class HistorySyncManager {
 
             } catch (IOException e) {
                 //e.printStackTrace();
-                Log.e("History", "Gist upload", e);
+                Log.e("SyncHistory", "Gist upload", e);
                 //Notify.show(R.string.sync_fail);
             }
             //RefreshEvent.history();
@@ -401,7 +401,7 @@ public class HistorySyncManager {
                 }
 
                 new Handler(Looper.getMainLooper()).post(() ->
-                        Log.d("Sync", "Sync History operation completed")
+                        Log.d("Sync", "Sync Keep operation completed")
                 );
             });
         }

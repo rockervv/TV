@@ -1,7 +1,11 @@
 package com.fongmi.android.tv.model;
 
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
+import android.util.Log;
+import android.widget.Toast;
 
 import androidx.collection.ArrayMap;
 import androidx.lifecycle.MutableLiveData;
@@ -297,11 +301,26 @@ public class SiteViewModel extends ViewModel {
     private void execute(MutableLiveData<Result> result, Callable<Result> callable) {
         if (executor != null) executor.shutdownNow();
         executor = Executors.newFixedThreadPool(2);
+
+        // 啟動定時Toast
+        isRunning = true;
+        startProgressToast();
+
         executor.execute(() -> {
             try {
                 if (Thread.interrupted()) return;
-                result.postValue(executor.submit(callable).get(Constant.TIMEOUT_VOD, TimeUnit.MILLISECONDS));
+
+                // 將timeout放大成 2分鐘（120秒）示範
+                Result res = executor.submit(callable).get(120, TimeUnit.SECONDS);
+
+                // 任務完成，停止toast提示
+                stopProgressToast();
+
+                result.postValue(res);
             } catch (Throwable e) {
+                // 任務異常或中斷，也停止toast提示
+                stopProgressToast();
+
                 if (e instanceof InterruptedException || Thread.interrupted()) return;
                 if (e.getCause() instanceof ExtractException) result.postValue(Result.error(e.getCause().getMessage()));
                 else result.postValue(Result.empty());
@@ -309,6 +328,29 @@ public class SiteViewModel extends ViewModel {
             }
         });
     }
+    private Handler handler = new Handler(Looper.getMainLooper());
+    private Runnable toastRunnable;
+    private boolean isRunning = true;
+
+    private void startProgressToast() {
+        toastRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isRunning) return;
+                Toast.makeText(App.get(), "任務正在進行中...", Toast.LENGTH_SHORT).show();
+                handler.postDelayed(this, 5000); // 每5秒顯示一次
+            }
+        };
+        handler.post(toastRunnable);
+    }
+
+    private void stopProgressToast() {
+        isRunning = false;
+        handler.removeCallbacks(toastRunnable);
+    }
+
+
+
 
     @Override
     protected void onCleared() {

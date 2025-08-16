@@ -12,6 +12,10 @@ android {
         targetSdk 28
         ndk { abiFilters "armeabi-v7a" }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
 }
 
 dependencies {

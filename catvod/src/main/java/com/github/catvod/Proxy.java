@@ -1,5 +1,7 @@
 package com.github.catvod;
 
+import android.util.Log;
+
 import com.github.catvod.utils.Util;
 
 public class Proxy {
@@ -15,6 +17,8 @@ public class Proxy {
     }
 
     public static String getUrl(boolean local) {
-        return "http://" + (local ? "127.0.0.1" : Util.getIp()) + ":" + getPort() + "/proxy";
+        String url ="http://" + (local ? "127.0.0.1" : Util.getIp()) + ":" + getPort() + "/proxy";
+        Log.d ("Proxy", "proxy url:" + url);
+        return url;
     }
 }

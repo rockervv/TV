@@ -5,10 +5,12 @@ import json
 
 
 def spider(cache, api):
+    print(f"Loading spider cache: {cache} api: {api}")
     name = os.path.basename(api)
     path = cache + '/' + name
     download(path, api)
     name = name.split('.')[0]
+    print(f"Loading spider from module: {name}")
     return SourceFileLoader(name, path).load_module().Spider()
 
 

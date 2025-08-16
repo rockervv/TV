@@ -1,6 +1,8 @@
 package com.fongmi.quickjs.crawler;
 
 import android.content.Context;
+import android.util.Log;
+import android.widget.Toast;
 
 import com.fongmi.quickjs.bean.Res;
 import com.fongmi.quickjs.method.Async;
@@ -25,15 +27,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import java9.util.concurrent.CompletableFuture;
+
 
 public class Spider extends com.github.catvod.crawler.Spider {
 
-    private final ExecutorService executor;
+    private static final ExecutorService JS_EXECUTOR = Executors.newSingleThreadExecutor();
+
     private QuickJSContext ctx;
     private JSObject jsObject;
     private final String key;
@@ -41,92 +45,64 @@ public class Spider extends com.github.catvod.crawler.Spider {
     private boolean cat;
 
     public Spider(String key, String api) throws Exception {
-        this.executor = Executors.newSingleThreadExecutor();
         this.key = key;
         this.api = api;
         initializeJS();
     }
 
-    private void submit(Runnable runnable) {
-        executor.submit(runnable);
+    private void runSync(Runnable task) throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        JS_EXECUTOR.submit(() -> {
+            try {
+                task.run();
+            } finally {
+                latch.countDown();
+            }
+        });
+        latch.await();
     }
 
-    private <T> Future<T> submit(Callable<T> callable) {
-        return executor.submit(callable);
+    private <T> T runSync(Callable<T> task) throws Exception {
+        Future<T> future = JS_EXECUTOR.submit(task);
+        return future.get();
     }
 
     private Object call(String func, Object... args) throws Exception {
-        //return executor.submit((Function.call(jsObject, func, args))).get();
-        return CompletableFuture.supplyAsync(() -> Async.run(jsObject, func, args), executor).join().get();
+        return runSync(() -> Async.run(jsObject, func, args)).get();
     }
 
     @Override
     public void init(Context context, String extend) throws Exception {
-        if (cat) call("init", submit(() -> cfg(extend)).get());
-        else call("init", Json.valid(extend) ? ctx.parse(extend) : extend);
+        if (cat) call("init", runSync(() -> cfg(extend)));
+        else call("init", Json.valid(extend) ? runSync(() -> ctx.parse(extend)) : extend);
     }
 
-    @Override
-    public String homeContent(boolean filter) throws Exception {
-        return (String) call("home", filter);
-    }
-
-    @Override
-    public String homeVideoContent() throws Exception {
-        return (String) call("homeVod");
-    }
+    @Override public String homeContent(boolean filter) throws Exception { return (String) call("home", filter); }
+    @Override public String homeVideoContent() throws Exception { return (String) call("homeVod"); }
+    @Override public String detailContent(List<String> ids) throws Exception { return (String) call("detail", ids.get(0)); }
+    @Override public String searchContent(String key, boolean quick) throws Exception { return (String) call("search", key, quick); }
+    @Override public String searchContent(String key, boolean quick, String pg) throws Exception { return (String) call("search", key, quick, pg); }
+    @Override public String liveContent() throws Exception { return (String) call("live"); }
+    @Override public boolean manualVideoCheck() throws Exception { return (Boolean) call("sniffer"); }
+    @Override public boolean isVideoFormat(String url) throws Exception { return (Boolean) call("isVideo", url); }
+    @Override public String action(String action) throws Exception { return (String) call("action", action); }
 
     @Override
     public String categoryContent(String tid, String pg, boolean filter, HashMap<String, String> extend) throws Exception {
-        JSObject obj = submit(() -> JSUtil.toObj(ctx, extend)).get();
+        JSObject obj = runSync(() -> JSUtil.toObj(ctx, extend));
         return (String) call("category", tid, pg, filter, obj);
     }
 
     @Override
-    public String detailContent(List<String> ids) throws Exception {
-        return (String) call("detail", ids.get(0));
-    }
-
-    @Override
-    public String searchContent(String key, boolean quick) throws Exception {
-        return (String) call("search", key, quick);
-    }
-
-    @Override
-    public String searchContent(String key, boolean quick, String pg) throws Exception {
-        return (String) call("search", key, quick, pg);
-    }
-
-    @Override
     public String playerContent(String flag, String id, List<String> vipFlags) throws Exception {
-        JSArray array = submit(() -> JSUtil.toArray(ctx, vipFlags)).get();
+        JSArray array = runSync(() -> JSUtil.toArray(ctx, vipFlags));
         return (String) call("play", flag, id, array);
-    }
-
-    @Override
-    public String liveContent() throws Exception {
-        return (String) call("live");
-    }
-
-    @Override
-    public boolean manualVideoCheck() throws Exception {
-        return (Boolean) call("sniffer");
-    }
-
-    @Override
-    public boolean isVideoFormat(String url) throws Exception {
-        return (Boolean) call("isVideo", url);
     }
 
     @Override
     public Object[] proxyLocal(Map<String, String> params) throws Exception {
         if ("catvod".equals(params.get("from"))) return proxy2(params);
-        else return submit(() -> proxy1(params)).get();
-    }
-
-    @Override
-    public String action(String action) throws Exception {
-        return (String) call("action", action);
+        return runSync(() -> proxy1(params));
     }
 
     @Override
@@ -136,33 +112,47 @@ public class Spider extends com.github.catvod.crawler.Spider {
         } catch (Throwable e) {
             e.printStackTrace();
         }
-        submit(() -> {
-            executor.shutdownNow();
-            jsObject.release();
-            ctx.destroy();
-        });
+        try {
+            runSync(() -> {
+                    if (jsObject != null) jsObject.release();
+                    if (ctx != null) ctx.destroy();
+            });
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+
     }
 
     private void initializeJS() throws Exception {
-        submit(() -> {
-            createCtx();
-            createObj();
-            return null;
-        }).get();
+        runSync(() -> {
+            try {
+                createCtx();
+                createObj();
+            } catch (Exception e) {
+                throw new RuntimeException(e);  // 或 Log.e(...) 根據你的需求處理
+            }
+        });
     }
 
     private void createCtx() {
         ctx = QuickJSContext.create();
         ctx.setConsole(new Console());
+
+        Global.create(ctx, JS_EXECUTOR).setProperty();
+        ctx.getGlobalObject().setProperty("local", Local.class);
+
+
+
+
         ctx.evaluate(Asset.read("js/lib/http.js"));
-        Global.create(ctx, executor).setProperty();
+        Global.create(ctx, JS_EXECUTOR).setProperty();
         ctx.getGlobalObject().setProperty("local", Local.class);
         ctx.setModuleLoader(new QuickJSContext.BytecodeModuleLoader() {
             @Override
             public String moduleNormalizeName(String baseModuleName, String moduleName) {
                 return UriUtil.resolve(baseModuleName, moduleName);
             }
-
             @Override
             public byte[] getModuleBytecode(String moduleName) {
                 String content = Module.get().fetch(moduleName);
@@ -175,8 +165,12 @@ public class Spider extends com.github.catvod.crawler.Spider {
         String spider = "__JS_SPIDER__";
         String global = "globalThis." + spider;
         String content = Module.get().fetch(api);
+
+        //Log.d("SpiderDebug", "API: " + api + "\nFetched content (head): " + content.substring(0, Math.min(content.length(), 200)));
+
         boolean bb = content.startsWith("//bb");
         cat = bb || content.contains("__jsEvalReturn");
+
         if (!bb) ctx.evaluateModule(content.replace(spider, global), api);
         ctx.evaluateModule(String.format(Asset.read("js/lib/spider.js"), api));
         jsObject = (JSObject) ctx.getProperty(ctx.getGlobalObject(), spider);
@@ -207,15 +201,11 @@ public class Spider extends com.github.catvod.crawler.Spider {
     private Object[] proxy2(Map<String, String> params) throws Exception {
         String url = params.get("url");
         String header = params.get("header");
-        JSArray array = submit(() -> JSUtil.toArray(ctx, Arrays.asList(url.split("/")))).get();
-        Object object = submit(() -> ctx.parse(header)).get();
+        JSArray array = runSync(() -> JSUtil.toArray(ctx, Arrays.asList(url.split("/"))));
+        Object object = runSync(() -> ctx.parse(header));
         String json = (String) call("proxy", array, object);
         Res res = Res.objectFrom(json);
-        Object[] result = new Object[3];
-        result[0] = res.getCode();
-        result[1] = res.getContentType();
-        result[2] = res.getStream();
-        return result;
+        return new Object[]{ res.getCode(), res.getContentType(), res.getStream() };
     }
 
     private ByteArrayInputStream getStream(Object o, boolean base64) {

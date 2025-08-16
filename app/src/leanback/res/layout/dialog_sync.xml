@@ -217,7 +217,7 @@
             android:id="@+id/syncGistToken"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="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"
+            android:hint="git token"
             android:imeOptions="actionDone"
             android:importantForAutofill="no"
             android:inputType="text"

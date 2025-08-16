@@ -174,7 +174,15 @@ public class FtpManager {
             URL url = new URL(gisturl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("PATCH");
-            conn.setRequestProperty("Authorization", "Bearer " + gisttoken);
+
+            if (gisttoken.startsWith("github_pat_")) {
+                conn.setRequestProperty("Authorization", "Bearer " + gisttoken);
+            }
+            else {
+                conn.setRequestProperty("Authorization",  "token " + gisttoken);
+            }
+
+            //conn.setRequestProperty("Authorization", "Bearer " + gisttoken);
             //conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Accept", "application/vnd.github+json");
             conn.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");

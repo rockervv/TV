@@ -2,6 +2,80 @@ plugins {
     id 'com.android.application'
 }
 
+
+// 函數：獲取最後一次 Git commit 說明
+def getLastCommitMessage() {
+    try {
+        def process = ['git', 'log', '-1', '--pretty=%B'].execute()
+        process.waitFor()
+        return process.text.trim()
+    } catch (Exception e) {
+        return "No commit message available"
+    }
+}
+
+
+def versionPropsFile = file('version.properties')
+def versionProps = new Properties()
+
+if (versionPropsFile.exists()) {
+    versionProps.load(new FileInputStream(versionPropsFile))
+} else {
+    versionProps['VERSION_CODE'] = "1"
+    versionProps['VERSION_NAME'] = "1.0.0"
+}
+
+def autoVersionCode = versionProps['VERSION_CODE'].toInteger() + 1
+def autoVersionName = versionProps['VERSION_NAME']
+
+// 在 Release build 時動態更新 versionName
+android.applicationVariants.configureEach { variant ->
+    if (variant.buildType.name == 'release') {
+        // 解析 versionName，例如 "Rocker.2.26.2"
+        def versionParts = autoVersionName.split('\\.')
+        def lastNumber = (versionParts.last() as Integer) + 1
+        versionParts[-1] = lastNumber.toString()
+        autoVersionName = versionParts.join('.')
+
+        // 更新 versionName 給當前 variant
+        variant.outputs.configureEach { output ->
+            output.versionNameOverride = autoVersionName
+        }
+
+        // 儲存新的 versionName 到 version.properties
+        versionProps['VERSION_NAME'] = autoVersionName
+
+        // 生成 leanback.json，存到臨時目錄 release_output/<flavor>
+        variant.outputs.configureEach { output ->
+            def flavorDirName = "${variant.productFlavors[0].name}${variant.productFlavors[1].name}${variant.productFlavors[2].name}"
+            def tempOutputDir = file("${project.projectDir}/release_output/${flavorDirName}")
+            def jsonFile = new File(tempOutputDir, "leanback.json")
+            def commitMessage = getLastCommitMessage()
+            def jsonContent = """{
+    "name": "${autoVersionName}",
+    "desc": "${commitMessage}",
+    "code": "${autoVersionCode}"
+}"""
+            tempOutputDir.mkdirs() // 確保臨時目錄存在
+            jsonFile.text = jsonContent
+
+            // 在 assemble 任務完成後複製 leanback.json 到 variant 輸出目錄
+            variant.assembleProvider.get().doLast {
+                def variantOutputDir = output.outputFile.parentFile
+                variantOutputDir.mkdirs() // 確保 variant 輸出目錄存在
+                copy {
+                    from jsonFile
+                    into variantOutputDir
+                }
+            }
+        }
+    }
+}
+
+// 寫回 version.properties
+versionProps['VERSION_CODE'] = autoVersionCode.toString()
+versionProps.store(new FileOutputStream(versionPropsFile), null)
+
 android {
     namespace 'com.fongmi.android.tv'
     compileSdk 35
@@ -13,8 +87,11 @@ android {
         minSdk 21
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
-        versionCode 262
-        versionName "Rocker-2.6.2"
+        versionCode = autoVersionCode
+        versionName = autoVersionName
+
+        //versionCode 262
+        //versionName "Rocker-2.6.2"
         javaCompileOptions {
             annotationProcessorOptions {
                 //arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
@@ -129,6 +206,8 @@ dependencies {
     implementation project(':jianpian')
     implementation project(':forcetech')
     implementation project(':ijkplayer')
+    implementation project(':pyramid')
+
     implementation 'androidx.media3:media3-datasource-okhttp:' + media3Version
     implementation 'androidx.media3:media3-datasource-rtmp:' + media3Version
     implementation "androidx.media3:media3-datasource:" + media3Version

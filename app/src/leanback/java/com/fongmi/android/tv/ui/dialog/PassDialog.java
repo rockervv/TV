@@ -16,6 +16,7 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.databinding.DialogPassBinding;
 import com.fongmi.android.tv.impl.PassCallback;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Util;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 
 public class PassDialog extends BaseDialog {
@@ -36,6 +37,12 @@ public class PassDialog extends BaseDialog {
     @Override
     protected ViewBinding getBinding(@NonNull LayoutInflater inflater, @Nullable ViewGroup container) {
         return binding = DialogPassBinding.inflate(inflater, container, false);
+    }
+
+    @Override
+    protected void initView() {
+        binding.pass.requestFocus();
+        Util.showKeyboard(binding.pass);
     }
 
     @Override

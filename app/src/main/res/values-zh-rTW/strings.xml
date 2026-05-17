@@ -42,6 +42,7 @@
     <string name="play_mini_progress">迷你</string>
     <string name="play_video_title">標題</string>
     <string name="play_danmu">彈幕</string>
+    <string name="play_save">儲存M3U8</string>
     <string name="play_display">屏顯</string>
     <string name="play_speed">倍速</string>
     <string name="play_change">換源</string>

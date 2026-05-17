@@ -46,7 +46,9 @@ import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Episode;
 import com.fongmi.android.tv.bean.Flag;
+import com.fongmi.android.tv.bean.FlagScore;
 import com.fongmi.android.tv.bean.History;
+import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Part;
@@ -94,6 +96,7 @@ import com.fongmi.android.tv.utils.Sniffer;
 import com.fongmi.android.tv.utils.Traffic;
 import com.github.bassaer.library.MDColor;
 import com.github.catvod.net.OkHttp;
+import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Trans;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.permissionx.guolindev.PermissionX;
@@ -374,6 +377,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         mBinding.control.danmu.setOnClickListener(view -> onDanmu());
         mBinding.control.danmu.setUpListener(this::onDanmuAdd);
         mBinding.control.danmu.setDownListener(this::onDanmuSub);
+        mBinding.control.save.setOnClickListener(view -> onSave());
         mBinding.control.next.setOnClickListener(view -> checkNext());
         mBinding.control.prev.setOnClickListener(view -> checkPrev());
         mBinding.control.episodes.setOnClickListener(view -> onEpisodes());
@@ -611,6 +615,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         setText(mBinding.actor, R.string.detail_actor, Html.fromHtml(item.getVodActor()).toString());
         setText(mBinding.content, R.string.detail_content, Html.fromHtml(item.getVodContent()).toString());
         setText(mBinding.director, R.string.detail_director, Html.fromHtml(item.getVodDirector()).toString());
+        sortFlags(item.getVodFlags());
         mFlagAdapter.setItems(item.getVodFlags(), null);
         mBinding.content.setMaxLines(getMaxLines());
         mBinding.video.requestFocus();
@@ -620,6 +625,18 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         checkHistory(item);
         checkFlag(item);
         checkKeep();
+    }
+
+    private void sortFlags(List<Flag> flags) {
+        if (flags.size() <= 1) return;
+        List<FlagScore> scores = AppDatabase.get().getFlagScoreDao().findBySite(getKey());
+        Map<String, Integer> scoreMap = new HashMap<>();
+        for (FlagScore score : scores) scoreMap.put(score.getFlagName(), score.getScore());
+        Collections.sort(flags, (o1, o2) -> {
+            Integer s1 = scoreMap.get(o1.getFlag());
+            Integer s2 = scoreMap.get(o2.getFlag());
+            return Integer.compare(s2 == null ? 0 : s2, s1 == null ? 0 : s1);
+        });
     }
 
     private int getMaxLines() {
@@ -886,6 +903,32 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         else createKeep();
         RefreshEvent.keep();
         checkKeep();
+    }
+
+    private void onSave() {
+        String url = mPlayers.getUrl();
+        if (TextUtils.isEmpty(url)) return;
+        App.execute(() -> {
+            try {
+                String name = mBinding.name.getText().toString() + "_" + getEpisode().getName() + ".m3u8";
+                if (Setting.isUseFtp()) {
+                    String ftpUrl = Setting.getFtpUri();
+                    String username = Setting.getFtpUsername();
+                    String password = Setting.getFtpPassword();
+                    com.fongmi.android.tv.bean.FtpManager ftp = new com.fongmi.android.tv.bean.FtpManager(ftpUrl, username, password);
+                    String remotePath = new File(new java.net.URI(ftpUrl).getPath()).getParent() + "/" + name;
+                    ftp.uploadJsonString(url, remotePath);
+                    App.post(() -> Notify.show("已上傳至 FTP: " + name));
+                } else {
+                    File file = new File(Path.cache(), name);
+                    Path.write(file, url.getBytes());
+                    App.post(() -> Notify.show("已儲存至暫存: " + name));
+                }
+            } catch (Exception e) {
+                App.post(() -> Notify.show("儲存失敗: " + e.getMessage()));
+                e.printStackTrace();
+            }
+        });
     }
 
     private void onVideo() {
@@ -1383,11 +1426,11 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
                 setDefaultTrack();
                 setTrackVisible(true);
                 mHistory.setPlayer(mPlayers.getPlayer());
-                //20250511
                 mHistory.setLastUpdated(getCurrentUTCTime());
                 mHistory.update();
                 mBinding.widget.size.setText(mPlayers.getSizeText());
                 mBinding.display.size.setText(mPlayers.getSizeText());
+                App.execute(() -> FlagScore.find(getKey(), getFlag().getFlag()).increment());
                 break;
             case Player.STATE_ENDED:
                 checkEnded();
@@ -1468,6 +1511,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         mClock.setCallback(null);
         mPlayers.reset();
         mPlayers.stop();
+        App.execute(() -> FlagScore.find(getKey(), getFlag().getFlag()).decrement());
     }
 
     private void onError(ErrorEvent event) {
@@ -1859,6 +1903,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
         mPlayers.release();
         Source.get().stop();
         RefreshEvent.history();
+        HistorySyncManager.SyncAll();
         App.removeCallbacks(mR1, mR2, mR3, mR4);
     }
 }

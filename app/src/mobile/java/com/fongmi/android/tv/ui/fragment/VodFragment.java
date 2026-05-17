@@ -151,6 +151,7 @@ public class VodFragment extends BaseFragment implements SiteCallback, FilterCal
         mBinding.type.setHasFixedSize(true);
         mBinding.type.setItemAnimator(null);
         mBinding.type.setAdapter(mAdapter = new TypeAdapter(this));
+        mBinding.pager.setOverScrollMode(View.OVER_SCROLL_NEVER);
         mBinding.pager.setAdapter(new PageAdapter(getChildFragmentManager()));
     }
 
@@ -190,7 +191,7 @@ public class VodFragment extends BaseFragment implements SiteCallback, FilterCal
     private void setAdapter(Result result) {
         mAdapter.addAll(handle(result));
         mBinding.pager.getAdapter().notifyDataSetChanged();
-        setFabVisible(0);
+        setFabVisible(mBinding.pager.getCurrentItem());
         hideProgress();
         checkRetry();
     }
@@ -284,12 +285,14 @@ public class VodFragment extends BaseFragment implements SiteCallback, FilterCal
     }
 
     private void homeContent() {
+        int position = mBinding.pager.getCurrentItem();
         setSiteText();
         showProgress();
-        setFabVisible(0);
         mAdapter.clear();
         mViewModel.homeContent();
         mBinding.pager.setAdapter(new PageAdapter(getChildFragmentManager()));
+        mBinding.pager.setCurrentItem(position, false);
+        setFabVisible(position);
     }
 
     private void setLogo() {

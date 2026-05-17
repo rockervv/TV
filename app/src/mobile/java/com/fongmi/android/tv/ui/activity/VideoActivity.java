@@ -47,7 +47,9 @@ import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Episode;
 import com.fongmi.android.tv.bean.Flag;
+import com.fongmi.android.tv.bean.FlagScore;
 import com.fongmi.android.tv.bean.History;
+import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Result;
@@ -567,6 +569,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         setText(mBinding.actor, R.string.detail_actor, Html.fromHtml(item.getVodActor()).toString());
         setText(mBinding.director, R.string.detail_director, Html.fromHtml(item.getVodDirector()).toString());
         mBinding.contentLayout.setVisibility(mBinding.content.getVisibility());
+        sortFlags(item.getVodFlags());
         mFlagAdapter.addAll(item.getVodFlags());
         setOther(mBinding.other, item);
         setArtwork(item.getVodPic());
@@ -574,6 +577,18 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         checkHistory(item);
         checkFlag(item);
         checkKeepImg();
+    }
+
+    private void sortFlags(List<Flag> flags) {
+        if (flags.size() <= 1) return;
+        List<FlagScore> scores = AppDatabase.get().getFlagScoreDao().findBySite(getKey());
+        Map<String, Integer> scoreMap = new HashMap<>();
+        for (FlagScore score : scores) scoreMap.put(score.getFlagName(), score.getScore());
+        Collections.sort(flags, (o1, o2) -> {
+            Integer s1 = scoreMap.get(o1.getFlag());
+            Integer s2 = scoreMap.get(o2.getFlag());
+            return Integer.compare(s2 == null ? 0 : s2, s1 == null ? 0 : s1);
+        });
     }
 
     private void setText(TextView view, int resId, String text) {
@@ -1326,6 +1341,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
                 mBinding.control.size.setText(mPlayers.getSizeText());
                 mBinding.display.size.setText(mPlayers.getSizeText());
                 if (isVisible(mBinding.control.getRoot())) showControl();
+                App.execute(() -> FlagScore.find(getKey(), getFlag().getFlag()).increment());
                 break;
             case Player.STATE_ENDED:
                 checkEnded();
@@ -1416,6 +1432,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         mClock.setCallback(null);
         mPlayers.reset();
         mPlayers.stop();
+        App.execute(() -> FlagScore.find(getKey(), getFlag().getFlag()).decrement());
     }
 
     private void onError(ErrorEvent event) {
@@ -1869,6 +1886,7 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         App.post(mR0, 1000);
         Source.get().stop();
         RefreshEvent.history();
+        HistorySyncManager.SyncAll();
         App.removeCallbacks(mR1, mR2, mR3, mR4);
         mViewModel.result.removeObserver(mObserveDetail);
         mViewModel.player.removeObserver(mObservePlayer);

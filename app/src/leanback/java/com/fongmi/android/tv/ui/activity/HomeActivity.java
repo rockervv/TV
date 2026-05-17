@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
+import android.view.FocusFinder;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -95,6 +96,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private boolean confirm;
     private Clock mClock;
     private View mFocus;
+    private boolean updating;
+    private int mScrollState = ViewPager.SCROLL_STATE_IDLE;
 
     private Site getHome() {
         return VodConfig.get().getHome();
@@ -124,6 +127,96 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         setHomeType();
         setPager();
         initConfig();
+        initRemote();
+    }
+
+    private void initRemote() {
+        android.util.Log.e("HomeActivity", "initRemote: isTvBox = " + com.fongmi.android.tv.utils.Util.isTvBox());
+        if (com.fongmi.android.tv.utils.Util.isTvBox()) return;
+        View remote = getLayoutInflater().inflate(R.layout.view_virtual_remote, mBinding.root, false);
+        mBinding.root.addView(remote);
+        android.util.Log.e("HomeActivity", "initRemote: remote view added to root");
+        View panel = remote.findViewById(R.id.remote_panel);
+        View toggle = remote.findViewById(R.id.remote_toggle);
+        toggle.setOnClickListener(v -> {
+            boolean show = panel.getVisibility() == View.GONE;
+            panel.setVisibility(show ? View.VISIBLE : View.GONE);
+            toggle.setVisibility(show ? View.GONE : View.VISIBLE);
+        });
+        remote.findViewById(R.id.btn_up).setOnClickListener(v -> sendKey(KeyEvent.KEYCODE_DPAD_UP));
+        remote.findViewById(R.id.btn_down).setOnClickListener(v -> sendKey(KeyEvent.KEYCODE_DPAD_DOWN));
+        remote.findViewById(R.id.btn_left).setOnClickListener(v -> sendKey(KeyEvent.KEYCODE_DPAD_LEFT));
+        remote.findViewById(R.id.btn_right).setOnClickListener(v -> sendKey(KeyEvent.KEYCODE_DPAD_RIGHT));
+        remote.findViewById(R.id.btn_ok).setOnClickListener(v -> {
+            sendKey(KeyEvent.KEYCODE_DPAD_CENTER);
+            panel.setVisibility(View.GONE);
+            toggle.setVisibility(View.VISIBLE);
+        });
+        remote.findViewById(R.id.btn_back).setOnClickListener(v -> {
+            sendKey(KeyEvent.KEYCODE_BACK);
+            panel.setVisibility(View.GONE);
+            toggle.setVisibility(View.VISIBLE);
+        });
+    }
+
+    private void sendKey(int keyCode) {
+        android.util.Log.e("HomeActivity", "sendKey: " + keyCode);
+        int direction = -1;
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) direction = View.FOCUS_UP;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) direction = View.FOCUS_DOWN;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) direction = View.FOCUS_LEFT;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) direction = View.FOCUS_RIGHT;
+
+        View current = getCurrentFocus();
+        if (current == null) {
+            mBinding.recycler.requestFocus();
+            current = mBinding.recycler;
+        }
+
+        if (direction != -1) {
+            // 1. 使用 FocusFinder 尋找下一個邏輯焦點
+            View next = FocusFinder.getInstance().findNextFocus((ViewGroup) mBinding.root, current, direction);
+
+            // 2. 特殊情況處理：從類別列向下進入內容區，或從內容區向上回到類別列
+            if (next == null || next == current || next == mBinding.recycler || next == mBinding.pager) {
+                if (direction == View.FOCUS_DOWN && viewAncestor(current, mBinding.recycler)) {
+                    VerticalGridView gridView = getRecyclerView();
+                    if (gridView != null) {
+                        gridView.requestFocus();
+                        return;
+                    }
+                } else if (direction == View.FOCUS_UP && viewAncestor(current, mBinding.pager)) {
+                    VerticalGridView gridView = getRecyclerView();
+                    if (gridView != null && !gridView.canScrollVertically(-1)) {
+                        mBinding.recycler.requestFocus();
+                        return;
+                    }
+                }
+            }
+
+            if (next != null && next != current) {
+                next.requestFocus();
+                return;
+            }
+        }
+
+        // 3. OK, BACK 或 FocusFinder 失敗時的回退方案
+        dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, keyCode));
+        dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, keyCode));
+    }
+
+    private VerticalGridView getRecyclerView() {
+        Fragment fragment = (Fragment) mPageAdapter.instantiateItem(mBinding.pager, mBinding.pager.getCurrentItem());
+        if (fragment instanceof HomeFragment) return ((HomeFragment) fragment).mBinding.recycler;
+        if (fragment instanceof VodFragment) return ((VodFragment) fragment).mBinding.recycler;
+        return null;
+    }
+
+    private boolean viewAncestor(View view, View target) {
+        if (view == null) return false;
+        if (view == target) return true;
+        if (view.getParent() instanceof View) return viewAncestor((View) view.getParent(), target);
+        return false;
     }
 
     @Override
@@ -131,13 +224,22 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mBinding.title.setListener(this);
         mBinding.pager.addOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
             @Override
+            public void onPageScrollStateChanged(int state) {
+                mScrollState = state;
+            }
+
+            @Override
             public void onPageSelected(int position) {
+                android.util.Log.e("HomeActivity", "onPageSelected: " + position + ", currentRecycler: " + mBinding.recycler.getSelectedPosition() + ", updating: " + updating);
+                if (updating) return;
                 mBinding.recycler.setSelectedPosition(position);
             }
         });
         mBinding.recycler.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
+                if (updating || mScrollState != ViewPager.SCROLL_STATE_IDLE) return;
+                android.util.Log.e("HomeActivity", "onChildViewHolderSelected position: " + position + ", currentPager: " + mBinding.pager.getCurrentItem() + ", updating: " + updating);
                 onChildSelected(child);
             }
         });
@@ -225,24 +327,39 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     public void setTypes(Result result) {
+        int position = mBinding.recycler.getSelectedPosition();
+        updating = true;
+        android.util.Log.e("HomeActivity", "setTypes start, current position: " + position);
         result.setTypes(getTypes(result));
         for (Map.Entry<String, List<Filter>> entry : result.getFilters().entrySet()) Prefers.put("filter_" + getKey() + "_" + entry.getKey(), App.gson().toJson(entry.getValue()));
         for (Class item : result.getTypes()) item.setFilters(getFilter(item.getTypeId()));
         if (mAdapter.size() > 1) mAdapter.removeItems(1, mAdapter.size() - 1);
         if (result.getTypes().size() > 0) mAdapter.addAll(1, result.getTypes());
         setPager();
-        mPageAdapter.notifyDataSetChanged();
+        if (mPageAdapter != null) {
+            mPageAdapter.notifyDataSetChanged();
+        }
+        int targetPos = Math.min(position, mAdapter.size() - 1);
+        android.util.Log.e("HomeActivity", "Restoring recycler position to: " + targetPos);
+        mBinding.recycler.setSelectedPosition(targetPos);
+        App.post(() -> {
+            android.util.Log.e("HomeActivity", "Updating flag set to false");
+            updating = false;
+        }, 500);
         getHomeFragment().addVideo(result);
         getHomeFragment().mBinding.progressLayout.showContent();
         App.post(() -> setFocus(), 200);
     }
 
     private void setPager() {
+        if (mBinding.pager.getAdapter() != null) return;
         mBinding.pager.setAdapter(mPageAdapter = new HomeActivity.PageAdapter(getSupportFragmentManager()));
+        mBinding.pager.setOffscreenPageLimit(10);
         mBinding.pager.setNoScrollItem(0);
     }
 
     private void onChildSelected(@Nullable RecyclerView.ViewHolder child) {
+        if (updating) return;
         if (mOldView != null) mOldView.setActivated(false);
         if (child == null) return;
         mOldView = child.itemView;
@@ -253,8 +370,14 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private final Runnable mRunnable = new Runnable() {
         @Override
         public void run() {
+            if (updating || mScrollState != ViewPager.SCROLL_STATE_IDLE) return;
             int position = mBinding.recycler.getSelectedPosition();
-            mBinding.pager.setCurrentItem(position);
+            int currentPagerItem = mBinding.pager.getCurrentItem();
+            android.util.Log.e("HomeActivity", "mRunnable run, recycler pos: " + position + ", pager item: " + currentPagerItem);
+            if (position != -1 && currentPagerItem != position) {
+                android.util.Log.e("HomeActivity", "Setting pager item to: " + position);
+                mBinding.pager.setCurrentItem(position);
+            }
             if (position == 0) showToolBar();
             else hideToolBar();
         }
@@ -612,6 +735,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         @Override
         public int getCount() {
             return mAdapter.size();
+        }
+
+        @Override
+        public int getItemPosition(@NonNull Object object) {
+            return POSITION_NONE;
         }
 
         @Override

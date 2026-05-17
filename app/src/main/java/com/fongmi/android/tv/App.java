@@ -114,6 +114,9 @@ public class App extends Application {
         Logger.addLogAdapter(getLogAdapter());
         OkHttp.get().setProxy(Setting.getProxy());
         OkHttp.get().setDoh(Doh.objectFrom(Setting.getDoh()));
+        System.setProperty("org.fourthline.cling.network.useIPv4Names", "true");
+        System.setProperty("sun.net.client.defaultConnectTimeout", "5000");
+        System.setProperty("sun.net.client.defaultReadTimeout", "5000");
 
         //HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword());
         HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword(), Setting.isUseFtp());
@@ -159,16 +162,29 @@ public class App extends Application {
         });
 
         ADFilter.setM3U8ParseListener(new ADFilter.M3U8ParseListener() {
+            private int lastCount = 0;
+            private double lastSeconds = 0;
+            private long lastTime = 0;
+
             @Override
             public void onAdSegmentsFiltered(int adCount, double adSeconds) {
-                // 切回主執行緒（UI Thread）
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    // 在這裡操作 UI 或觸發其他主線邏輯
-                    //Toast.makeText(context, "ADs filtered: " + adCount + " segments, " + adSeconds + " seconds", Toast.LENGTH_SHORT).show();
-                    if (adCount > 0)
-                        Notify.show("過濾 " + adCount + " 廣告，共：" + adSeconds+ " 秒");
-                    else if (adCount < 0)
+                    long currentTime = System.currentTimeMillis();
+                    // 如果跟上次過濾的數量/時間一樣，且間隔小於 1 分鐘，就不重複提示
+                    if (adCount == lastCount && Math.abs(adSeconds - lastSeconds) < 0.1 && (currentTime - lastTime) < 60000) {
+                        return;
+                    }
+                    
+                    if (adCount > 0) {
+                        Notify.show("過濾 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
+                        lastCount = adCount;
+                        lastSeconds = adSeconds;
+                        lastTime = currentTime;
+                    } else if (adCount < 0 && (currentTime - lastTime) > 60000) {
                         Notify.show("廣告過濾失敗");
+                        lastCount = adCount;
+                        lastTime = currentTime;
+                    }
                 });
             }
         });

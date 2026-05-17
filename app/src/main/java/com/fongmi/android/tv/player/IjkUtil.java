@@ -55,41 +55,7 @@ public class IjkUtil {
     }
 
     public static MediaSource getSourceInternal(Context context, Map<String, String> headers, String url) {
-        Uri uri = UrlUtil.uri(url);
-        headers = Players.checkUa(headers);
-        try {
-            // 1. 建立連線下載 m3u8 原始內容
-            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-            for (Map.Entry<String, String> entry : headers.entrySet()) {
-                conn.setRequestProperty(entry.getKey(), entry.getValue());
-            }
-
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            String filtered = ADFilter.Process(reader, mainHandler);
-
-            // 3. 寫入本地 filtered 檔案
-            File m3u8File = new File(context.getCacheDir(), "filtered_" + System.currentTimeMillis() + ".m3u8");
-            FileWriter writer = new FileWriter(m3u8File);
-            writer.write(filtered);
-            writer.close();
-
-            // 5. 傳回 MediaSource
-            Uri localUri = Uri.fromFile(m3u8File);
-
-            return new MediaSource(headers, localUri);
-
-        } catch (Exception e) {
-            //e.printStackTrace();
-            Log.e ("IJKUtil", "Error getSource: " + e);
-
-            // fallback 回原始 URL
-            return new MediaSource(Players.checkUa(headers), uri);
-            //return new MediaSource(Players.checkUa(headers), UrlUtil.uri(url));
-        }
-
-
-
-
+        return new MediaSource(Players.checkUa(headers), UrlUtil.uri(url));
     }
 
 

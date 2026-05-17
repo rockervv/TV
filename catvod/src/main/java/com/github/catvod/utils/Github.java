@@ -9,7 +9,7 @@ import java.io.File;
 public class Github {
 
     //public static final String URL = "https://rockercheng.pythonanywhere.com"; //https://my.t4tv.hz.cz";
-    public static final String URL = "https://rocker.sytes.net"; //https://my.t4tv.hz.cz";
+    public static final String URL = "https://rockervv.duckdns.org"; //https://my.t4tv.hz.cz";
 
     private static String getUrl(String path, String name) {
         return URL + "/" + path + "/" + name;

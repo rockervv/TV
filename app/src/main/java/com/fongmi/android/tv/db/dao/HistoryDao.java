@@ -18,21 +18,14 @@ public abstract class HistoryDao extends BaseDao<History> {
 
     public abstract List<History> find(int cid);
 
-    //@Query("SELECT * FROM History WHERE cid = :cid AND `key` = :key")
-    @Query("SELECT * FROM History WHERE cid = :cid AND `key` = :key ORDER BY lastUpdated DESC")
-
+    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND `key` = :key ORDER BY lastUpdated DESC")
     public abstract History find(int cid, String key);
 
-    //@Query("SELECT * FROM History WHERE cid = :cid AND vodName = :vodName")
-    //@Query("SELECT * FROM History WHERE cid = :cid AND vodName = :vodName ORDER BY lastUpdated")
-    //newer in fronter
-    @Query("SELECT * FROM History WHERE cid = :cid AND vodName = :vodName ORDER BY lastUpdated DESC")
+    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND vodName = :vodName ORDER BY lastUpdated DESC")
     public abstract List<History> findByName(int cid, String vodName);
 
-    //@Query("DELETE FROM History WHERE cid = :cid AND `key` = :key")
-    //Soft Deleted to sync with other devices to set as delete
-    @Query("UPDATE History SET deleted=1 WHERE cid = :cid AND `key` = :key")
-    public abstract void delete(int cid, String key);
+    @Query("UPDATE History SET deleted = 1, lastUpdated = :lastUpdated WHERE cid = :cid AND `key` = :key")
+    public abstract void delete(int cid, String key, long lastUpdated);
 
     //hard Deleted from database, TODO or NotTodo: delete rows which has deleted flag on for more than xx days
     @Query("DELETE FROM History WHERE cid = :cid AND `key` = :key")
@@ -44,8 +37,10 @@ public abstract class HistoryDao extends BaseDao<History> {
     @Query("DELETE FROM History")
     public abstract void delete();
 
-    //@Query("SELECT * FROM History ORDER BY createTime DESC")
     @Query("SELECT * FROM History ORDER BY lastUpdated DESC")
+    public abstract List<History> getAllForSync();
+
+    @Query("SELECT * FROM History WHERE deleted = 0 ORDER BY lastUpdated DESC")
     public abstract List<History> getAll();
     @Transaction
     public void insertOrUpdateAll(List<History> histories) {

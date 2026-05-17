@@ -39,8 +39,10 @@ public class OkProxySelector extends ProxySelector {
 
     @Override
     public List<Proxy> select(URI uri) {
-        if (proxy == null || hosts.isEmpty() || uri.getHost() == null || "127.0.0.1".equals(uri.getHost())) return Collections.singletonList(Proxy.NO_PROXY);
-        for (String host : hosts) if (Util.containOrMatch(uri.getHost(), host)) return Collections.singletonList(proxy);
+        String host = uri.getHost();
+        if (proxy == null || hosts.isEmpty() || host == null) return Collections.singletonList(Proxy.NO_PROXY);
+        if (host.equals("127.0.0.1") || host.equals("localhost") || host.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) return Collections.singletonList(Proxy.NO_PROXY);
+        for (String h : hosts) if (Util.containOrMatch(host, h)) return Collections.singletonList(proxy);
         return Collections.singletonList(Proxy.NO_PROXY);
     }
 

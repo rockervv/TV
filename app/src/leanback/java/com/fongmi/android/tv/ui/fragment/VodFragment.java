@@ -49,7 +49,7 @@ import java.util.List;
 public class VodFragment extends BaseFragment implements CustomScroller.Callback, VodPresenter.OnClickListener {
 
     private HashMap<String, String> mExtends;
-    private FragmentVodBinding mBinding;
+    public FragmentVodBinding mBinding;
     private ArrayObjectAdapter mAdapter;
     private ArrayObjectAdapter mLast;
     private CustomScroller mScroller;

@@ -31,6 +31,9 @@ public class CustomEditText extends AppCompatEditText {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+            com.fongmi.android.tv.utils.Util.showKeyboard(this);
+        }
         View v = focusSearch(event);
         if (v != null) return v.requestFocus();
         return super.onKeyDown(keyCode, event);

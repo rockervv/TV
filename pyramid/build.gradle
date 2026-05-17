@@ -14,7 +14,8 @@ android {
         targetSdk 28
         python {
             version "3.8"
-            buildPython "C:/Users/Rocker Cheng/AppData/Local/Microsoft/WindowsApps/python3.8.exe"
+            //buildPython "C:/Users/Rocker Cheng/AppData/Local/Microsoft/WindowsApps/python3.8.exe"
+            buildPython "C:/Python38/python.exe"
             //"C:/Python38/python.exe" // 替換為實際路徑
 
             pip {

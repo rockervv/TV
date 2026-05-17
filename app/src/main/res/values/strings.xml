@@ -42,6 +42,7 @@
     <string name="play_mini_progress">Mini</string>
     <string name="play_video_title">Title</string>
     <string name="play_danmu">Danmu</string>
+    <string name="play_save">M3U8</string>
     <string name="play_display">Display</string>
     <string name="play_speed">Speed</string>
     <string name="play_change">Change</string>

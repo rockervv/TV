@@ -1,25 +1,22 @@
 package com.fongmi.android.tv.server.process;
+
 import androidx.media3.common.util.Log;
 
-import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.player.ADFilter;
 import com.fongmi.android.tv.server.Nano;
-import com.fongmi.android.tv.utils.Notify;
-import com.github.catvod.utils.Asset;
+import com.fongmi.android.tv.server.Server;
+import com.github.catvod.net.OkHttp;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.InputStream;
-import java.io.IOException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Map;
-
+import java.util.Scanner;
 
 import fi.iki.elonen.NanoHTTPD;
+import okhttp3.Headers;
+import okhttp3.Response;
 
 public class M3U8 implements Process {
 
@@ -30,54 +27,66 @@ public class M3U8 implements Process {
 
     @Override
     public NanoHTTPD.Response doResponse(NanoHTTPD.IHTTPSession session, String url, Map<String, String> files) {
-        //String proxyurl = "http://127.0.0.1:9978/segment?url=";
-        String proxyurl = "http://127.0.0.1:9978/m3u8?url=";
         String targetUrl = session.getParms().get("url");
-        String baseUri = targetUrl.substring(0, targetUrl.lastIndexOf("/") + 1);
         if (targetUrl == null) return Nano.error("Missing URL");
 
+        String proxyUrlPrefix = Server.get().getAddress("/m3u8?url=");
+
         try {
-            // 下載 m3u8 原始內容
-            URL u = new URL(targetUrl);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(u.openStream()));
-
-            String filtered = ADFilter.Process(reader);
-            StringBuilder result = new StringBuilder();
-            Scanner scanner = new Scanner (filtered);
-
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                if (line.startsWith("#") || line.trim().isEmpty()) {
-                    result.append(line).append("\n");
-                } else {
-                    // 是 ts 段 → 包裝成 /segment 代理
-                    if (line.startsWith("https://") || line.startsWith("http://")){
-                        result.append(line).append("\n");
-                    }
-                    else {
-                        String fullTsUrl;
-                        if (line.endsWith(".m3u8") && !line.startsWith(proxyurl)) {
-                            fullTsUrl = proxyurl + URLEncoder.encode(baseUri + line, "UTF-8");
-                        }
-                        else fullTsUrl = baseUri + line;
-
-                        result.append(fullTsUrl).append("\n");
-                        //result.append(proxyTsUrl).append("\n");
-                    }
-
-                }
+            Headers.Builder headersBuilder = new Headers.Builder();
+            for (Map.Entry<String, String> entry : session.getHeaders().entrySet()) {
+                String key = entry.getKey();
+                if (key.equalsIgnoreCase("host") || key.equalsIgnoreCase("connection") || key.equalsIgnoreCase("remote-addr")) continue;
+                headersBuilder.add(key, entry.getValue());
             }
 
-            //return Nano.success(result.toString());
-            Log.d("M3U8", targetUrl + "\n" + result.toString().substring(0, result.length() > 1024 ? 1024 : result.length()));
+            try (Response response = OkHttp.newCall(targetUrl, headersBuilder.build()).execute()) {
+                if (!response.isSuccessful()) return Nano.error("HTTP " + response.code());
 
+                BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
+                String filtered = ADFilter.Process(reader);
 
-            // 回傳修改後的 m3u8 內容
-            return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", result.toString());
+                StringBuilder result = new StringBuilder();
+                Scanner scanner = new Scanner(filtered);
+                URL baseUrl = new URL(targetUrl);
 
-        } catch (IOException e) {
-            return Nano.error("Parse failed: " + e.getMessage());
+                while (scanner.hasNextLine()) {
+                    String content = scanner.nextLine().trim();
+                    if (content.isEmpty()) continue;
+
+                    if (content.startsWith("#")) {
+                        if (content.contains("URI=\"")) {
+                            content = resolveTagUri(content, baseUrl);
+                        }
+                        result.append(content).append("\n");
+                    } else {
+                        String resolvedUrl = new URL(baseUrl, content).toString();
+                        if (resolvedUrl.toLowerCase().contains(".m3u8") && !resolvedUrl.startsWith(proxyUrlPrefix)) {
+                            result.append(proxyUrlPrefix).append(URLEncoder.encode(resolvedUrl, "UTF-8")).append("\n");
+                        } else {
+                            result.append(resolvedUrl).append("\n");
+                        }
+                    }
+                }
+
+                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", result.toString());
+            }
+
+        } catch (Exception e) {
+            Log.e("M3U8Proxy", "Error: " + e.getMessage());
+            return Nano.error("Proxy failed: " + e.getMessage());
+        }
+    }
+
+    private String resolveTagUri(String line, URL baseUrl) {
+        try {
+            int start = line.indexOf("URI=\"") + 5;
+            int end = line.indexOf("\"", start);
+            String uri = line.substring(start, end);
+            String resolved = new URL(baseUrl, uri).toString();
+            return line.substring(0, start) + resolved + line.substring(end);
+        } catch (Exception e) {
+            return line;
         }
     }
 }
-

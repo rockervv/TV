@@ -569,75 +569,35 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
     }
 
     private void setMediaSource(Map<String, String> headers, String url, String format, Drm drm, List<Sub> subs, int timeout) {
+        this.headers = checkUa(headers);
+        this.url = url;
+        this.format = format;
+        this.drm = drm;
+        this.subs = subs;
 
-        //ADFilter.setM3U8ParseListener((adCount, adSeconds) -> {
-            //App.post(() -> Notify.show("已過濾廣告段數：" + adCount + "，總長：" + adSeconds + " 秒"));
-            //Notify.show("已過濾廣告段數：" + adCount + "，總長：" + adSeconds + " 秒");
-        //});
-
-        if (true == false ){
-            if (isIjk() && ijkPlayer != null) {
-
-            IjkUtil.getSourceAsync(ijkPlayer.getContext(), this.headers = checkUa(headers), this.url = url, mediaSource -> {
-                ijkPlayer.setMediaSource(mediaSource, position);
-            });
-            //MediaSource source = IjkUtil.getSource(this.headers = checkUa(headers), this.url = url),
-            //ijkPlayer.setMediaSource(source, position);
+        // 如果是 M3U8 且尚未被 Proxy 包裝，則包裝它
+        if (url != null && url.toLowerCase().contains(".m3u8") && !url.startsWith(proxyurl)) {
+            try {
+                this.url = proxyurl + URLEncoder.encode(url, "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                // ignore
             }
-
-            else
-            if (isExo() && exoPlayer != null) {
-                MediaItem item = ExoUtil.getMediaItem(this.headers = checkUa(headers),
-                        UrlUtil.uri(this.url = url),
-                        this.format = format,
-                        this.drm = drm,
-                        checkSub(this.subs = subs), decode);
-                MediaSourceFactory factory = new MediaSourceFactory();
-                //factory.createMediaSource(item);
-
-                MediaSource source = factory.createMediaSource(item);
-                Notify.show("new source");
-
-
-                //exoPlayer.setMediaItem(item, position);
-                exoPlayer.setMediaSource(source, position);
-                exoPlayer.prepare();
-            }
-        }
-
-        try {
-            if (url.startsWith(proxyurl))
-            {
-
-            }
-            else {
-                url = proxyurl + URLEncoder.encode(url, "UTF-8");
-            }
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace(); // 或自訂錯誤處理邏輯
         }
 
         if (isIjk() && ijkPlayer != null) {
-            tv.danmaku.ijk.media.player.MediaSource source = IjkUtil.getSource(this.headers = checkUa(headers), this.url = url);
+            tv.danmaku.ijk.media.player.MediaSource source = IjkUtil.getSource(this.headers, this.url);
             ijkPlayer.setMediaSource(source, position);
         }
-        if (isExo() && exoPlayer != null) {
-            MediaItem item = ExoUtil.getMediaItem(this.headers = checkUa(headers),
-                    UrlUtil.uri(this.url = url),
-                    this.format = format,
-                    this.drm = drm,
-                    checkSub(this.subs = subs), decode);
 
+        if (isExo() && exoPlayer != null) {
+            MediaItem item = ExoUtil.getMediaItem(this.headers, UrlUtil.uri(this.url), this.format, this.drm, checkSub(this.subs), decode);
             exoPlayer.setMediaItem(item, position);
             exoPlayer.prepare();
-
         }
 
-
         App.post(runnable, timeout);
-
         PlayerEvent.prepare();
-        Logger.t(TAG).d(url);
+        Logger.t(TAG).d(this.url);
     }
 
     private void removeTimeoutCheck() {

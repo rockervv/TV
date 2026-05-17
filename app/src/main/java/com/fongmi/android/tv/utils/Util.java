@@ -55,6 +55,12 @@ public class Util {
         imm.hideSoftInputFromWindow(windowToken, 0);
     }
 
+    public static void showKeyboard(View view) {
+        InputMethodManager imm = (InputMethodManager) App.get().getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm == null) return;
+        view.postDelayed(() -> imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT), 100);
+    }
+
     public static float getBrightness(Activity activity) {
         try {
             float value = activity.getWindow().getAttributes().screenBrightness;

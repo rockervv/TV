@@ -35,6 +35,19 @@ public class ADFilter {
 
     }
 
+    private static final String[] AD_KEYWORDS = {
+            "adsvideo", "gvt1.com", "doubleclick.net", "googleads", "analytics", "ads.ts", "ad-", "-ad"
+    };
+
+    private static boolean isAdUrl(String url) {
+        if (url == null) return false;
+        String lowerUrl = url.toLowerCase();
+        for (String keyword : AD_KEYWORDS) {
+            if (lowerUrl.contains(keyword)) return true;
+        }
+        return false;
+    }
+
     private static M3U8AdFilterResult parseAndFilterM3U8(BufferedReader reader) {
 
         StringBuilder output = new StringBuilder(), output1 = new StringBuilder();
@@ -71,11 +84,10 @@ public class ADFilter {
                         if (inAd) {
                             currentDuration += duration;
                             pendingExtInfLine = null;
-                            //output.append(line).append("\n");
                         }
 
                     } catch (NumberFormatException e) {
-                        //currentDuration = 0.0;
+                        // ignore
                     }
                     continue;
                 }
@@ -99,31 +111,25 @@ public class ADFilter {
                     // 檢查下一段 ts 檔名是否為連號
                     String nextExtInf = (i + 1 < lines.size()) ? lines.get(i + 1) : null;
                     String nextTsLine = (i + 2 < lines.size()) ? lines.get(i + 2) : null;
+                    
                     if (!inAd) {
-                        if (nextExtInf != null && nextExtInf.startsWith("#EXTINF:")
-                                && nextTsLine != null) {
-
-                            if ((nextTsLine.endsWith(".ts") || nextTsLine.endsWith(".jpeg") || nextTsLine.endsWith(".jpg"))) {
-
+                        if (nextExtInf != null && nextExtInf.startsWith("#EXTINF:") && nextTsLine != null) {
+                            if (isAdUrl(nextTsLine)) {
+                                inAd = true;
+                            } else if ((nextTsLine.endsWith(".ts") || nextTsLine.endsWith(".jpeg") || nextTsLine.endsWith(".jpg"))) {
                                 Long nextNumber = extractSegmentNumber(nextTsLine);
                                 if (lastSegmentNumber != null && nextNumber != null && nextNumber == lastSegmentNumber + 1) {
-                                    // 是連號，保留
                                     output.append(line).append("\n");
                                 } else {
-                                    // 不連號，視為廣告開始
                                     inAd = true;
                                 }
-                            }
-                            else {
-                                // 非正規副檔名，視為廣告開始
+                            } else {
                                 inAd = true;
                             }
                         } else {
-                            // 無法解析，保守保留
                             output.append(line).append("\n");
                         }
                     } else {
-                        // 廣告結束
                         adDuration += currentDuration;
                         adCount++;
                         currentDuration = 0.0;
@@ -133,6 +139,8 @@ public class ADFilter {
                 }
 
                 if (line.endsWith(".ts") || line.endsWith(".jpeg") || line.endsWith(".jpg")) {
+                    if (isAdUrl(line)) inAd = true;
+
                     Long currentNumber = extractSegmentNumber(line);
 
                     if (!inAd) {

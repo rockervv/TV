@@ -48,15 +48,15 @@ android.applicationVariants.configureEach { variant ->
         // 生成 leanback.json，存到臨時目錄 release_output/<flavor>
         variant.outputs.configureEach { output ->
             def flavorDirName = "${variant.productFlavors[0].name}${variant.productFlavors[1].name}${variant.productFlavors[2].name}"
-            def tempOutputDir = file("${project.projectDir}/release_output/${flavorDirName}")
-            def jsonFile = new File(tempOutputDir, "leanback.json")
+            def targetOutputDir = file("${project.projectDir}/release_output/${flavorDirName}")
+            def jsonFile = new File(targetOutputDir, "leanback.json")
             def commitMessage = getLastCommitMessage()
             def jsonContent = """{
     "name": "${autoVersionName}",
     "desc": "${commitMessage}",
     "code": "${autoVersionCode}"
 }"""
-            tempOutputDir.mkdirs() // 確保臨時目錄存在
+            targetOutputDir.mkdirs() // 確保臨時目錄存在
             jsonFile.text = jsonContent
 
             // 在 assemble 任務完成後複製 leanback.json 到 variant 輸出目錄
@@ -66,6 +66,11 @@ android.applicationVariants.configureEach { variant ->
                 copy {
                     from jsonFile
                     into variantOutputDir
+                }
+                // 2. 新增：將編譯好的 APK 複製到指定的 release_output 目錄下
+                copy {
+                    from output.outputFile
+                    into targetOutputDir
                 }
             }
         }

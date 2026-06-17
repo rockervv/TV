@@ -56,10 +56,27 @@ public class Util {
     }
 
     public static void showKeyboard(View view) {
+        if (view == null) return;
+
+        // 💡 先讓元件在畫面上取得焦點
+        view.requestFocus();
+        if (view.isInTouchMode()) {
+            view.requestFocusFromTouch();
+        }
+
         InputMethodManager imm = (InputMethodManager) App.get().getSystemService(Context.INPUT_METHOD_SERVICE);
         if (imm == null) return;
-        view.postDelayed(() -> imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT), 100);
+
+        // 稍微延遲，確保主執行緒完成焦點轉移後再彈出鍵盤
+        view.postDelayed(() -> {
+            boolean success = imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
+            // 如果還是失敗，可以嘗試強制喚醒（特別在 Android TV 上較管用）
+            if (!success) {
+                imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
+            }
+        }, 200); // 電視晶片通常較慢，延遲拉到 200ms 會更穩定
     }
+
 
     public static float getBrightness(Activity activity) {
         try {

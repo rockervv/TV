@@ -75,6 +75,7 @@ public class ConfigDialog implements DialogInterface.OnDismissListener {
         params.width = (int) (ResUtil.getScreenWidth() * 0.55f);
         dialog.getWindow().setAttributes(params);
         dialog.getWindow().setDimAmount(0);
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
         dialog.setOnDismissListener(this);
         dialog.show();
     }
@@ -82,6 +83,7 @@ public class ConfigDialog implements DialogInterface.OnDismissListener {
     private void initView() {
         binding.text.setText(url = getUrl());
         binding.text.setSelection(TextUtils.isEmpty(url) ? 0 : url.length());
+        binding.text.requestFocus();
         binding.positive.setText(edit ? R.string.dialog_edit : R.string.dialog_positive);
         binding.code.setImageBitmap(QRCode.getBitmap(Server.get().getAddress(3), 200, 0));
         binding.info.setText(ResUtil.getString(R.string.push_info, Server.get().getAddress()).replace("，", "\n"));

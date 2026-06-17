@@ -5,6 +5,7 @@ import android.app.Notification;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.text.TextUtils;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.widget.Toast;
 
@@ -52,7 +53,11 @@ public class Notify {
     }
 
     public static void show(String text) {
-        get().makeText(text);
+        get().makeText(text, Gravity.BOTTOM);
+    }
+
+    public static void showTop(String text) {
+        get().makeText(text, Gravity.TOP | Gravity.END);
     }
 
     public static void progress(Context context) {
@@ -74,10 +79,11 @@ public class Notify {
         mDialog.show();
     }
 
-    private void makeText(String message) {
+    private void makeText(String message, int gravity) {
         if (mToast != null) mToast.cancel();
         if (TextUtils.isEmpty(message)) return;
         mToast = Toast.makeText(App.get(), message, Toast.LENGTH_LONG);
+        if (gravity != Gravity.BOTTOM) mToast.setGravity(gravity, ResUtil.dp2px(16), ResUtil.dp2px(16));
         mToast.show();
     }
 }

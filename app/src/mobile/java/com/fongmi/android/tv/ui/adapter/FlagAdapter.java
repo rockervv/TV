@@ -36,16 +36,17 @@ public class FlagAdapter extends RecyclerView.Adapter<FlagAdapter.ViewHolder> {
     }
 
     public int getPosition() {
+        if (mItems.isEmpty()) return -1;
         for (int i = 0; i < mItems.size(); i++) if (mItems.get(i).isActivated()) return i;
         return 0;
     }
 
     public Flag get(int position) {
-        return mItems.get(position);
+        return position < 0 || position >= mItems.size() ? new Flag() : mItems.get(position);
     }
 
     public Flag getActivated() {
-        return mItems.get(getPosition());
+        return get(getPosition());
     }
 
     public void setActivated(Flag flag) {

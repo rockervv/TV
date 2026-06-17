@@ -259,10 +259,12 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private Flag getFlag() {
+        if (mFlagAdapter.size() == 0) return new Flag();
         return (Flag) mFlagAdapter.get(getFlagPosition());
     }
 
     private Episode getEpisode() {
+        if (mEpisodeAdapter.size() == 0) return new Episode();
         return (Episode) mEpisodeAdapter.get(getEpisodePosition());
     }
 
@@ -1430,7 +1432,9 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
                 mHistory.update();
                 mBinding.widget.size.setText(mPlayers.getSizeText());
                 mBinding.display.size.setText(mPlayers.getSizeText());
-                App.execute(() -> FlagScore.find(getKey(), getFlag().getFlag()).increment());
+                String key = getKey();
+                String flag = getFlag().getFlag();
+                App.execute(() -> FlagScore.find(key, flag).increment());
                 break;
             case Player.STATE_ENDED:
                 checkEnded();
@@ -1506,12 +1510,14 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void onErrorPlayer(ErrorEvent event) {
+        String key = getKey();
+        String flag = getFlag().getFlag();
         Track.delete(getHistoryKey());
         showError(event.getMsg());
         mClock.setCallback(null);
         mPlayers.reset();
         mPlayers.stop();
-        App.execute(() -> FlagScore.find(getKey(), getFlag().getFlag()).decrement());
+        App.execute(() -> FlagScore.find(key, flag).decrement());
     }
 
     private void onError(ErrorEvent event) {
@@ -1542,7 +1548,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
 
     private void checkFlag() {
         int position = isGone(mBinding.flag) ? -1 : getFlagPosition();
-        if (position == mFlagAdapter.size() - 1) checkSearch(false);
+        if (position >= mFlagAdapter.size() - 1) checkSearch(false);
         else nextFlag(position);
     }
 

@@ -35,6 +35,12 @@ import cat.ereza.customactivityoncrash.config.CaocConfig;
 
 public class App extends Application {
 
+    static {
+        System.setProperty("java.net.preferIPv4Stack", "true");
+        System.setProperty("java.net.preferIPv6Addresses", "false");
+        System.setProperty("org.fourthline.cling.network.useIPv4Names", "true");
+    }
+
     private final ExecutorService executor;
     private final Handler handler;
     private static App instance;
@@ -114,7 +120,6 @@ public class App extends Application {
         Logger.addLogAdapter(getLogAdapter());
         OkHttp.get().setProxy(Setting.getProxy());
         OkHttp.get().setDoh(Doh.objectFrom(Setting.getDoh()));
-        System.setProperty("org.fourthline.cling.network.useIPv4Names", "true");
         System.setProperty("sun.net.client.defaultConnectTimeout", "5000");
         System.setProperty("sun.net.client.defaultReadTimeout", "5000");
 
@@ -176,12 +181,12 @@ public class App extends Application {
                     }
                     
                     if (adCount > 0) {
-                        Notify.show("過濾 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
+                        Notify.showTop("過濾 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
                         lastCount = adCount;
                         lastSeconds = adSeconds;
                         lastTime = currentTime;
                     } else if (adCount < 0 && (currentTime - lastTime) > 60000) {
-                        Notify.show("廣告過濾失敗");
+                        Notify.showTop("廣告過濾失敗");
                         lastCount = adCount;
                         lastTime = currentTime;
                     }

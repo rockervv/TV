@@ -22,7 +22,8 @@ import org.json.JSONObject;
 import java.io.File;
 import java.util.Locale;
 
-public class Updater implements Download.Callback {
+public class
+Updater implements Download.Callback {
 
     private DialogUpdateBinding binding;
     private AlertDialog dialog;

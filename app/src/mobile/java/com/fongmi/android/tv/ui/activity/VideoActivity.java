@@ -1341,7 +1341,9 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
                 mBinding.control.size.setText(mPlayers.getSizeText());
                 mBinding.display.size.setText(mPlayers.getSizeText());
                 if (isVisible(mBinding.control.getRoot())) showControl();
-                App.execute(() -> FlagScore.find(getKey(), getFlag().getFlag()).increment());
+                String key = getKey();
+                String flag = getFlag().getFlag();
+                App.execute(() -> FlagScore.find(key, flag).increment());
                 break;
             case Player.STATE_ENDED:
                 checkEnded();
@@ -1426,13 +1428,15 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     }
 
     private void onErrorPlayer(ErrorEvent event) {
+        String key = getKey();
+        String flag = getFlag().getFlag();
         mBinding.swipeLayout.setEnabled(true);
         Track.delete(getHistoryKey());
         showError(event.getMsg());
         mClock.setCallback(null);
         mPlayers.reset();
         mPlayers.stop();
-        App.execute(() -> FlagScore.find(getKey(), getFlag().getFlag()).decrement());
+        App.execute(() -> FlagScore.find(key, flag).decrement());
     }
 
     private void onError(ErrorEvent event) {

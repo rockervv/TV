@@ -5,7 +5,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
-import android.widget.Toast;
 
 import androidx.collection.ArrayMap;
 import androidx.lifecycle.MutableLiveData;
@@ -24,6 +23,7 @@ import com.fongmi.android.tv.bean.Url;
 import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.exception.ExtractException;
 import com.fongmi.android.tv.player.Source;
+import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Sniffer;
 import com.github.catvod.crawler.Spider;
@@ -337,7 +337,8 @@ public class SiteViewModel extends ViewModel {
             @Override
             public void run() {
                 if (!isRunning) return;
-                Toast.makeText(App.get(), "任務正在進行中...", Toast.LENGTH_SHORT).show();
+
+                Notify.showTop("任務正在進行中...");
                 handler.postDelayed(this, 5000); // 每5秒顯示一次
             }
         };

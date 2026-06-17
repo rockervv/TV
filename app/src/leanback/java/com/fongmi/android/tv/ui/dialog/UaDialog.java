@@ -55,6 +55,7 @@ public class UaDialog implements DialogInterface.OnDismissListener {
         params.width = (int) (ResUtil.getScreenWidth() * 0.55f);
         dialog.getWindow().setAttributes(params);
         dialog.getWindow().setDimAmount(0);
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
         dialog.setOnDismissListener(this);
         dialog.show();
     }
@@ -63,6 +64,7 @@ public class UaDialog implements DialogInterface.OnDismissListener {
         String text = Setting.getUa();
         binding.text.setText(text);
         binding.text.setSelection(TextUtils.isEmpty(text) ? 0 : text.length());
+        binding.text.requestFocus();
         binding.code.setImageBitmap(QRCode.getBitmap(Server.get().getAddress(3), 200, 0));
         binding.info.setText(ResUtil.getString(R.string.push_info, Server.get().getAddress()).replace("，", "\n"));
     }

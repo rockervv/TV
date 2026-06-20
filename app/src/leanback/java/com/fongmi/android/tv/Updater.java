@@ -14,6 +14,7 @@ import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Github;
+import com.github.catvod.utils.Json;
 import com.github.catvod.utils.Path;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -88,15 +89,13 @@ Updater implements Download.Callback {
         String url = getJson();
         try {
             String Jsondata = OkHttp.string(url);
-            JSONObject object = new JSONObject(Jsondata);
+            JSONObject object = Json.safeJSONObject(Jsondata);
             String name = object.optString("name");
             String desc = object.optString("desc");
             int code = object.optInt("code");
             if (need(code, name)) App.post(() -> show(activity, name, desc));
         } catch (Exception e) {
             Log.d("Updater", url + " error: " + e);
-
-            //e.printStackTrace();
         }
     }
 

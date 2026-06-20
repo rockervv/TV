@@ -17,6 +17,7 @@ import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.datasource.cache.CacheDataSource;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
+import androidx.media3.exoplayer.hls.HlsMediaSource;
 import androidx.media3.exoplayer.source.ConcatenatingMediaSource2;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
@@ -74,9 +75,10 @@ public class MediaSourceFactory implements MediaSource.Factory {
     public MediaSource createMediaSource(@NonNull MediaItem mediaItem) {
         MediaItem item = setHeader(mediaItem);
         String url = item.localConfiguration.uri.toString();
+        String mimeType = item.localConfiguration.mimeType;
 
-        if (url.endsWith(".m3u8") && true == false) {
-            return createCustomHlsMediaSource(item);
+        if ((mimeType != null && mimeType.contains("mpegurl")) || url.contains(".m3u8") || url.contains("m3u8")) {
+            return new HlsMediaSource.Factory(getDataSourceFactory()).setAllowChunklessPreparation(true).createMediaSource(item);
         } else if (mediaItem.mediaId.contains("***") && mediaItem.mediaId.contains("|||")) {
             return createConcatenatingMediaSource(item);
         } else {

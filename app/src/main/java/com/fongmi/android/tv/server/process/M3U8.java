@@ -12,7 +12,6 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Map;
-import java.util.Scanner;
 
 import fi.iki.elonen.NanoHTTPD;
 import okhttp3.Headers;
@@ -47,12 +46,15 @@ public class M3U8 implements Process {
                 String filtered = ADFilter.Process(reader);
 
                 StringBuilder result = new StringBuilder();
-                Scanner scanner = new Scanner(filtered);
-                URL baseUrl = new URL(targetUrl);
+                URL baseUrl = new URL(response.request().url().toString());
+                String[] lines = filtered.split("\\n");
 
-                while (scanner.hasNextLine()) {
-                    String content = scanner.nextLine().trim();
-                    if (content.isEmpty()) continue;
+                for (String content : lines) {
+                    content = content.trim();
+                    if (content.isEmpty()) {
+                        result.append("\n");
+                        continue;
+                    }
 
                     if (content.startsWith("#")) {
                         if (content.contains("URI=\"")) {
@@ -62,14 +64,15 @@ public class M3U8 implements Process {
                     } else {
                         String resolvedUrl = new URL(baseUrl, content).toString();
                         if (resolvedUrl.toLowerCase().contains(".m3u8") && !resolvedUrl.startsWith(proxyUrlPrefix)) {
-                            result.append(proxyUrlPrefix).append(URLEncoder.encode(resolvedUrl, "UTF-8")).append("\n");
+                            result.append(proxyUrlPrefix).append(URLEncoder.encode(resolvedUrl, "UTF-8")).append("&.m3u8\n");
                         } else {
                             result.append(resolvedUrl).append("\n");
                         }
                     }
                 }
 
-                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", result.toString());
+                if (result.length() == 0) return Nano.error("Filtered m3u8 is empty");
+                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", result.toString());
             }
 
         } catch (Exception e) {

@@ -2,6 +2,7 @@ package com.fongmi.android.tv.api.config;
 
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
@@ -117,7 +118,7 @@ public class LiveConfig {
         } catch (Throwable e) {
             if (TextUtils.isEmpty(config.getUrl())) App.post(() -> callback.error(""));
             else App.post(() -> callback.error(Notify.getError(R.string.error_config_get, e)));
-            e.printStackTrace();
+            Log.e("LiveConfig", "loadConfig failed: " + config.getUrl(), e);
         }
     }
 
@@ -171,7 +172,7 @@ public class LiveConfig {
             initOther(object);
             BaseLoader.get().parseJar(Json.safeString(object, "spider"));
         } catch (Throwable e) {
-            e.printStackTrace();
+            Log.e("LiveConfig", "parseConfig failed", e);
         } finally {
             if (callback != null) App.post(callback::success);
         }

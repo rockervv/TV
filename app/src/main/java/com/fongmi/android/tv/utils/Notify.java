@@ -4,9 +4,13 @@ import android.Manifest;
 import android.app.Notification;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
@@ -57,7 +61,7 @@ public class Notify {
     }
 
     public static void showTop(String text) {
-        get().makeText(text, Gravity.TOP | Gravity.END);
+        get().makeText(text, Gravity.TOP | Gravity.END, 12, Color.parseColor("#80000000"));
     }
 
     public static void progress(Context context) {
@@ -80,10 +84,33 @@ public class Notify {
     }
 
     private void makeText(String message, int gravity) {
+        makeText(message, gravity, 16, Color.parseColor("#CC000000"));
+    }
+
+    private void makeText(String message, int gravity, int size, int color) {
         if (mToast != null) mToast.cancel();
         if (TextUtils.isEmpty(message)) return;
-        mToast = Toast.makeText(App.get(), message, Toast.LENGTH_LONG);
+        mToast = new Toast(App.get());
+        mToast.setDuration(Toast.LENGTH_LONG);
+        mToast.setView(createView(message, size, color));
         if (gravity != Gravity.BOTTOM) mToast.setGravity(gravity, ResUtil.dp2px(16), ResUtil.dp2px(16));
         mToast.show();
+    }
+
+    private TextView createView(String message, int size, int color) {
+        TextView tv = new TextView(App.get());
+        tv.setText(message);
+        tv.setTextColor(Color.WHITE);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, size);
+        tv.setPadding(ResUtil.dp2px(12), ResUtil.dp2px(8), ResUtil.dp2px(12), ResUtil.dp2px(8));
+        tv.setBackground(getBackground(color));
+        return tv;
+    }
+
+    private GradientDrawable getBackground(int color) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setCornerRadius(ResUtil.dp2px(8));
+        shape.setColor(color);
+        return shape;
     }
 }

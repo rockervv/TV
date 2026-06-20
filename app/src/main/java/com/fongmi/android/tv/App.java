@@ -7,7 +7,7 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-//import android.util.Log;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -38,7 +38,10 @@ public class App extends Application {
     static {
         System.setProperty("java.net.preferIPv4Stack", "true");
         System.setProperty("java.net.preferIPv6Addresses", "false");
+        System.setProperty("net.java.preferIPv4Stack", "true");
+        System.setProperty("net.java.preferIPv6Addresses", "false");
         System.setProperty("org.fourthline.cling.network.useIPv4Names", "true");
+        System.setProperty("org.fourthline.cling.network.useIPv6Names", "false");
     }
 
     private final ExecutorService executor;
@@ -115,6 +118,7 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        setupExceptionHandler();
         Notify.createChannel();
         LanguageUtil.init(this);
         Logger.addLogAdapter(getLogAdapter());
@@ -175,8 +179,8 @@ public class App extends Application {
             public void onAdSegmentsFiltered(int adCount, double adSeconds) {
                 new Handler(Looper.getMainLooper()).post(() -> {
                     long currentTime = System.currentTimeMillis();
-                    // 如果跟上次過濾的數量/時間一樣，且間隔小於 1 分鐘，就不重複提示
-                    if (adCount == lastCount && Math.abs(adSeconds - lastSeconds) < 0.1 && (currentTime - lastTime) < 60000) {
+                    // 如果跟上次過濾的數量/時間一樣，或間隔小於 10 分鐘，就不重複提示
+                    if (adCount == lastCount && Math.abs(adSeconds - lastSeconds) < 0.1 || (currentTime - lastTime) < 600000) {
                         return;
                     }
                     
@@ -194,6 +198,29 @@ public class App extends Application {
             }
         });
 
+    }
+
+    private void setupExceptionHandler() {
+        Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
+            if (isSpiderError(e)) {
+                Log.e("SpiderWatcher", "Intercepted external spider error on thread [" + t.getName() + "]: " + e.getMessage());
+            } else if (defaultHandler != null) {
+                defaultHandler.uncaughtException(t, e);
+            }
+        });
+    }
+
+    private boolean isSpiderError(Throwable e) {
+        if (e == null) return false;
+        String msg = String.valueOf(e.getMessage());
+        if (e instanceof org.json.JSONException && (msg.contains("<html>") || msg.contains("<HTML>") || msg.contains("<!DOCTYPE"))) return true;
+        for (StackTraceElement element : e.getStackTrace()) {
+            if (element.getClassName().contains("com.github.catvod.spider")) return true;
+            if (element.getClassName().contains("com.fongmi.quickjs.crawler")) return true;
+        }
+        Throwable cause = e.getCause();
+        return cause != null && isSpiderError(cause);
     }
 
     @Override

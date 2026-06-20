@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.api.config;
 
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
@@ -128,7 +129,7 @@ public class VodConfig {
         } catch (Throwable e) {
             if (TextUtils.isEmpty(config.getUrl())) App.post(() -> callback.error(""));
             else loadCache(callback, e);
-            e.printStackTrace();
+            Log.e("VodConfig", "loadConfig failed: " + config.getUrl(), e);
         }
     }
 
@@ -175,7 +176,7 @@ public class VodConfig {
             config.json(object.toString()).update();
             App.post(callback::success);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Log.e("VodConfig", "parseConfig failed", e);
             App.post(() -> callback.error(Notify.getError(R.string.error_config_parse, e)));
         }
     }

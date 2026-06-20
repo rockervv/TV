@@ -49,7 +49,7 @@ public class PyLoader {
     public Spider getSpider(String key, String api, String ext) {
         try {
             if (loader == null) {
-                Log.d("PyLoader", "Loader is null, cannot get spider: " + api);
+                Log.e("PyLoader", "Loader is null, cannot get spider: " + api);
                 return new SpiderNull();
             }
 
@@ -60,7 +60,7 @@ public class PyLoader {
             spiders.put(key, spider);
             return spider;
         } catch (Throwable e) {
-            e.printStackTrace();
+            Log.e("PyLoader", "getSpider failed for key: " + key + " api: " + api, e);
             return new SpiderNull();
         }
     }
@@ -70,7 +70,7 @@ public class PyLoader {
             if (!params.containsKey("siteKey")) return spiders.get(recent).proxyLocal(params);
             return BaseLoader.get().getSpider(params).proxyLocal(params);
         } catch (Throwable e) {
-            e.printStackTrace();
+            Log.e("PyLoader", "proxyInvoke failed", e);
             return null;
         }
     }

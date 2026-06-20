@@ -3,6 +3,7 @@ package com.fongmi.android.tv.utils;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -68,7 +69,7 @@ public class ImgUtil {
     public static void loadLive(String url, ImageView view) {
         view.setVisibility(TextUtils.isEmpty(url) ? View.GONE : View.VISIBLE);
         if (TextUtils.isEmpty(url)) view.setImageResource(R.drawable.ic_img_empty);
-        else Glide.with(App.get()).asBitmap().load(url).error(R.drawable.ic_img_empty).skipMemoryCache(true).dontAnimate().signature(getSignature(url)).into(view);
+        else Glide.with(App.get()).asBitmap().load(url).error(R.drawable.ic_img_empty).skipMemoryCache(true).dontAnimate().signature(getSignature(url)).listener(getListener(view)).into(view);
     }
 
     private static Drawable getTextDrawable(String text, boolean rect) {
@@ -103,6 +104,12 @@ public class ImgUtil {
         return new RequestListener<>() {
             @Override
             public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Bitmap> target, boolean isFirstResource) {
+                Log.e("ImgUtil", "Glide load failed for model: " + model);
+                if (e != null) {
+                    for (Throwable t : e.getRootCauses()) {
+                        Log.e("ImgUtil", "Root cause: " + t.getMessage());
+                    }
+                }
                 view.setImageResource(R.drawable.ic_img_error);
                 view.setScaleType(scaleType);
                 return true;

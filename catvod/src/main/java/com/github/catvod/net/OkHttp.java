@@ -1,6 +1,7 @@
 package com.github.catvod.net;
 
 import android.text.TextUtils;
+import android.util.Log;
 
 import androidx.collection.ArrayMap;
 
@@ -101,7 +102,7 @@ public class OkHttp {
         try {
             return url.startsWith("http") ? newCall(url).execute().body().string() : "";
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("OkHttp", "Request string failed: " + url, e);
             return "";
         }
     }
@@ -110,7 +111,7 @@ public class OkHttp {
         try {
             return newCall(url, Headers.of(headers)).execute().body().string();
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("OkHttp", "Request string failed: " + url, e);
             return "";
         }
     }

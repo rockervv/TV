@@ -1076,6 +1076,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void setOpening(long opening) {
+        opening = Math.max(0, Math.min(opening, 10 * 60 * 1000));
         mHistory.setOpening(opening);
         mBinding.control.opening.setText(opening == 0 ? getString(R.string.play_op) : mPlayers.stringToTime(mHistory.getOpening()));
     }
@@ -1101,6 +1102,7 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void setEnding(long ending) {
+        ending = Math.max(0, Math.min(ending, 10 * 60 * 1000));
         mHistory.setEnding(ending);
         mBinding.control.ending.setText(ending == 0 ? getString(R.string.play_ed) : mPlayers.stringToTime(mHistory.getEnding()));
     }
@@ -1325,14 +1327,22 @@ public class VideoActivity extends BaseActivity implements CustomKeyDownVod.List
     }
 
     private void updateHistory(Episode item, boolean replay) {
-        replay = replay || !item.equals(mHistory.getEpisode());
+        boolean switchEpisode = !item.equals(mHistory.getEpisode());
+        replay = replay || switchEpisode;
         long position = replay ? 0 : mHistory.getPosition();
+        long opening = mHistory.getOpening();
+        if (position > 0) {
+            Notify.showTop(ResUtil.getString(R.string.play_resume, mPlayers.stringToTime(position)));
+        } else if (opening > 0 && !replay) {
+            Notify.showTop(ResUtil.getString(R.string.play_skip_op, mPlayers.stringToTime(opening)));
+        }
         mHistory.setPosition(position);
         mHistory.setEpisodeUrl(item.getUrl());
         mHistory.setVodRemarks(item.getName());
         mHistory.setVodFlag(getFlag().getFlag());
         mHistory.setCreateTime(System.currentTimeMillis());
-        mPlayers.setPosition(Math.max(mHistory.getOpening(), mHistory.getPosition()));
+        if (replay && !switchEpisode) mPlayers.setPosition(0);
+        else mPlayers.setPosition(Math.max(opening, position));
     }
 
     private void checkKeep() {

@@ -55,20 +55,42 @@ public class Spider extends com.github.catvod.crawler.Spider {
         JS_EXECUTOR.submit(() -> {
             try {
                 task.run();
+            } catch (Throwable e) {
+                Log.e("Spider", "JS task execution failed", e);
             } finally {
                 latch.countDown();
             }
         });
-        latch.await();
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Log.w("Spider", "JS task interrupted");
+            throw e;
+        }
     }
 
     private <T> T runSync(Callable<T> task) throws Exception {
         Future<T> future = JS_EXECUTOR.submit(task);
-        return future.get();
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Log.w("Spider", "JS task interrupted");
+            throw e;
+        } catch (Exception e) {
+            Log.e("Spider", "JS task execution failed", e);
+            throw e;
+        }
     }
 
     private Object call(String func, Object... args) throws Exception {
-        return runSync(() -> Async.run(jsObject, func, args)).get();
+        try {
+            return runSync(() -> Async.run(jsObject, func, args)).get();
+        } catch (Exception e) {
+            Log.e("Spider", "JS call failed: " + func, e);
+            throw e;
+        }
     }
 
     @Override

@@ -24,12 +24,25 @@ public class Json {
     }
 
     public static boolean valid(String text) {
-        try {
-            new JSONObject(text);
-            return true;
-        } catch (Exception e) {
-            return false;
+        if (text == null) return false;
+        text = text.trim();
+        if (text.startsWith("<html>") || text.startsWith("<HTML>") || text.startsWith("<!DOCTYPE")) return false;
+        if (text.startsWith("{") && text.endsWith("}")) {
+            try {
+                new JSONObject(text);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        } else if (text.startsWith("[") && text.endsWith("]")) {
+            try {
+                new org.json.JSONArray(text);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
         }
+        return false;
     }
 
     public static boolean invalid(String text) {
@@ -58,6 +71,40 @@ public class Json {
         if (obj.get(key).isJsonObject()) result.add(obj.get(key).getAsJsonObject());
         for (JsonElement opt : obj.getAsJsonArray(key)) result.add(opt.getAsJsonObject());
         return result;
+    }
+
+    public static JsonObject safeObject(String text) {
+        try {
+            JsonElement element = parse(text);
+            return element.isJsonObject() ? element.getAsJsonObject() : new JsonObject();
+        } catch (Exception e) {
+            return new JsonObject();
+        }
+    }
+
+    public static com.google.gson.JsonArray safeArray(String text) {
+        try {
+            JsonElement element = parse(text);
+            return element.isJsonArray() ? element.getAsJsonArray() : new com.google.gson.JsonArray();
+        } catch (Exception e) {
+            return new com.google.gson.JsonArray();
+        }
+    }
+
+    public static JSONObject safeJSONObject(String text) {
+        try {
+            return valid(text) ? new JSONObject(text) : new JSONObject();
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
+    public static org.json.JSONArray safeJSONArray(String text) {
+        try {
+            return valid(text) ? new org.json.JSONArray(text) : new org.json.JSONArray();
+        } catch (Exception e) {
+            return new org.json.JSONArray();
+        }
     }
 
     public static JsonObject safeObject(JsonElement element) {

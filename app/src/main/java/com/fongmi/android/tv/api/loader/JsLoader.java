@@ -36,7 +36,7 @@ public class JsLoader {
             spiders.put(key, spider);
             return spider;
         } catch (Throwable e) {
-            e.printStackTrace();
+            Log.e("JsLoader", "getSpider failed for key: " + key, e);
             return new SpiderNull();
         }
     }
@@ -55,12 +55,8 @@ public class JsLoader {
             Object[] result = BaseLoader.get().getSpider(params).proxyLocal(params);
             Log.d("JsLoader", "proxyLocal result: " + (result != null ? result.length + " items" : "null"));
             return result;
-/**
-            if (!params.containsKey("siteKey")) return spiders.get(recent).proxyLocal(params);
-            return BaseLoader.get().getSpider(params).proxyLocal(params);
- */
         } catch (Throwable e) {
-            e.printStackTrace();
+            Log.e("JsLoader", "proxyInvoke failed", e);
             return null;
         }
     }

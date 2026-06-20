@@ -576,11 +576,14 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
         this.subs = subs;
 
         // 如果是 M3U8 且尚未被 Proxy 包裝，則包裝它
-        if (url != null && url.toLowerCase().contains(".m3u8") && !url.startsWith(proxyurl)) {
-            try {
-                this.url = proxyurl + URLEncoder.encode(url, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                // ignore
+        if (url != null && url.toLowerCase().contains(".m3u8")) {
+            this.format = androidx.media3.common.MimeTypes.APPLICATION_M3U8;
+            if (!url.startsWith(proxyurl)) {
+                try {
+                    this.url = proxyurl + URLEncoder.encode(url, "UTF-8") + "&.m3u8";
+                } catch (UnsupportedEncodingException e) {
+                    // ignore
+                }
             }
         }
 

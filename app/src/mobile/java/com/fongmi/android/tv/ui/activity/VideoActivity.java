@@ -941,14 +941,12 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         long current = mPlayers.getPosition();
         long duration = mPlayers.getDuration();
         if (current < 0 || current < duration / 2) return;
-        mHistory.setEnding(duration - current);
-        mBinding.control.action.ending.setText(mPlayers.stringToTime(mHistory.getEnding()));
+        setEnding(duration - current);
         setR1Callback();
     }
 
     private boolean onEndingReset() {
-        mHistory.setEnding(0);
-        mBinding.control.action.ending.setText(R.string.play_ed);
+        setEnding(0);
         setR1Callback();
         return true;
     }
@@ -957,16 +955,26 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
         long current = mPlayers.getPosition();
         long duration = mPlayers.getDuration();
         if (current < 0 || current > duration / 2) return;
-        mHistory.setOpening(current);
-        mBinding.control.action.opening.setText(mPlayers.stringToTime(mHistory.getOpening()));
+        setOpening(current);
         setR1Callback();
     }
 
     private boolean onOpeningReset() {
-        mHistory.setOpening(0);
-        mBinding.control.action.opening.setText(R.string.play_op);
+        setOpening(0);
         setR1Callback();
         return true;
+    }
+
+    private void setOpening(long opening) {
+        opening = Math.max(0, Math.min(opening, 10 * 60 * 1000));
+        mHistory.setOpening(opening);
+        mBinding.control.action.opening.setText(opening == 0 ? getString(R.string.play_op) : mPlayers.stringToTime(mHistory.getOpening()));
+    }
+
+    private void setEnding(long ending) {
+        ending = Math.max(0, Math.min(ending, 10 * 60 * 1000));
+        mHistory.setEnding(ending);
+        mBinding.control.action.ending.setText(ending == 0 ? getString(R.string.play_ed) : mPlayers.stringToTime(mHistory.getEnding()));
     }
 
     private void onEpisodes() {
@@ -1208,14 +1216,22 @@ public class VideoActivity extends BaseActivity implements Clock.Callback, Custo
     }
 
     private void updateHistory(Episode item, boolean replay) {
-        replay = replay || !item.equals(mHistory.getEpisode());
+        boolean switchEpisode = !item.equals(mHistory.getEpisode());
+        replay = replay || switchEpisode;
         long position = replay ? 0 : mHistory.getPosition();
+        long opening = mHistory.getOpening();
+        if (position > 0) {
+            Notify.showTop(ResUtil.getString(R.string.play_resume, mPlayers.stringToTime(position)));
+        } else if (opening > 0 && !replay) {
+            Notify.showTop(ResUtil.getString(R.string.play_skip_op, mPlayers.stringToTime(opening)));
+        }
         mHistory.setPosition(position);
         mHistory.setEpisodeUrl(item.getUrl());
         mHistory.setVodRemarks(item.getName());
         mHistory.setVodFlag(getFlag().getFlag());
         mHistory.setCreateTime(System.currentTimeMillis());
-        mPlayers.setPosition(Math.max(mHistory.getOpening(), mHistory.getPosition()));
+        if (replay && !switchEpisode) mPlayers.setPosition(0);
+        else mPlayers.setPosition(Math.max(opening, position));
     }
 
     private void checkPlayImg(boolean playing) {

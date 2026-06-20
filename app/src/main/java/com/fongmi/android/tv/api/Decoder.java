@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.api;
 
 import android.util.Base64;
+import android.util.Log;
 
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.net.OkHttp;
@@ -55,7 +56,8 @@ public class Decoder {
     public static String getExt(String ext) {
         try {
             return base64(getData(ext.substring(4)));
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            Log.e("Decoder", "getExt failed: " + ext, e);
             return "";
         }
     }
@@ -65,7 +67,8 @@ public class Decoder {
             File file = Path.jar(url);
             String data = extract(getData(url.substring(4)));
             return data.isEmpty() ? file : Path.write(file, Base64.decode(data, Base64.DEFAULT));
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            Log.e("Decoder", "getSpider failed: " + url, e);
             return Path.jar(url);
         }
     }

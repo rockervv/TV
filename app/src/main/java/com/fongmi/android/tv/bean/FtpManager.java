@@ -3,6 +3,7 @@ package com.fongmi.android.tv.bean;
 import android.util.Log;
 
 import com.fongmi.android.tv.App;
+import com.github.catvod.utils.Json;
 
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
@@ -167,9 +168,9 @@ public class FtpManager {
     public void uploadGistJsonString(String jsonString, String remoteFilePath) throws IOException {
         if (!useGist || remoteFilePath == null) return;
         try {
-            JSONObject gistContent = new JSONObject().put("content", jsonString);
-            JSONObject gistfiles = new JSONObject().put(remoteFilePath, gistContent);
-            JSONObject requestBody = new JSONObject().put("files", gistfiles);
+            JSONObject gistContent = Json.safeJSONObject("{}").put("content", jsonString);
+            JSONObject gistfiles = Json.safeJSONObject("{}").put(remoteFilePath, gistContent);
+            JSONObject requestBody = Json.safeJSONObject("{}").put("files", gistfiles);
 
             URL url = new URL(gisturl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -248,10 +249,12 @@ public class FtpManager {
                 response.append(output);
             }
 
-            JSONObject jsonObject = new JSONObject(response.toString());
-            JSONObject files = jsonObject.getJSONObject("files");
-            JSONObject tvJson = files.getJSONObject(remoteFilePath);
-             content = tvJson.getString("content");
+            JSONObject jsonObject = Json.safeJSONObject(response.toString());
+            JSONObject files = jsonObject.optJSONObject("files");
+            if (files != null) {
+                JSONObject tvJson = files.optJSONObject(remoteFilePath);
+                if (tvJson != null) content = tvJson.optString("content");
+            }
 
             //items = History.arrayFrom(content);
 

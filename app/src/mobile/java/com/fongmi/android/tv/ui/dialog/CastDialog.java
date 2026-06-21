@@ -18,6 +18,7 @@ import com.android.cast.dlna.dmc.control.ServiceActionCallback;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.bean.CastVideo;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Device;
@@ -126,10 +127,11 @@ public class CastDialog extends BaseDialog implements DeviceAdapter.OnClickListe
 
     private void getDevice() {
         if (fm) adapter.addAll(Device.getAll());
-        adapter.addAll(DLNADevice.get().getAll());
+        if (Setting.isDlna()) adapter.addAll(DLNADevice.get().getAll());
     }
 
     private void initDLNA() {
+        if (!Setting.isDlna()) return;
         DLNACastManager.INSTANCE.bindCastService(App.get());
         DLNACastManager.INSTANCE.registerDeviceListener(this);
     }
@@ -140,7 +142,7 @@ public class CastDialog extends BaseDialog implements DeviceAdapter.OnClickListe
 
     private void onRefresh() {
         if (fm) ScanTask.create(this).start(adapter.getIps());
-        DLNACastManager.INSTANCE.search(null);
+        if (Setting.isDlna()) DLNACastManager.INSTANCE.search(null);
         adapter.clear();
     }
 
@@ -210,10 +212,12 @@ public class CastDialog extends BaseDialog implements DeviceAdapter.OnClickListe
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        DLNADevice.get().disconnect();
+        if (Setting.isDlna()) {
+            DLNADevice.get().disconnect();
+            DLNACastManager.INSTANCE.unregisterListener(this);
+            DLNACastManager.INSTANCE.unbindCastService(App.get());
+        }
         EventBus.getDefault().unregister(this);
-        DLNACastManager.INSTANCE.unregisterListener(this);
-        DLNACastManager.INSTANCE.unbindCastService(App.get());
     }
 
     @Override

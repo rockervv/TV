@@ -53,6 +53,7 @@ public class SettingCustomFragment extends BaseFragment {
         mBinding.removeAdText.setText(getSwitch(Setting.isRemoveAd()));
         mBinding.languageText.setText((lang = ResUtil.getStringArray(R.array.select_language))[Setting.getLanguage()]);
         mBinding.configCacheText.setText((configCache = ResUtil.getStringArray(R.array.select_config_cache))[Setting.getConfigCache()]);
+        mBinding.dlnaText.setText(getSwitch(Setting.isDlna()));
     }
 
     @Override
@@ -67,6 +68,7 @@ public class SettingCustomFragment extends BaseFragment {
         mBinding.removeAd.setOnClickListener(this::setRemoveAd);
         mBinding.language.setOnClickListener(this::setLanguage);
         mBinding.configCache.setOnClickListener(this::setConfigCache);
+        mBinding.dlna.setOnClickListener(this::setDlna);
         mBinding.reset.setOnClickListener(this::onReset);
     }
 
@@ -137,6 +139,11 @@ public class SettingCustomFragment extends BaseFragment {
         int index = Setting.getConfigCache();
         Setting.putConfigCache(index = index == configCache.length - 1 ? 0 : ++index);
         mBinding.configCacheText.setText(configCache[index]);
+    }
+
+    private void setDlna(View view) {
+        Setting.putDlna(!Setting.isDlna());
+        mBinding.dlnaText.setText(getSwitch(Setting.isDlna()));
     }
 
     private void onReset(View view) {

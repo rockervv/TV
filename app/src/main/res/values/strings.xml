@@ -87,6 +87,7 @@
     <string name="setting_size">Image size</string>
     <string name="setting_aggregated_search">Aggregated search</string>
     <string name="setting_language">Lanuage setting</string>
+    <string name="setting_dlna">DLNA setting</string>
     <string name="setting_parse_webview">Parse webview</string>
     <string name="setting_fullscreen_menu_key">Fullscreen menu key</string>
     <string name="setting_home_menu_key">Home menu key</string>

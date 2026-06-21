@@ -277,6 +277,10 @@ public class History {
         return getCreateTime() == 0 && getPosition() == 0;
     }
 
+    public boolean isFinished() {
+        return getDuration() > 0 && (getPosition() >= getDuration() * 0.9 || getPosition() > getDuration() - 30 * 1000);
+    }
+
     public static List<History> get() {
         return get(VodConfig.getCid());
     }
@@ -357,9 +361,10 @@ public class History {
                 Episode episode = flag.find(item.getVodRemarks(), true);
                 if (episode == null) continue;
                 setVodFlag(flag.getFlag());
-                setPosition(item.getPosition());
                 setVodRemarks(episode.getName());
                 checkParam(item);
+                if (item.isFinished()) setPosition(0);
+                else setPosition(item.getPosition());
                 break;
             }
         }

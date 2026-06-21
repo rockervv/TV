@@ -340,11 +340,13 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
     }
 
     public boolean isLive() {
-        return getDuration() < 5 * 60 * 1000;
+        if (isExo() && exoPlayer != null) return exoPlayer.isCurrentMediaItemLive();
+        if (isIjk() && ijkPlayer != null) return ijkPlayer.getDuration() <= 0;
+        return false;
     }
 
     public boolean isVod() {
-        return getDuration() > 5 * 60 * 1000;
+        return !isLive();
     }
 
     public boolean isPortrait() {
@@ -433,6 +435,18 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
         if (haveDanmu()) danmuView.seekTo(time);
         if (isExo() && exoPlayer != null) exoPlayer.seekTo(time);
         if (isIjk() && ijkPlayer != null) ijkPlayer.seekTo(time);
+    }
+
+    public String getM3u8Content() {
+        if (url != null && url.startsWith(proxyurl)) {
+            try {
+                String targetUrl = java.net.URLDecoder.decode(url.split("url=")[1].split("&")[0], "UTF-8");
+                return com.fongmi.android.tv.server.process.M3U8.getCache(targetUrl);
+            } catch (Exception e) {
+                return "";
+            }
+        }
+        return "";
     }
 
     public void play() {

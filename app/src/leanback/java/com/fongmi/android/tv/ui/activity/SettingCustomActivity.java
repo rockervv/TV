@@ -77,6 +77,7 @@ public class SettingCustomActivity extends BaseActivity implements MenuKeyCallba
         mBinding.languageText.setText((ResUtil.getStringArray(R.array.select_language))[Setting.getLanguage()]);
         mBinding.parseWebviewText.setText((parseWebview = ResUtil.getStringArray(R.array.select_parse_webview))[Setting.getParseWebView()]);
         mBinding.configCacheText.setText((configCache = ResUtil.getStringArray(R.array.select_config_cache))[Setting.getConfigCache()]);
+        mBinding.dlnaText.setText(getSwitch(Setting.isDlna()));
     }
 
     @Override
@@ -101,6 +102,7 @@ public class SettingCustomActivity extends BaseActivity implements MenuKeyCallba
         mBinding.parseWebview.setOnClickListener(this::setParseWebview);
         mBinding.configCache.setOnClickListener(this::setConfigCache);
         mBinding.cacheDir.setOnClickListener(this::setCacheDir);
+        mBinding.dlna.setOnClickListener(this::setDlna);
         mBinding.reset.setOnClickListener(this::onReset);
     }
 
@@ -220,6 +222,13 @@ public class SettingCustomActivity extends BaseActivity implements MenuKeyCallba
         int index = Setting.getConfigCache();
         Setting.putConfigCache(index = index == configCache.length - 1 ? 0 : ++index);
         mBinding.configCacheText.setText(configCache[index]);
+    }
+
+    private void setDlna(View view) {
+        Setting.putDlna(!Setting.isDlna());
+        mBinding.dlnaText.setText(getSwitch(Setting.isDlna()));
+        if (Setting.isDlna()) com.android.cast.dlna.dmr.DLNARendererService.Companion.start(this, R.drawable.ic_logo);
+        else stopService(new Intent(this, com.android.cast.dlna.dmr.DLNARendererService.class));
     }
 
     private void onReset(View view) {

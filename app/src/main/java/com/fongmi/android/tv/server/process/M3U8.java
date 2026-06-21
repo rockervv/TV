@@ -12,12 +12,35 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import fi.iki.elonen.NanoHTTPD;
 import okhttp3.Headers;
 import okhttp3.Response;
 
 public class M3U8 implements Process {
+
+    private static final Map<String, CacheItem> urlCache = new ConcurrentHashMap<>();
+    private static final long CACHE_TIME = 30 * 1000; // 30 秒快取
+
+    private static class CacheItem {
+        String content;
+        long time;
+
+        CacheItem(String content) {
+            this.content = content;
+            this.time = System.currentTimeMillis();
+        }
+
+        boolean isExpired() {
+            return System.currentTimeMillis() - time > CACHE_TIME;
+        }
+    }
+
+    public static String getCache(String url) {
+        CacheItem item = urlCache.get(url);
+        return item != null ? item.content : "";
+    }
 
     @Override
     public boolean isRequest(NanoHTTPD.IHTTPSession session, String url) {
@@ -28,6 +51,12 @@ public class M3U8 implements Process {
     public NanoHTTPD.Response doResponse(NanoHTTPD.IHTTPSession session, String url, Map<String, String> files) {
         String targetUrl = session.getParms().get("url");
         if (targetUrl == null) return Nano.error("Missing URL");
+
+        // 檢查 URL 快取
+        CacheItem cached = urlCache.get(targetUrl);
+        if (cached != null && !cached.isExpired()) {
+            return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", cached.content);
+        }
 
         String proxyUrlPrefix = Server.get().getAddress("/m3u8?url=");
 
@@ -43,7 +72,12 @@ public class M3U8 implements Process {
                 if (!response.isSuccessful()) return Nano.error("HTTP " + response.code());
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
-                String filtered = ADFilter.Process(reader);
+                String filtered = ADFilter.Process(targetUrl, reader);
+
+                // 強制補上點播標籤，防止播放器誤判為直播
+                if (!filtered.contains("#EXT-X-ENDLIST") && isVod(targetUrl, filtered)) {
+                    filtered = filtered.trim() + "\n#EXT-X-ENDLIST\n";
+                }
 
                 StringBuilder result = new StringBuilder();
                 URL baseUrl = new URL(response.request().url().toString());
@@ -72,7 +106,9 @@ public class M3U8 implements Process {
                 }
 
                 if (result.length() == 0) return Nano.error("Filtered m3u8 is empty");
-                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", result.toString());
+                String finalM3u8 = result.toString();
+                urlCache.put(targetUrl, new CacheItem(finalM3u8));
+                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", finalM3u8);
             }
 
         } catch (Exception e) {
@@ -91,5 +127,22 @@ public class M3U8 implements Process {
         } catch (Exception e) {
             return line;
         }
+    }
+
+    private boolean isVod(String url, String content) {
+        String lowerUrl = url.toLowerCase();
+        if (lowerUrl.contains("live")) return false; // 排除明確的直播
+        if (content.contains("#EXT-X-PLAYLIST-TYPE:VOD")) return true;
+        if (lowerUrl.contains("vod") || lowerUrl.contains("video") || lowerUrl.contains("movie")) return true;
+
+        // 啟發式判定：如果分片數量 > 10，極大機率是點播影片而非直播視窗
+        int count = 0;
+        int index = 0;
+        while ((index = content.indexOf("#EXTINF:", index)) != -1) {
+            count++;
+            index += 8;
+            if (count > 10) return true;
+        }
+        return false;
     }
 }

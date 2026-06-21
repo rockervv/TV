@@ -581,5 +581,13 @@ public class Setting {
     public static void putGistToken (String token) {     Prefers.put("syncGistToken", token);    }
     public static String getGistToken()  { return Prefers.getString("syncGistToken");    }
 
+    public static boolean isDlna() {
+        return Prefers.getBoolean("dlna", true);
+    }
+
+    public static void putDlna(boolean dlna) {
+        Prefers.put("dlna", dlna);
+    }
+
 
 }

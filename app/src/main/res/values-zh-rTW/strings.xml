@@ -86,6 +86,7 @@
     <string name="setting_size">圖片尺寸</string>
     <string name="setting_aggregated_search">聚合搜索</string>
     <string name="setting_language">語言設置</string>
+    <string name="setting_dlna">投屏設置</string>
     <string name="setting_parse_webview">嗅探內核</string>
     <string name="setting_fullscreen_menu_key">全屏選單鍵</string>
     <string name="setting_home_menu_key">首頁選單鍵</string>

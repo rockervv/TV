@@ -27,6 +27,8 @@ public class FlagAdapter extends RecyclerView.Adapter<FlagAdapter.ViewHolder> {
     public interface OnClickListener {
 
         void onItemClick(Flag item);
+
+        void onItemLongClick(Flag item);
     }
 
     public void addAll(List<Flag> items) {
@@ -84,6 +86,10 @@ public class FlagAdapter extends RecyclerView.Adapter<FlagAdapter.ViewHolder> {
         holder.binding.text.setText(item.getShow());
         holder.binding.text.setActivated(item.isActivated());
         holder.binding.text.setOnClickListener(v -> mListener.onItemClick(item));
+        holder.binding.text.setOnLongClickListener(v -> {
+            mListener.onItemLongClick(item);
+            return true;
+        });
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

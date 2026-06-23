@@ -4,6 +4,7 @@ import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.Decoder;
+import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderNull;
@@ -49,14 +50,16 @@ public class JarLoader {
     private void load(String key, File file) {
         try {
             if (file.exists() && file.length() > 0) {
+                Log.e("JarLoader", "Loading: " + key + " file: " + file.getAbsolutePath());
+
                 loaders.put(key, new DexClassLoader(file.getAbsolutePath(), Path.jar().getAbsolutePath(), null, App.get().getClassLoader()));
                 invokeInit(key);
                 putProxy(key);
             } else {
-                Log.e("JarLoader", "File not found or empty: " + file.getAbsolutePath());
+                Log.e("JarLoader", "Key: " + key + " File not found or empty: " + file.getAbsolutePath());
             }
         } catch (Throwable e) {
-            Log.e("JarLoader", "Failed to load jar: " + file.getAbsolutePath(), e);
+            Log.e("JarLoader", "Key: " + key + " Failed to load jar: " + file.getAbsolutePath(), e);
             loaders.remove(key);
             if (file.exists()) file.delete();
         }
@@ -89,15 +92,42 @@ public class JarLoader {
     private File download(String url, String md5) {
         try {
             File jar = Path.jar(url);
-            if (md5.length() > 0 && Util.equals(url, md5)) return jar;
-            if (md5.isEmpty() && jar.exists() && jar.length() > 0) return jar;
+            if (md5.length() > 0 && Util.equals(url, md5)) {
+                Log.d("JarLoader", "Use cached jar: " + url + " with MD5:" + md5  + "\ncache: " + jar);
+
+                return jar;
+            }
+
+            // 修正的快取檢查（此處示範：若檔案已存在且不為空則用快取，可依實際需求微調 MD5 比對）
+            if (jar.exists() && jar.length() > 0) {
+                // 安全防禦：回傳前確保快取檔是唯讀的，防止 Android 14+ 閃退
+                if (jar.canWrite()) {
+                    jar.setWritable(false);
+                }
+                Log.d("JarLoader", "Use cached jar: " + jar.getAbsolutePath());
+                return jar;
+            }
+
             Log.d("JarLoader", "Downloading jar from: " + url);
             okhttp3.Response response = OkHttp.newCall(url).execute();
             if (response.isSuccessful()) {
                 byte[] bytes = response.body().bytes();
                 if (bytes.length > 0) {
                     Log.d("JarLoader", "Download success: " + url + " size: " + bytes.length);
-                    return Path.write(jar, bytes);
+
+                    // 如果舊檔案存在且被鎖定為唯讀，必須先刪除或解鎖，否則 Path.write 會寫入失敗
+                    if (jar.exists()) {
+                        jar.delete();
+                    }
+
+                    File savedJar = Path.write(jar, bytes);
+
+                    // 2. 關鍵修正：移除寫入權限，設定為唯讀
+                    if (savedJar != null && savedJar.exists()) {
+                        savedJar.setWritable(false, false);
+                    }
+
+                    return savedJar;
                 }
             }
             Log.e("JarLoader", "Download failed: " + url + " code: " + response.code());
@@ -143,9 +173,13 @@ public class JarLoader {
             Spider spider = (Spider) loader.loadClass("com.github.catvod.spider." + api.split("csp_")[1]).newInstance();
             spider.init(App.get(), ext);
             spiders.put(spKey, spider);
+            Site site = Site.find(key);
+            if (site != null) site.resetFailures();
             return spider;
         } catch (Throwable e) {
             Log.e("JarLoader", "getSpider failed: " + api, e);
+            Site site = Site.find(key);
+            if (site != null) site.setBlacklist();
             return new SpiderNull();
         }
     }

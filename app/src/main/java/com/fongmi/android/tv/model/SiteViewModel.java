@@ -11,7 +11,6 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Danmu;
@@ -82,7 +81,7 @@ public class SiteViewModel extends ViewModel {
                 String homeContent = spider.homeContent(true);
                 SpiderDebug.log(homeContent);
                 Result result = Result.fromJson(homeContent);
-                if (result.getList().size() > 0) return result;
+                if (!result.getList().isEmpty()) return result;
                 String homeVideoContent = spider.homeVideoContent();
                 SpiderDebug.log(homeVideoContent);
                 result.setList(Result.fromJson(homeVideoContent).getList());
@@ -324,7 +323,7 @@ public class SiteViewModel extends ViewModel {
                 if (e instanceof InterruptedException || Thread.interrupted()) return;
                 if (e.getCause() instanceof ExtractException) result.postValue(Result.error(e.getCause().getMessage()));
                 else result.postValue(Result.empty());
-                e.printStackTrace();
+                Log.d ("SiteViewModel", "Site execute error:" + e);
             }
         });
     }

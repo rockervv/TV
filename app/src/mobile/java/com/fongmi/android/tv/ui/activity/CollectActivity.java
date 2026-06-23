@@ -199,7 +199,8 @@ public class CollectActivity extends BaseActivity implements CustomScroller.Call
     private void search(Site site, String keyword) {
         try {
             mViewModel.searchContent(site, keyword, false);
-        } catch (Throwable ignored) {
+        } catch (Throwable e) {
+            site.setBlacklist();
         }
     }
 

@@ -17,13 +17,11 @@ import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TimeZone;
 
 @Entity
@@ -349,7 +347,7 @@ public class History {
     }
 
     public void findEpisode(List<Flag> flags) {
-        if (flags.size() > 0) {
+        if (!flags.isEmpty()) {
             setVodFlag(flags.get(0).getFlag());
             if (flags.get(0).getEpisodes().size() > 0) {
                 setVodRemarks(flags.get(0).getEpisodes().get(0).getName());
@@ -416,11 +414,7 @@ public class History {
         // 3. Filter out truly expired tombstones and old records
         List<History> result = new ArrayList<>();
         for (History item : mergedMap.values()) {
-            if (item.isDeleted()) {
-                if ((now - item.getLastUpdated()) > limitDaysInMillis) continue;
-            } else {
-                if ((now - item.getLastUpdated()) > limitDaysInMillis) continue;
-            }
+            if ((now - item.getLastUpdated()) > limitDaysInMillis) continue;
             result.add(item);
         }
 

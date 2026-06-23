@@ -41,7 +41,7 @@ import java.util.Locale;
 @Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class}, version = AppDatabase.VERSION)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public static final int VERSION = 33;
+    public static final int VERSION = 34;
     public static final String NAME = "tv";
     public static final String SYMBOL = "@@@";
     public static final String BACKUP_SUFFIX = "tv.backup";
@@ -120,6 +120,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 .addMigrations(MIGRATION_30_31)
                 .addMigrations(MIGRATION_31_32)
                 .addMigrations(MIGRATION_32_33)
+                .addMigrations(MIGRATION_33_34)
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
     }
 
@@ -307,6 +308,16 @@ public abstract class AppDatabase extends RoomDatabase {
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             database.execSQL("CREATE TABLE IF NOT EXISTS `FlagScore` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `siteKey` TEXT, `flagName` TEXT, `score` INTEGER NOT NULL)");
             database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_FlagScore_siteKey_flagName` ON `FlagScore` (`siteKey`, `flagName`)");
+        }
+    };
+
+    static final Migration MIGRATION_33_34 = new Migration(33, 34) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("CREATE TABLE IF NOT EXISTS Site_New (`key` TEXT NOT NULL, searchable INTEGER, changeable INTEGER, blacklist INTEGER NOT NULL, failures INTEGER NOT NULL, PRIMARY KEY (`key`))");
+            database.execSQL("INSERT INTO Site_New (`key`, searchable, changeable, blacklist, failures) SELECT `key`, searchable, changeable, 0, 0 FROM Site");
+            database.execSQL("DROP TABLE Site");
+            database.execSQL("ALTER TABLE Site_New RENAME to Site");
         }
     };
 }

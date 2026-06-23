@@ -31,6 +31,8 @@ import com.fongmi.android.tv.ui.base.ViewType;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
 import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.ResUtil;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.List;
 
@@ -227,6 +229,17 @@ public class DetailActivity extends BaseActivity implements FlagAdapter.OnClickL
         mFlagAdapter.setActivated(item);
         mBinding.flag.scrollToPosition(mFlagAdapter.getPosition());
         setEpisodeAdapter(item.getEpisodes());
+    }
+
+    @Override
+    public void onItemLongClick(Flag item) {
+        new MaterialAlertDialogBuilder(this)
+                .setMessage(ResUtil.getString(R.string.site_blacklist_confirm, getSite().getName()))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (d, which) -> {
+                    getSite().setBlacklist();
+                    finish();
+                }).show();
     }
 
     @Override

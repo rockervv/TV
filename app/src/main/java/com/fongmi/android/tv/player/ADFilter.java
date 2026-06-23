@@ -8,7 +8,9 @@ import android.util.LruCache;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,6 +68,30 @@ public class ADFilter {
         M3U8AdFilterResult cached = cache.get(cacheKey);
         if (cached != null) return cached;
 
+        // === 🧠 聰明廣告偵測：動態統計網址特徵 ===
+        Map<String, Integer> pathCountMap = new HashMap<>();
+        int totalTsCount = 0;
+
+        for (String line : lines) {
+            if (line.endsWith(".ts") || line.endsWith(".jpeg") || line.endsWith(".jpg")) {
+                totalTsCount++;
+                // 提取前兩層目錄作為特徵，例如 "/20240706/JYhxNTES" 或 "/20260621/EksfpUSn"
+                String feature = getUrlFeature(line);
+                pathCountMap.put(feature, pathCountMap.getOrDefault(feature, 0) + 1);
+            }
+        }
+
+        // 找出出現次數最多、絕對是正片的「主流特徵」
+        String mainFeature = "";
+        int maxCount = 0;
+        for (Map.Entry<String, Integer> entry : pathCountMap.entrySet()) {
+            if (entry.getValue() > maxCount) {
+                maxCount = entry.getValue();
+                mainFeature = entry.getKey();
+            }
+        }
+        // === 聰明偵測結束 ===
+
         boolean inAd = false;
         boolean passFirstDiscontinuity = false;
         double adDuration = 0.0;
@@ -106,11 +132,38 @@ public class ADFilter {
                     output.append(line).append("\n");
                     continue;
                 }
-                String nextExtInf = (i + 1 < lines.size()) ? lines.get(i + 1) : null;
-                String nextTsLine = (i + 2 < lines.size()) ? lines.get(i + 2) : null;
+                //String nextExtInf = (i + 1 < lines.size()) ? lines.get(i + 1) : null;
+                //String nextTsLine = (i + 2 < lines.size()) ? lines.get(i + 2) : null;
+                // --- 擴充開始：動態向後尋找下一個 EXTINF 和 TS 網址，跳過夾帶的標籤 ---
+                String nextExtInf = null;
+                String nextTsLine = null;
+                int lookAhead = i + 1;
+
+                // 往下找第一個出現的 #EXTINF:
+                while (lookAhead < lines.size()) {
+                    String forwardLine = lines.get(lookAhead);
+                    if (forwardLine.startsWith("#EXTINF:")) {
+                        nextExtInf = forwardLine;
+                        // 再下一行通常就是 TS 網址
+                        if (lookAhead + 1 < lines.size()) {
+                            nextTsLine = lines.get(lookAhead + 1);
+                        }
+                        break;
+                    }
+                    // 如果遇到下一個不連續標記或結束標籤，代表中間沒有媒體片段了
+                    if (forwardLine.equals("#EXT-X-DISCONTINUITY") || forwardLine.equals("#EXT-X-ENDLIST")) {
+                        break;
+                    }
+                    lookAhead++;
+                }
+                // --- 擴充結束 ---
+
+
+
                 if (!inAd) {
                     if (nextExtInf != null && nextExtInf.startsWith("#EXTINF:") && nextTsLine != null) {
-                        if (isAdUrl(nextTsLine)) {
+                        // 2. 修正：結合您原本的偵測與「聰明特徵比對」
+                        if (isAdUrlSmart(nextTsLine, mainFeature) || isAdUrl(nextTsLine)) {
                             inAd = true;
                         } else if ((nextTsLine.endsWith(".ts") || nextTsLine.endsWith(".jpeg") || nextTsLine.endsWith(".jpg"))) {
                             Long nextNumber = extractSegmentNumber(nextTsLine);
@@ -135,7 +188,8 @@ public class ADFilter {
             }
 
             if (line.endsWith(".ts") || line.endsWith(".jpeg") || line.endsWith(".jpg")) {
-                if (isAdUrl(line)) inAd = true;
+                // 3. 修正：同時用舊邏輯與新特徵檢查
+                if (isAdUrlSmart(line, mainFeature) || isAdUrl(line)) inAd = true;
                 Long currentNumber = extractSegmentNumber(line);
                 if (!inAd) {
                     if (pendingExtInfLine != null) output.append(pendingExtInfLine).append("\n");
@@ -171,6 +225,39 @@ public class ADFilter {
         cache.put(cacheKey, result);
         return result;
     }
+
+
+    // === 💡 新增的兩個統計輔助方法 ===
+
+    /**
+     * 提取網址前置的目錄結構作為統計特徵
+     * 例如 "/20240706/JYhxNTES/2000kb/hls/l2edmBGC.ts" -> "/20240706/JYhxNTES"
+     */
+    private static String getUrlFeature(String url) {
+        if (url == null || url.isEmpty()) return "";
+        String[] parts = url.split("/");
+        StringBuilder feature = new StringBuilder();
+        int count = 0;
+        for (String part : parts) {
+            if (!part.isEmpty()) {
+                feature.append("/").append(part);
+                count++;
+                if (count >= 2) break; // 取前兩層目錄就足以分辨不同的影片來源
+            }
+        }
+        return feature.toString();
+    }
+
+    /**
+     * 聰明比對：如果這條網址的特徵和統計出來的主流特徵（正片）不同，它就是廣告
+     */
+    private static boolean isAdUrlSmart(String url, String mainFeature) {
+        if (mainFeature == null || mainFeature.isEmpty()) return false;
+        String currentFeature = getUrlFeature(url);
+        // 當前網址的目錄特徵與主要正片不同，認定為廣告
+        return !currentFeature.equals(mainFeature);
+    }
+
     // Helper to extract numeric part of segment
     private static Long extractSegmentNumber(String tsFilename) {
         try {

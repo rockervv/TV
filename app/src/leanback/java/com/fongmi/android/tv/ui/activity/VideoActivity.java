@@ -9,6 +9,7 @@ import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.ClickableSpan;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -43,6 +44,7 @@ import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Part;
 import com.fongmi.android.tv.bean.Result;
+import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.databinding.ActivityVideoBinding;
 import com.fongmi.android.tv.db.AppDatabase;
@@ -80,6 +82,7 @@ import com.github.bassaer.library.MDColor;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Trans;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -119,6 +122,38 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
     private View mFocus2;
     private boolean hasKeyEvent;
 
+    public static void push(Activity activity, String url) {
+        start(activity, url);
+    }
+
+    public static void cast(Activity activity, History history) {
+        start(activity, history.getSiteKey(), history.getVodId(), history.getVodName(), history.getVodPic());
+    }
+
+    public static void collect(Activity activity, String key, String id, String name, String pic) {
+        start(activity, key, id, name, pic, null, false, false, true);
+    }
+
+    public static void start(Activity activity, String url) {
+        start(activity, "push_agent", url, url, null, null, false, false, false);
+    }
+
+    public static void start(Activity activity, String url, boolean clear) {
+        start(activity, "push_agent", url, url, null, null, clear, false, false);
+    }
+
+    public static void start(Activity activity, String id, String name, String pic) {
+        start(activity, "push_agent", id, name, pic, null, false, false, false);
+    }
+
+    public static void start(Activity activity, String key, String id, String name, String pic) {
+        start(activity, key, id, name, pic, null, false, false, false);
+    }
+
+    public static void start(Activity activity, String key, String id, String name, String pic, String mark) {
+        start(activity, key, id, name, pic, mark, false, false, false);
+    }
+
     public static void start(Activity activity, String key, String id, String name, String pic, String mark, boolean clear, boolean cast, boolean collect) {
         Intent intent = new Intent(activity, VideoActivity.class);
         if (clear) intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -141,7 +176,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
         if (hasKeyEvent) return;
         if (isFullscreen()) return;
         getEpisodeView().postDelayed(() -> {
-            View selectedItem = getEpisodeView().getLayoutManager().findViewByPosition(position);
+            View selectedItem = Objects.requireNonNull(getEpisodeView().getLayoutManager()).findViewByPosition(position);
             View focusedView = getCurrentFocus();
             if (selectedItem != null) selectedItem.requestFocus();
             if (focusedView == mBinding.video) mBinding.video.requestFocus();
@@ -247,7 +282,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
 
     private void setEpisodeChildKeyListener(RecyclerView.ViewHolder child, int position) {
         if (getEpisodeView() != mBinding.episodeVert) return;
-        int itemCount = getEpisodeView().getAdapter().getItemCount();
+        int itemCount = Objects.requireNonNull(getEpisodeView().getAdapter()).getItemCount();
         if (itemCount <= 0) return;
         int columns = mEpisodePresenter.getNumColumns();
         if ((position + columns >= itemCount) && ((position % columns) + 1 > (itemCount % columns))) {
@@ -255,7 +290,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
                 @Override
                 public boolean onKey(View v, int keyCode, KeyEvent event) {
                     if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && event.getAction() == KeyEvent.ACTION_DOWN) {
-                        View lastItem =  getEpisodeView().getLayoutManager().findViewByPosition(itemCount - 1);
+                        View lastItem =  Objects.requireNonNull(getEpisodeView().getLayoutManager()).findViewByPosition(itemCount - 1);
                         if (lastItem != null) lastItem.requestFocus();
                     }
                     return false;
@@ -267,7 +302,17 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
     private void setRecyclerView() {
         mBinding.flag.setHorizontalSpacing(ResUtil.dp2px(8));
         mBinding.flag.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
-        mBinding.flag.setAdapter(new ItemBridgeAdapter(mFlagAdapter = new ArrayObjectAdapter(mFlagPresenter = new FlagPresenter(this::setFlagActivated))));
+        mBinding.flag.setAdapter(new ItemBridgeAdapter(mFlagAdapter = new ArrayObjectAdapter(mFlagPresenter = new FlagPresenter(new FlagPresenter.OnClickListener() {
+            @Override
+            public void onItemClick(Flag item) {
+                setFlagActivated(item);
+            }
+
+            @Override
+            public void onItemLongClick(Flag item) {
+                onFlagLongClick(item);
+            }
+        }))));
         mBinding.quality.setHorizontalSpacing(ResUtil.dp2px(8));
         mBinding.quality.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
         mBinding.quality.setAdapter(mQualityAdapter = new QualityAdapter(this::setQualityActivated));
@@ -279,7 +324,17 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
         mBinding.part.setAdapter(new ItemBridgeAdapter(mPartAdapter = new ArrayObjectAdapter(mPartPresenter = new PartPresenter(item -> initSearch(item, false)))));
         mBinding.quick.setHorizontalSpacing(ResUtil.dp2px(8));
         mBinding.quick.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
-        mBinding.quick.setAdapter(new ItemBridgeAdapter(mQuickAdapter = new ArrayObjectAdapter(new QuickPresenter(this::setSearch))));
+        mBinding.quick.setAdapter(new ItemBridgeAdapter(mQuickAdapter = new ArrayObjectAdapter(new QuickPresenter(new QuickPresenter.OnClickListener() {
+            @Override
+            public void onItemClick(Vod item) {
+                setSearch(item);
+            }
+
+            @Override
+            public void onItemLongClick(Vod item) {
+                onQuickLongClick(item);
+            }
+        }))));
         mBinding.control.parse.setHorizontalSpacing(ResUtil.dp2px(8));
         mBinding.control.parse.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
         mBinding.control.parse.setAdapter(new ItemBridgeAdapter(mParseAdapter = new ArrayObjectAdapter(new ParsePresenter(this::setParseActivated))));
@@ -380,7 +435,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
         mBinding.danmaku.release();
         if (!Setting.isDanmuLoad()) return;
         mBinding.danmaku.setVisibility(danmu.isEmpty() ? View.GONE : View.VISIBLE);
-        if (danmu.length() > 0) App.execute(() -> mBinding.danmaku.prepare(new Parser(danmu), mDanmakuContext));
+        if (!danmu.isEmpty()) App.execute(() -> mBinding.danmaku.prepare(new Parser(danmu), mDanmakuContext));
     }
 
     @Override
@@ -482,8 +537,8 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
 
     private void setFlagActivated(Flag item) {
         if (mFlagAdapter.size() == 0 || item.isActivated()) return;
-        if (mFlagAdapter.indexOf(item) == -1) item.setFlag(((Flag) mFlagAdapter.get(0)).getFlag());
-        for (int i = 0; i < mFlagAdapter.size(); i++) ((Flag) mFlagAdapter.get(i)).setActivated(item);
+        if (mFlagAdapter.indexOf(item) == -1) item.setFlag(((Flag) Objects.requireNonNull(mFlagAdapter.get(0))).getFlag());
+        for (int i = 0; i < mFlagAdapter.size(); i++) ((Flag) Objects.requireNonNull(mFlagAdapter.get(i))).setActivated(item);
         mBinding.flag.setSelectedPosition(mFlagAdapter.indexOf(item));
         notifyItemChanged(mBinding.flag, mFlagAdapter);
         setEpisodeAdapter(item.getEpisodes());
@@ -547,7 +602,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
         int flagPosition = getFlagPosition();
         if (shouldEnterFullscreen(item)) return;
         if (isFullscreen()) Notify.show(getString(R.string.play_ready, item.getName()));
-        for (int i = 0; i < mFlagAdapter.size(); i++) ((Flag) mFlagAdapter.get(i)).toggle(flagPosition == i, item);
+        for (int i = 0; i < mFlagAdapter.size(); i++) ((Flag) Objects.requireNonNull(mFlagAdapter.get(i))).toggle(flagPosition == i, item);
         setEpisodeSelectedPosition(getEpisodePosition());
         notifyItemChanged(getEpisodeView(), mEpisodeAdapter);
         onRefresh();
@@ -565,12 +620,12 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
             mBinding.danmaku.hide();
         } catch (Exception e) {
             ErrorEvent.extract(e.getMessage());
-            e.printStackTrace();
+            Log.d ("VideoActiity", "SetQualityActivated error:" + e);
         }
     }
 
     private void reverseEpisode(boolean scroll) {
-        for (int i = 0; i < mFlagAdapter.size(); i++) Collections.reverse(((Flag) mFlagAdapter.get(i)).getEpisodes());
+        for (int i = 0; i < mFlagAdapter.size(); i++) Collections.reverse(((Flag) Objects.requireNonNull(mFlagAdapter.get(i))).getEpisodes());
         setEpisodeAdapter(getFlag().getEpisodes());
         if (scroll) setEpisodeSelectedPosition(getEpisodePosition());
     }
@@ -766,7 +821,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
         int max = mEpisodeAdapter.size() - 1;
         current = ++current > max ? max : current;
         Episode item = (Episode) mEpisodeAdapter.get(current);
-        if (item.isActivated()) Notify.show(mHistory.isRevPlay() ? R.string.error_play_prev : R.string.error_play_next);
+        if (Objects.requireNonNull(item).isActivated()) Notify.show(mHistory.isRevPlay() ? R.string.error_play_prev : R.string.error_play_next);
         else setEpisodeActivated(item);
     }
 
@@ -774,7 +829,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
         int current = getEpisodePosition();
         current = --current < 0 ? 0 : current;
         Episode item = (Episode) mEpisodeAdapter.get(current);
-        if (item.isActivated()) Notify.show(mHistory.isRevPlay() ? R.string.error_play_next : R.string.error_play_prev);
+        if (Objects.requireNonNull(item).isActivated()) Notify.show(mHistory.isRevPlay() ? R.string.error_play_next : R.string.error_play_prev);
         else setEpisodeActivated(item);
     }
 
@@ -1063,7 +1118,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
 
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                List<String> items = Arrays.asList(source);
+                List<String> items = List.of(source);
                 App.post(() -> setPartAdapter(items), 1000);
             }
         });
@@ -1201,14 +1256,14 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
     @Override
     protected void nextParse(int position) {
         Parse parse = (Parse) mParseAdapter.get(position + 1);
-        Notify.show(getString(R.string.play_switch_parse, parse.getName()));
+        Notify.show(getString(R.string.play_switch_parse, Objects.requireNonNull(parse).getName()));
         setParseActivated(parse);
     }
 
     @Override
     protected void nextFlag(int position) {
         Flag flag = (Flag) mFlagAdapter.get(position + 1);
-        Notify.show(getString(R.string.play_switch_flag, flag.getFlag()));
+        Notify.show(getString(R.string.play_switch_flag, Objects.requireNonNull(flag).getFlag()));
         setFlagActivated(flag);
     }
 
@@ -1216,7 +1271,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
     protected void nextSite() {
         if (mQuickAdapter.size() == 0) return;
         Vod item = (Vod) mQuickAdapter.get(0);
-        Notify.show(getString(R.string.play_switch_site, item.getSiteName()));
+        Notify.show(getString(R.string.play_switch_site, Objects.requireNonNull(item).getSiteName()));
         mQuickAdapter.removeItems(0, 1);
         mBroken.add(getId());
         setInitAuto(false);
@@ -1225,7 +1280,7 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
 
     private void initParse() {
         if (mParseAdapter.size() == 0) return;
-        VodConfig.get().setParse((Parse) mParseAdapter.get(0));
+        VodConfig.get().setParse((Parse) Objects.requireNonNull(mParseAdapter.get(0)));
         notifyItemChanged(mBinding.control.parse, mParseAdapter);
     }
 
@@ -1243,6 +1298,38 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
     private void setSearch(Vod item) {
         setAutoMode(false);
         getDetail(item);
+    }
+
+    private void onFlagLongClick(Flag item) {
+        new MaterialAlertDialogBuilder(this)
+                .setMessage(ResUtil.getString(R.string.site_blacklist_confirm, getSite().getName()))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (d, which) -> {
+                    getSite().setBlacklist();
+                    finish();
+                }).show();
+    }
+
+    private void onQuickLongClick(Vod item) {
+        if (item.getSiteKey().equals(getKey())) return;
+        new MaterialAlertDialogBuilder(this)
+                .setMessage(ResUtil.getString(R.string.site_blacklist_confirm, item.getSiteName()))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (d, which) -> {
+                    Site site = Site.find(item.getSiteKey());
+                    if (site == null) site = Site.get(item.getSiteKey(), item.getSiteName());
+                    site.setBlacklist();
+                    removeBySiteKey(item.getSiteKey());
+                }).show();
+    }
+
+    private void removeBySiteKey(String siteKey) {
+        for (int i = mQuickAdapter.size() - 1; i >= 0; i--) {
+            Vod item = (Vod) mQuickAdapter.get(i);
+            if (Objects.equals(Objects.requireNonNull(item).getSiteKey(), siteKey)) {
+                mQuickAdapter.removeItems(i, 1);
+            }
+        }
     }
 
     private void onPaused() {
@@ -1448,18 +1535,18 @@ public class VideoActivity extends BaseVideoActivity implements ArrayPresenter.O
 
     @Override
     protected int getFlagPosition() {
-        for (int i = 0; i < mFlagAdapter.size(); i++) if (((Flag) mFlagAdapter.get(i)).isActivated()) return i;
+        for (int i = 0; i < mFlagAdapter.size(); i++) if (((Flag) Objects.requireNonNull(mFlagAdapter.get(i))).isActivated()) return i;
         return 0;
     }
 
     private int getEpisodePosition() {
-        for (int i = 0; i < mEpisodeAdapter.size(); i++) if (((Episode) mEpisodeAdapter.get(i)).isActivated()) return i;
+        for (int i = 0; i < mEpisodeAdapter.size(); i++) if (((Episode) Objects.requireNonNull(mEpisodeAdapter.get(i))).isActivated()) return i;
         return 0;
     }
 
     @Override
     protected int getParsePosition() {
-        for (int i = 0; i < mParseAdapter.size(); i++) if (((Parse) mParseAdapter.get(i)).isActivated()) return i;
+        for (int i = 0; i < mParseAdapter.size(); i++) if (((Parse) Objects.requireNonNull(mParseAdapter.get(i))).isActivated()) return i;
         return 0;
     }
 

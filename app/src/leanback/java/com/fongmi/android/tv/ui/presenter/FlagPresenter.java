@@ -20,6 +20,8 @@ public class FlagPresenter extends Presenter {
 
     public interface OnClickListener {
         void onItemClick(Flag item);
+
+        void onItemLongClick(Flag item);
     }
 
     public void setNextFocusDown(int nextFocusDown) {
@@ -39,6 +41,10 @@ public class FlagPresenter extends Presenter {
         holder.binding.text.setActivated(item.isActivated());
         holder.binding.text.setNextFocusDownId(nextFocusDown);
         setOnClickListener(holder, view -> mListener.onItemClick(item));
+        holder.binding.getRoot().setOnLongClickListener(view -> {
+            mListener.onItemLongClick(item);
+            return true;
+        });
     }
 
     @Override

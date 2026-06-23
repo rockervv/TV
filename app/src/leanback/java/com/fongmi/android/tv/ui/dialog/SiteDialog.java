@@ -129,4 +129,17 @@ public class SiteDialog implements SiteAdapter.OnClickListener{
         callback.setSite(item);
         dialog.dismiss();
     }
+
+    @Override
+    public void onItemLongClick(Site item) {
+        if (type != 0 || item.getKey().isEmpty()) return;
+        new MaterialAlertDialogBuilder(dialog.getContext())
+                .setMessage(ResUtil.getString(item.isBlacklist() ? R.string.site_blacklist_remove_confirm : R.string.site_blacklist_confirm, item.getName()))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (d, which) -> {
+                    if (item.isBlacklist()) item.resetFailures();
+                    else item.setBlacklist();
+                    adapter.notifyDataSetChanged();
+                }).show();
+    }
 }

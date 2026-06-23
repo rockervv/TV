@@ -93,7 +93,8 @@ public class Notify {
         mToast = new Toast(App.get());
         mToast.setDuration(Toast.LENGTH_LONG);
         mToast.setView(createView(message, size, color));
-        if (gravity != Gravity.BOTTOM) mToast.setGravity(gravity, ResUtil.dp2px(16), ResUtil.dp2px(16));
+        if (gravity == (Gravity.TOP | Gravity.END)) mToast.setGravity(gravity, ResUtil.dp2px(16), 2);
+        else if (gravity != Gravity.BOTTOM) mToast.setGravity(gravity, ResUtil.dp2px(16), ResUtil.dp2px(16));
         mToast.show();
     }
 

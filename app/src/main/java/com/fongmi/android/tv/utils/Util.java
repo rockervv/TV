@@ -14,6 +14,7 @@ import android.os.IBinder;
 import android.os.Parcelable;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -27,6 +28,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Formatter;
 import java.util.List;
+import java.util.Objects;
 
 public class Util {
 
@@ -101,7 +103,7 @@ public class Util {
             manager.setPrimaryClip(ClipData.newPlainText("", text));
             Notify.show(R.string.copied);
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.d ("Util", "Copy error:" + e);
         }
     }
 
@@ -141,7 +143,7 @@ public class Util {
 
     public static long format(SimpleDateFormat format, String src) {
         try {
-            return format.parse(src).getTime();
+            return Objects.requireNonNull(format.parse(src)).getTime();
         } catch (Exception e) {
             return 0;
         }
@@ -203,9 +205,7 @@ public class Util {
             if (pm.hasSystemFeature("android.hardware.hdmi.cec")) {
                 return true;
             }
-            if (Build.MANUFACTURER.equalsIgnoreCase("zidoo")) {
-                return true;
-            }
+            return Build.MANUFACTURER.equalsIgnoreCase("zidoo");
         }
         return false;
     }
@@ -217,7 +217,7 @@ public class Util {
 
     public static void restartApp(Activity activity) {
         Intent intent = activity.getBaseContext().getPackageManager().getLaunchIntentForPackage(activity.getBaseContext().getPackageName());
-        ComponentName componentName = intent.getComponent();
+        ComponentName componentName = Objects.requireNonNull(intent).getComponent();
         Intent mainIntent = Intent.makeRestartActivityTask(componentName);
         activity.startActivity(mainIntent);
         Runtime.getRuntime().exit(0);

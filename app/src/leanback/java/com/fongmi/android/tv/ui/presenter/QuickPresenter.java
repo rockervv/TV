@@ -29,6 +29,8 @@ public class QuickPresenter extends Presenter {
     public interface OnClickListener {
 
         void onItemClick(Vod item);
+
+        void onItemLongClick(Vod item);
     }
 
     @Override
@@ -46,6 +48,10 @@ public class QuickPresenter extends Presenter {
         holder.binding.site.setText(item.getSiteName());
         holder.binding.remark.setText(item.getVodRemarks());
         setOnClickListener(holder, view -> mListener.onItemClick(item));
+        holder.binding.getRoot().setOnLongClickListener(view -> {
+            mListener.onItemLongClick(item);
+            return true;
+        });
     }
 
     @Override

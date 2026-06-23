@@ -2,7 +2,6 @@ package com.fongmi.quickjs.crawler;
 
 import android.content.Context;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.fongmi.quickjs.bean.Res;
 import com.fongmi.quickjs.method.Async;
@@ -26,6 +25,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -132,7 +132,7 @@ public class Spider extends com.github.catvod.crawler.Spider {
         try {
             call("destroy");
         } catch (Throwable e) {
-            e.printStackTrace();
+            Log.d ("Spider", "destroy error:" + e);
         }
         try {
             runSync(() -> {
@@ -140,8 +140,7 @@ public class Spider extends com.github.catvod.crawler.Spider {
                     if (ctx != null) ctx.destroy();
             });
         } catch (Exception e) {
-
-            e.printStackTrace();
+            Log.d ("Spider", "sync after destroy error:" + e);
         }
 
     }
@@ -223,7 +222,7 @@ public class Spider extends com.github.catvod.crawler.Spider {
     private Object[] proxy2(Map<String, String> params) throws Exception {
         String url = params.get("url");
         String header = params.get("header");
-        JSArray array = runSync(() -> JSUtil.toArray(ctx, Arrays.asList(url.split("/"))));
+        JSArray array = runSync(() -> JSUtil.toArray(ctx, Arrays.asList(Objects.requireNonNull(url).split("/"))));
         Object object = runSync(() -> ctx.parse(header));
         String json = (String) call("proxy", array, object);
         Res res = Res.objectFrom(json);

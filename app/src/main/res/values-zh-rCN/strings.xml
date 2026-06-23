@@ -315,4 +315,6 @@
         <item>选择字幕</item>
     </string-array>
 
+    <string name="site_blacklist_confirm">确定要将「%s」加入黑名单吗？</string>
+    <string name="site_blacklist_remove_confirm">确定要将「%s」从黑名单移除吗？</string>
 </resources>

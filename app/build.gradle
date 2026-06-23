@@ -28,22 +28,29 @@ if (versionPropsFile.exists()) {
 def autoVersionCode = versionProps['VERSION_CODE'].toInteger() + 1
 def autoVersionName = versionProps['VERSION_NAME']
 
-// 在 Release build 時動態更新 versionName
-android.applicationVariants.configureEach { variant ->
-    if (variant.buildType.name == 'release') {
-        // 解析 versionName，例如 "Rocker.2.26.2"
-        def versionParts = autoVersionName.split('\\.')
+// 1. 將進版邏輯移到最外層，確保每次 build 只執行一次
+def versionParts = autoVersionName.split('\\.')
+if (versionParts.size() > 0) {
+    try {
         def lastNumber = (versionParts.last() as Integer) + 1
         versionParts[-1] = lastNumber.toString()
         autoVersionName = versionParts.join('.')
+    } catch (Exception ignored) {
+    }
+}
 
+// 2. 立即更新 Properties 對象
+versionProps['VERSION_CODE'] = autoVersionCode.toString()
+versionProps['VERSION_NAME'] = autoVersionName
+versionProps.store(new FileOutputStream(versionPropsFile), null)
+
+// 在 Release build 時動態更新 versionName
+android.applicationVariants.configureEach { variant ->
+    if (variant.buildType.name == 'release') {
         // 更新 versionName 給當前 variant
         variant.outputs.configureEach { output ->
             output.versionNameOverride = autoVersionName
         }
-
-        // 儲存新的 versionName 到 version.properties
-        versionProps['VERSION_NAME'] = autoVersionName
 
         // 生成 leanback.json，存到臨時目錄 release_output/<flavor>
         variant.outputs.configureEach { output ->
@@ -76,10 +83,6 @@ android.applicationVariants.configureEach { variant ->
         }
     }
 }
-
-// 寫回 version.properties
-versionProps['VERSION_CODE'] = autoVersionCode.toString()
-versionProps.store(new FileOutputStream(versionPropsFile), null)
 
 android {
     namespace 'com.fongmi.android.tv'
@@ -171,6 +174,9 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
+
+        // 修正這行（移除 is，移除等號）
+        coreLibraryDesugaringEnabled true
     }
 
     android.applicationVariants.configureEach { variant ->
@@ -274,6 +280,9 @@ dependencies {
     annotationProcessor 'androidx.room:room-compiler:2.6.1'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
     annotationProcessor 'org.greenrobot:eventbus-annotation-processor:3.3.1'
+
+    // 引入脫糖專用庫 (請依據你的 Gradle 變更最新版本)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
 
     //implementation 'org.glassfish.jersey.core:jersey-server:2.46'  // Replace with your version
     //implementation 'org.glassfish.jersey.core:jersey-client:2.46'  // Optional if using Jersey client

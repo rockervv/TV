@@ -220,7 +220,7 @@ public class App extends Application {
             if (element.getClassName().contains("com.fongmi.quickjs.crawler")) return true;
         }
         Throwable cause = e.getCause();
-        return cause != null && isSpiderError(cause);
+        return isSpiderError(cause);
     }
 
     @Override

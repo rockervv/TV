@@ -1,5 +1,6 @@
 package com.fongmi.android.tv.ui.adapter;
 
+import android.graphics.Paint;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,6 +30,8 @@ public class SiteAdapter extends RecyclerView.Adapter<SiteAdapter.ViewHolder> {
     public interface OnClickListener {
 
         void onItemClick(Site item);
+
+        void onItemLongClick(Site item);
     }
 
     public void setType(int type) {
@@ -66,6 +69,8 @@ public class SiteAdapter extends RecyclerView.Adapter<SiteAdapter.ViewHolder> {
         holder.binding.getRoot().setOnLongClickListener(v -> setLongListener(item));
         holder.binding.getRoot().setOnClickListener(v -> setListener(item, position));
         holder.binding.text.setGravity(Setting.getSiteMode() == 0 ? Gravity.CENTER : Gravity.START);
+        if (item.isBlacklist()) holder.binding.text.setPaintFlags(holder.binding.text.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+        else holder.binding.text.setPaintFlags(holder.binding.text.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
     }
 
     private boolean getChecked(Site item) {
@@ -82,6 +87,7 @@ public class SiteAdapter extends RecyclerView.Adapter<SiteAdapter.ViewHolder> {
     }
 
     private boolean setLongListener(Site item) {
+        if (type == 0) mListener.onItemLongClick(item);
         if (type == 1) setEnable(!item.isSearchable());
         if (type == 2) setEnable(!item.isChangeable());
         return true;

@@ -1,10 +1,5 @@
 package com.github.catvod.utils;
 
-import android.net.Uri;
-
-import com.github.catvod.net.OkHttp;
-
-import java.io.File;
 
 public class Github {
 

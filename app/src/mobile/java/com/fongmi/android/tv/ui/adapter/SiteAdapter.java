@@ -1,5 +1,6 @@
 package com.fongmi.android.tv.ui.adapter;
 
+import android.graphics.Paint;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -62,6 +63,8 @@ public class SiteAdapter extends RecyclerView.Adapter<SiteAdapter.ViewHolder> {
 
         void onChangeClick(int position, Site item);
 
+        boolean onTextLongClick(Site item);
+
         boolean onSearchLongClick(Site item);
 
         boolean onChangeLongClick(Site item);
@@ -94,8 +97,11 @@ public class SiteAdapter extends RecyclerView.Adapter<SiteAdapter.ViewHolder> {
         holder.binding.text.setOnClickListener(v -> mListener.onTextClick(item));
         holder.binding.search.setOnClickListener(v -> mListener.onSearchClick(position, item));
         holder.binding.change.setOnClickListener(v -> mListener.onChangeClick(position, item));
+        holder.binding.text.setOnLongClickListener(v -> mListener.onTextLongClick(item));
         holder.binding.search.setOnLongClickListener(v -> mListener.onSearchLongClick(item));
         holder.binding.change.setOnLongClickListener(v -> mListener.onChangeLongClick(item));
+        if (item.isBlacklist()) holder.binding.text.setPaintFlags(holder.binding.text.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+        else holder.binding.text.setPaintFlags(holder.binding.text.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
     }
 
     private int getSearchIcon(Site item) {

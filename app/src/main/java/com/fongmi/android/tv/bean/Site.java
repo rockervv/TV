@@ -25,6 +25,8 @@ import com.google.gson.annotations.SerializedName;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Headers;
 
@@ -97,6 +99,10 @@ public class Site implements Parcelable {
 
     @Ignore
     private boolean activated;
+
+    private long blacklist;
+
+    private int failures;
 
     public static Site objectFrom(JsonElement element) {
         try {
@@ -239,8 +245,44 @@ public class Site implements Parcelable {
         this.activated = item.equals(this);
     }
 
+    public long getBlacklist() {
+        return blacklist;
+    }
+
+    public void setBlacklist(long blacklist) {
+        this.blacklist = blacklist;
+    }
+
+    public int getFailures() {
+        return failures;
+    }
+
+    public void setFailures(int failures) {
+        this.failures = failures;
+    }
+
+    public void setBlacklist() {
+        failures++;
+        if (failures == 1) {
+            setBlacklist(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(12));
+        } else {
+            setBlacklist(Math.max(blacklist, System.currentTimeMillis()) + TimeUnit.DAYS.toMillis(1));
+        }
+        save();
+    }
+
+    public void resetFailures() {
+        this.failures = 0;
+        this.blacklist = 0;
+        save();
+    }
+
+    public boolean isBlacklist() {
+        return getBlacklist() > System.currentTimeMillis();
+    }
+
     public boolean isSearchable() {
-        return getSearchable() == 1;
+        return getSearchable() == 1 && !isBlacklist();
     }
 
     public Site setSearchable(boolean searchable) {
@@ -326,13 +368,15 @@ public class Site implements Parcelable {
         dest.writeValue(this.searchable);
         dest.writeValue(this.changeable);
         dest.writeValue(this.indexs);
+        dest.writeLong(this.blacklist);
+        dest.writeInt(this.failures);
         dest.writeStringList(this.categories);
         dest.writeParcelable(this.style, flags);
         dest.writeByte(this.activated ? (byte) 1 : (byte) 0);
     }
 
     protected Site(Parcel in) {
-        this.key = in.readString();
+        this.key = Objects.requireNonNull(in.readString());
         this.name = in.readString();
         this.api = in.readString();
         this.ext = in.readString();
@@ -345,6 +389,8 @@ public class Site implements Parcelable {
         this.searchable = (Integer) in.readValue(Integer.class.getClassLoader());
         this.changeable = (Integer) in.readValue(Integer.class.getClassLoader());
         this.indexs = (Integer) in.readValue(Integer.class.getClassLoader());
+        this.blacklist = in.readLong();
+        this.failures = in.readInt();
         this.categories = in.createStringArrayList();
         this.style = in.readParcelable(Style.class.getClassLoader());
         this.activated = in.readByte() != 0;

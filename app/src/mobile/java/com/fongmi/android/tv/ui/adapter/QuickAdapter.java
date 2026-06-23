@@ -25,6 +25,8 @@ public class QuickAdapter extends RecyclerView.Adapter<QuickAdapter.ViewHolder> 
     public interface OnClickListener {
 
         void onItemClick(Vod item);
+
+        void onItemLongClick(Vod item);
     }
 
     public void clear() {
@@ -45,6 +47,15 @@ public class QuickAdapter extends RecyclerView.Adapter<QuickAdapter.ViewHolder> 
     public void remove(int position) {
         mItems.remove(position);
         notifyItemRemoved(position);
+    }
+
+    public void removeBySiteKey(String siteKey) {
+        for (int i = mItems.size() - 1; i >= 0; i--) {
+            if (mItems.get(i).getSiteKey().equals(siteKey)) {
+                mItems.remove(i);
+                notifyItemRemoved(i);
+            }
+        }
     }
 
     public boolean isEmpty() {
@@ -69,6 +80,10 @@ public class QuickAdapter extends RecyclerView.Adapter<QuickAdapter.ViewHolder> 
         holder.binding.site.setText(item.getSiteName());
         holder.binding.remark.setText(item.getVodRemarks());
         holder.binding.getRoot().setOnClickListener(v -> mListener.onItemClick(item));
+        holder.binding.getRoot().setOnLongClickListener(v -> {
+            mListener.onItemLongClick(item);
+            return true;
+        });
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

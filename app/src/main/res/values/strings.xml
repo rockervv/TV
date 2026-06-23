@@ -327,4 +327,6 @@
         <item>TCP</item>
     </string-array>
 
+    <string name="site_blacklist_confirm">Are you sure to add \"%s\" to the blacklist?</string>
+    <string name="site_blacklist_remove_confirm">Are you sure to remove \"%s\" from the blacklist?</string>
 </resources>

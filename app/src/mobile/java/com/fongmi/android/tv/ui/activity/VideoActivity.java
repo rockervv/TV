@@ -473,6 +473,17 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
     }
 
     @Override
+    public void onItemLongClick(Flag item) {
+        new MaterialAlertDialogBuilder(this)
+                .setMessage(ResUtil.getString(R.string.site_blacklist_confirm, getSite().getName()))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (d, which) -> {
+                    getSite().setBlacklist();
+                    finish();
+                }).show();
+    }
+
+    @Override
     public void onItemClick(Episode item) {
         if (shouldEnterFullscreen(item)) return;
         mFlagAdapter.toggle(item);
@@ -495,6 +506,20 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
     @Override
     public void onItemClick(Vod item) {
         getDetail(item);
+    }
+
+    @Override
+    public void onItemLongClick(Vod item) {
+        if (item.getSiteKey().equals(getKey())) return;
+        new MaterialAlertDialogBuilder(this)
+                .setMessage(ResUtil.getString(R.string.site_blacklist_confirm, item.getSiteName()))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (d, which) -> {
+                    Site site = Site.find(item.getSiteKey());
+                    if (site == null) site = Site.get(item.getSiteKey(), item.getSiteName());
+                    site.setBlacklist();
+                    mQuickAdapter.removeBySiteKey(item.getSiteKey());
+                }).show();
     }
 
     @Override

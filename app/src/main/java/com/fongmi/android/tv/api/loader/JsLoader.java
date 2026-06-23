@@ -3,6 +3,7 @@ package com.fongmi.android.tv.api.loader;
 import android.util.Log;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.bean.Site;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderNull;
 
@@ -34,9 +35,13 @@ public class JsLoader {
             Spider spider = new com.fongmi.quickjs.crawler.Spider(key, api);
             spider.init(App.get(), ext);
             spiders.put(key, spider);
+            Site site = Site.find(key);
+            if (site != null) site.resetFailures();
             return spider;
         } catch (Throwable e) {
             Log.e("JsLoader", "getSpider failed for key: " + key, e);
+            Site site = Site.find(key);
+            if (site != null) site.setBlacklist();
             return new SpiderNull();
         }
     }

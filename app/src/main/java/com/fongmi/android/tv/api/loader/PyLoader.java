@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.Log;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.bean.Site;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderNull;
 
@@ -58,9 +59,13 @@ public class PyLoader {
             Spider spider = (Spider) method.invoke(loader, App.get(), api);
             spider.init(App.get(), ext);
             spiders.put(key, spider);
+            Site site = Site.find(key);
+            if (site != null) site.resetFailures();
             return spider;
         } catch (Throwable e) {
             Log.e("PyLoader", "getSpider failed for key: " + key + " api: " + api, e);
+            Site site = Site.find(key);
+            if (site != null) site.setBlacklist();
             return new SpiderNull();
         }
     }

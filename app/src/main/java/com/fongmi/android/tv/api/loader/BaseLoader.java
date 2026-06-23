@@ -12,8 +12,10 @@ import com.github.catvod.utils.Util;
 
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class BaseLoader {
@@ -48,6 +50,12 @@ public class BaseLoader {
 
     public Spider getSpider(String key, String api, String ext, String jar) {
         if (api == null || api.isEmpty()) return new SpiderNull();
+        Site site = Site.find(key);
+        if (site != null && site.isBlacklist()) {
+            String name = VodConfig.get().getSite(key).getName();
+            Log.d("BaseLoader", "Skip blacklisted site: " + (name.isEmpty() ? key : name) + ", Failures: " + site.getFailures() + ", Expiry: " + com.fongmi.android.tv.utils.Util.format(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()), site.getBlacklist()));
+            return new SpiderNull();
+        }
 
         boolean csp = api.startsWith("csp_");
         if (csp) return jarLoader.getSpider(key, api, ext, jar);

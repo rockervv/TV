@@ -2,15 +2,11 @@ package com.fongmi.android.tv.ui.base;
 
 import static com.fongmi.android.tv.bean.History.getCurrentUTCTime;
 
-import android.app.Activity;
-import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.WindowManager;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.media3.common.C;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 
@@ -24,8 +20,6 @@ import com.fongmi.android.tv.bean.Flag;
 import com.fongmi.android.tv.bean.FlagScore;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.HistorySyncManager;
-import com.fongmi.android.tv.bean.Keep;
-import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Sub;
@@ -58,7 +52,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -185,7 +178,7 @@ public abstract class BaseVideoActivity extends BaseActivity implements CustomKe
         return Setting.getReset() == 1;
     }
 
-    protected boolean isFullscreen() {
+    public boolean isFullscreen() {
         return fullscreen;
     }
 
@@ -332,7 +325,7 @@ public abstract class BaseVideoActivity extends BaseActivity implements CustomKe
                 }
             } catch (Exception e) {
                 App.post(() -> Notify.show("儲存失敗: " + e.getMessage()));
-                e.printStackTrace();
+                Log.d ("BaseVideoActivity", "Fail to save M3U8 :" + e);
             }
         });
     }
@@ -345,6 +338,7 @@ public abstract class BaseVideoActivity extends BaseActivity implements CustomKe
     }
 
     private boolean isPass(Site item) {
+        if (item.isBlacklist()) return false;
         if (isAutoMode() && !item.isChangeable()) return false;
         return item.isSearchable();
     }
@@ -356,7 +350,8 @@ public abstract class BaseVideoActivity extends BaseActivity implements CustomKe
         for (Site site : sites) mExecutor.execute(() -> {
             try {
                 mViewModel.searchContent(site, keyword, true);
-            } catch (Throwable ignored) {
+            } catch (Throwable e) {
+                site.setBlacklist();
             }
         });
     }

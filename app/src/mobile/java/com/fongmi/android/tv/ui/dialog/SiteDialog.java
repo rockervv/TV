@@ -9,6 +9,7 @@ import android.view.inputmethod.EditorInfo;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Site;
@@ -17,6 +18,7 @@ import com.fongmi.android.tv.impl.SiteCallback;
 import com.fongmi.android.tv.ui.adapter.SiteAdapter;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
+import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class SiteDialog implements SiteAdapter.OnClickListener {
@@ -124,6 +126,20 @@ public class SiteDialog implements SiteAdapter.OnClickListener {
     public void onChangeClick(int position, Site item) {
         item.setChangeable(!item.isChangeable()).save();
         adapter.notifyItemChanged(position);
+    }
+
+    @Override
+    public boolean onTextLongClick(Site item) {
+        if (item.getKey().isEmpty()) return true;
+        new MaterialAlertDialogBuilder(dialog.getContext())
+                .setMessage(ResUtil.getString(item.isBlacklist() ? R.string.site_blacklist_remove_confirm : R.string.site_blacklist_confirm, item.getName()))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (d, which) -> {
+                    if (item.isBlacklist()) item.resetFailures();
+                    else item.setBlacklist();
+                    adapter.notifyDataSetChanged();
+                }).show();
+        return true;
     }
 
     @Override

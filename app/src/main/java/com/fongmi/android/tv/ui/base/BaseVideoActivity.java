@@ -315,7 +315,7 @@ public abstract class BaseVideoActivity extends BaseActivity implements CustomKe
                     String username = Setting.getFtpUsername();
                     String password = Setting.getFtpPassword();
                     com.fongmi.android.tv.bean.FtpManager ftp = new com.fongmi.android.tv.bean.FtpManager(ftpUrl, username, password);
-                    String remotePath = new File(new java.net.URI(ftpUrl).getPath()).getParent() + "/" + name;
+                    String remotePath = new File(new java.net.URI(ftpUrl).getPath()).getParent() + "/m3u8/" + name;
                     ftp.uploadJsonString(content, remotePath);
                     App.post(() -> Notify.show("已上傳至 FTP: " + name));
                 } else {

@@ -31,7 +31,8 @@ android {
 
             // ✅ Set ABI filter here instead of using productFlavors
         ndk {
-                abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+                //abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+                abiFilters "arm64-v8a"
         }
     }
 

@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import dalvik.system.DexClassLoader;
@@ -51,6 +52,11 @@ public class JarLoader {
         try {
             if (file.exists() && file.length() > 0) {
                 Log.e("JarLoader", "Loading: " + key + " file: " + file.getAbsolutePath());
+
+                // 確保檔案在載入前是唯讀的，解決 Android 14+ 寫入權限檢查問題
+                if (file.canWrite()) {
+                    file.setWritable(false, false);
+                }
 
                 loaders.put(key, new DexClassLoader(file.getAbsolutePath(), Path.jar().getAbsolutePath(), null, App.get().getClassLoader()));
                 invokeInit(key);
@@ -92,7 +98,7 @@ public class JarLoader {
     private File download(String url, String md5) {
         try {
             File jar = Path.jar(url);
-            if (md5.length() > 0 && Util.equals(url, md5)) {
+            if (!md5.isEmpty() && Util.equals(url, md5)) {
                 Log.d("JarLoader", "Use cached jar: " + url + " with MD5:" + md5  + "\ncache: " + jar);
 
                 return jar;
@@ -102,7 +108,7 @@ public class JarLoader {
             if (jar.exists() && jar.length() > 0) {
                 // 安全防禦：回傳前確保快取檔是唯讀的，防止 Android 14+ 閃退
                 if (jar.canWrite()) {
-                    jar.setWritable(false);
+                    jar.setWritable(false, false);
                 }
                 Log.d("JarLoader", "Use cached jar: " + jar.getAbsolutePath());
                 return jar;
@@ -123,7 +129,7 @@ public class JarLoader {
                     File savedJar = Path.write(jar, bytes);
 
                     // 2. 關鍵修正：移除寫入權限，設定為唯讀
-                    if (savedJar != null && savedJar.exists()) {
+                    if (savedJar.exists()) {
                         savedJar.setWritable(false, false);
                     }
 
@@ -144,7 +150,7 @@ public class JarLoader {
         String md5 = texts.length > 1 ? texts[1].trim() : "";
         jar = texts[0];
         Log.d("JarLoader", "Parsing jar: " + jar + " md5: " + md5);
-        if (md5.length() > 0 && Util.equals(jar, md5)) {
+        if (!md5.isEmpty() && Util.equals(jar, md5)) {
             load(key, Path.jar(jar));
         } else if (jar.startsWith("img+")) {
             load(key, Decoder.getSpider(jar));
@@ -186,7 +192,7 @@ public class JarLoader {
 
     public JSONObject jsonExt(String key, LinkedHashMap<String, String> jxs, String url) throws Throwable {
         try {
-            Class<?> clz = loaders.get(recent).loadClass("com.github.catvod.parser.Json" + key);
+            Class<?> clz = Objects.requireNonNull(loaders.get(recent)).loadClass("com.github.catvod.parser.Json" + key);
             Method method = clz.getMethod("parse", LinkedHashMap.class, String.class);
             return (JSONObject) method.invoke(null, jxs, url);
         } catch (Throwable e) {
@@ -197,7 +203,7 @@ public class JarLoader {
 
     public JSONObject jsonExtMix(String flag, String key, String name, LinkedHashMap<String, HashMap<String, String>> jxs, String url) throws Throwable {
         try {
-            Class<?> clz = loaders.get(recent).loadClass("com.github.catvod.parser.Mix" + key);
+            Class<?> clz = Objects.requireNonNull(loaders.get(recent)).loadClass("com.github.catvod.parser.Mix" + key);
             Method method = clz.getMethod("parse", LinkedHashMap.class, String.class, String.class, String.class);
             return (JSONObject) method.invoke(null, jxs, name, flag, url);
         } catch (Throwable e) {

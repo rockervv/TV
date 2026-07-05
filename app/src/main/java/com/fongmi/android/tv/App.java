@@ -1,5 +1,6 @@
 package com.fongmi.android.tv;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
@@ -46,6 +47,7 @@ public class App extends Application {
 
     private final ExecutorService executor;
     private final Handler handler;
+    @SuppressLint("StaticFieldLeak")
     private static App instance;
     private Activity activity;
     private final Gson gson;

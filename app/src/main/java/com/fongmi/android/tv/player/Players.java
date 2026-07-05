@@ -17,6 +17,7 @@ import androidx.annotation.NonNull;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -438,15 +439,32 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
     }
 
     public String getM3u8Content() {
-        if (url != null && url.startsWith(proxyurl)) {
-            try {
-                String targetUrl = java.net.URLDecoder.decode(url.split("url=")[1].split("&")[0], "UTF-8");
-                return com.fongmi.android.tv.server.process.M3U8.getCache(targetUrl);
-            } catch (Exception e) {
-                return "";
+        if (url == null || !url.startsWith(proxyurl)) return "";
+        try {
+            String targetUrl = java.net.URLDecoder.decode(url.split("url=")[1].split("&")[0], "UTF-8");
+            String content = com.fongmi.android.tv.server.process.M3U8.getCache(targetUrl);
+            if (content.contains("#EXT-X-STREAM-INF")) {
+                StringBuilder sb = new StringBuilder(content);
+                sb.append("\n\n--- Nested Playlists ---\n");
+                String[] lines = content.split("\\n");
+                for (String line : lines) {
+                    line = line.trim();
+                    if (line.isEmpty() || line.startsWith("#")) continue;
+                    if (line.startsWith(proxyurl)) {
+                        String subUrl = java.net.URLDecoder.decode(line.split("url=")[1].split("&")[0], "UTF-8");
+                        String subContent = com.fongmi.android.tv.server.process.M3U8.getCache(subUrl);
+                        if (!subContent.isEmpty()) {
+                            sb.append("\nURL: ").append(subUrl).append("\n");
+                            sb.append(subContent).append("\n");
+                        }
+                    }
+                }
+                return sb.toString();
             }
+            return content;
+        } catch (Exception e) {
+            return "";
         }
-        return "";
     }
 
     public void play() {
@@ -591,7 +609,7 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
 
         // 如果是 M3U8 且尚未被 Proxy 包裝，則包裝它
         if (url != null && url.toLowerCase().contains(".m3u8")) {
-            this.format = androidx.media3.common.MimeTypes.APPLICATION_M3U8;
+            this.format = MimeTypes.APPLICATION_M3U8;
             if (!url.startsWith(proxyurl)) {
                 try {
                     this.url = proxyurl + URLEncoder.encode(url, "UTF-8") + "&.m3u8";

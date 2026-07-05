@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -84,12 +85,20 @@ public class ADFilter {
         // 找出出現次數最多、絕對是正片的「主流特徵」
         String mainFeature = "";
         int maxCount = 0;
+        Log.d("M3U8Parser", "=== 網址特徵統計開始 ===");
         for (Map.Entry<String, Integer> entry : pathCountMap.entrySet()) {
             if (entry.getValue() > maxCount) {
+                //Log.d("M3U8Parser", "特徵路徑: [" + entry.getKey() + "] 出現次數: " + entry.getValue());
+
                 maxCount = entry.getValue();
                 mainFeature = entry.getKey();
+                Log.d("M3U8Parser", "特徵路徑: [" + mainFeature + "] 出現次數: " + maxCount);
+
             }
         }
+        Log.d("M3U8Parser", "➔ 最終選定的主流特徵 (正片): [" + mainFeature + "]");
+        Log.d("M3U8Parser", "=== 網址特徵統計結束 ===");
+
         // === 聰明偵測結束 ===
 
         boolean inAd = false;
@@ -107,22 +116,27 @@ public class ADFilter {
                 pendingExtInfLine = line;
                 if (!passFirstDiscontinuity) passFirstDiscontinuity = true;
                 try {
-                    double duration = Double.parseDouble(line.substring(8).split(",")[0]);
+                    String durationStr = line.substring(8).split(",")[0];
+                    double duration = Double.parseDouble(durationStr);
                     totalDuration += duration;
                     if (inAd) {
                         currentDuration += duration;
                         pendingExtInfLine = null;
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    Log.e("M3U8Parser", "解析 EXTINF 時間出錯: " + line + " 原因: " + e.getMessage());
+                }
                 continue;
             }
 
             if (line.startsWith("#EXT-X-CUE-OUT")) {
                 inAd = true;
+                Log.d("M3U8Parser", "觸發 CUE-OUT，進入廣告模式");
                 continue;
             }
             if (line.equals("#EXT-X-CUE-IN")) {
                 inAd = false;
+                Log.d("M3U8Parser", "觸發 CUE-IN，離開廣告模式");
                 continue;
             }
 
@@ -158,19 +172,29 @@ public class ADFilter {
                 }
                 // --- 擴充結束 ---
 
+                Log.d("M3U8Parser", "遇到 DISCONTINUITY，向後尋找結果 -> 找到的 EXTINF: [" + nextExtInf + "], TS網址: [" + nextTsLine + "]");
 
 
                 if (!inAd) {
                     if (nextExtInf != null && nextExtInf.startsWith("#EXTINF:") && nextTsLine != null) {
+                        boolean isAdOld = isAdUrl(nextTsLine);
+                        boolean isAdSmart = isAdUrlSmart(nextTsLine, mainFeature);
+
+                        Log.d("M3U8Parser", "DISCONTINUITY 廣告判定 -> 舊邏輯判斷: " + isAdOld + ", 聰明邏輯判斷: " + isAdSmart);
+
+
                         // 2. 修正：結合您原本的偵測與「聰明特徵比對」
-                        if (isAdUrlSmart(nextTsLine, mainFeature) || isAdUrl(nextTsLine)) {
+                        if (isAdSmart || isAdOld) {
                             inAd = true;
+                            Log.d("M3U8Parser", "➔ DISCONTINUITY 判定成功：進入廣告狀態");
+
                         } else if ((nextTsLine.endsWith(".ts") || nextTsLine.endsWith(".jpeg") || nextTsLine.endsWith(".jpg"))) {
                             Long nextNumber = extractSegmentNumber(nextTsLine);
                             if (lastSegmentNumber != null && nextNumber != null && nextNumber == lastSegmentNumber + 1) {
                                 output.append(line).append("\n");
                             } else {
                                 inAd = true;
+                                Log.d("M3U8Parser", "➔ 序號不連續，判定進入廣告狀態");
                             }
                         } else {
                             inAd = true;
@@ -179,6 +203,7 @@ public class ADFilter {
                         output.append(line).append("\n");
                     }
                 } else {
+                    Log.d("M3U8Parser", "廣告結束，統計此段廣告時間: " + currentDuration);
                     adDuration += currentDuration;
                     adCount++;
                     currentDuration = 0.0;
@@ -188,8 +213,18 @@ public class ADFilter {
             }
 
             if (line.endsWith(".ts") || line.endsWith(".jpeg") || line.endsWith(".jpg")) {
-                // 3. 修正：同時用舊邏輯與新特徵檢查
-                if (isAdUrlSmart(line, mainFeature) || isAdUrl(line)) inAd = true;
+                // === 📊 LOG 點 3：TS 檔案處理階段 ===
+                boolean isAdOld = isAdUrl(line);
+                boolean isAdSmart = isAdUrlSmart(line, mainFeature);
+
+                if (isAdSmart || isAdOld) {
+                    if (!inAd) {
+                        Log.d("M3U8Parser", "偵測到廣告網址，切換 inAd = true. 網址: " + line);
+                    }
+                    inAd = true;
+                }
+
+
                 Long currentNumber = extractSegmentNumber(line);
                 if (!inAd) {
                     if (pendingExtInfLine != null) output.append(pendingExtInfLine).append("\n");
@@ -198,6 +233,9 @@ public class ADFilter {
                 }
                 pendingExtInfLine = null;
                 continue;
+            } else {
+                // 如果在廣告狀態中，記錄過濾掉的網址
+                Log.d("M3U8Parser", "成功過濾廣告片段: " + line);
             }
 
             if (!inAd) {
@@ -214,11 +252,17 @@ public class ADFilter {
             adCount++;
         }
         adDuration = Math.round(adDuration * 10.0) / 10.0;
+        // 計算廣告佔比，看是否會觸發您的「直接丟棄整部影片 (-1)」邏輯
+        double adRatio = adDuration / (totalDuration > 0 ? totalDuration : 1.0);
+        Log.d("M3U8Parser", "=== 過濾總結 ===");
+        Log.d("M3U8Parser", "總時長: " + totalDuration + ", 廣告總時長: " + adDuration + ", 廣告次數: " + adCount + ", 廣告佔比: " + adRatio);
 
         M3U8AdFilterResult result;
         if (adDuration / (totalDuration > 0 ? totalDuration : 1.0) > 0.1) {
+            Log.w("M3U8Parser", "警告：廣告佔比超過 10%，回傳原內容並丟棄影片 (-1)");
             result = new M3U8AdFilterResult(rawContent, -1, 0.0);
         } else {
+            Log.d("M3U8Parser", "成功輸出過濾後的 M3U8，剩餘行數估算: " + output.toString().split("\n").length);
             result = new M3U8AdFilterResult(output.toString(), adCount, adDuration);
         }
 
@@ -235,17 +279,28 @@ public class ADFilter {
      */
     private static String getUrlFeature(String url) {
         if (url == null || url.isEmpty()) return "";
-        String[] parts = url.split("/");
-        StringBuilder feature = new StringBuilder();
-        int count = 0;
-        for (String part : parts) {
-            if (!part.isEmpty()) {
-                feature.append("/").append(part);
-                count++;
-                if (count >= 2) break; // 取前兩層目錄就足以分辨不同的影片來源
-            }
+
+        // 1. 清除所有可能的 Unicode 隱形空白、換行與前後空格
+        String cleanUrl = url.replaceAll("[\\s\\u200B\\u00A0]+", "").trim();
+
+        // 2. 去除末端可能干擾的斜線
+        if (cleanUrl.endsWith("/")) {
+            cleanUrl = cleanUrl.substring(0, cleanUrl.length() - 1);
         }
-        return feature.toString();
+
+        // 3. 尋找最後一個斜線的位置
+        int lastSlashIdx = cleanUrl.lastIndexOf('/');
+        if (lastSlashIdx > 0) {
+            String feature = cleanUrl.substring(0, lastSlashIdx);
+
+            // 防呆：如果去掉協定標頭後，特徵太短或根本沒有目錄層級，就回傳空（不參與統計）
+            String checkStr = feature.replace("https://", "").replace("http://", "");
+            if (checkStr.length() < 3 || !checkStr.contains("/")) {
+                return "";
+            }
+            return feature;
+        }
+        return ""; // 沒有斜線代表只是單純的檔名，不參與統計
     }
 
     /**
@@ -264,7 +319,7 @@ public class ADFilter {
             Pattern pattern = Pattern.compile("(\\d+)\\.(ts|jpe?g)", Pattern.CASE_INSENSITIVE);
             Matcher matcher = pattern.matcher(tsFilename);
             if (matcher.find()) {
-                return Long.parseLong(matcher.group(1));
+                return Long.parseLong(Objects.requireNonNull(matcher.group(1)));
             }
         } catch (Exception e) {
             Log.e("M3U8Parser", "Failed to parse segment number from: " + tsFilename);

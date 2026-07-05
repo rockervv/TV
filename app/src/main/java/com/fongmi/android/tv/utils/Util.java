@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.utils;
 
+import static android.provider.Settings.*;
+
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -118,7 +120,7 @@ public class Util {
 
     public static String getAndroidId() {
         try {
-            String id = Settings.Secure.getString(Init.context().getContentResolver(), Settings.Secure.ANDROID_ID);
+            String id = Secure.getString(Init.context().getContentResolver(), Secure.ANDROID_ID);
             if (TextUtils.isEmpty(id)) throw new NullPointerException();
             return id;
         } catch (Exception e) {

@@ -33,15 +33,16 @@ public class QuickPresenter extends Presenter {
         void onItemLongClick(Vod item);
     }
 
+    @NonNull
     @Override
-    public Presenter.ViewHolder onCreateViewHolder(ViewGroup parent) {
+    public Presenter.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent) {
         ViewHolder holder = new ViewHolder(AdapterQuickBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false));
         holder.binding.getRoot().getLayoutParams().width = width;
         return holder;
     }
 
     @Override
-    public void onBindViewHolder(Presenter.ViewHolder viewHolder, Object object) {
+    public void onBindViewHolder(@NonNull Presenter.ViewHolder viewHolder, Object object) {
         Vod item = (Vod) object;
         ViewHolder holder = (ViewHolder) viewHolder;
         holder.binding.name.setText(item.getVodName());
@@ -55,7 +56,7 @@ public class QuickPresenter extends Presenter {
     }
 
     @Override
-    public void onUnbindViewHolder(Presenter.ViewHolder viewHolder) {
+    public void onUnbindViewHolder(@NonNull Presenter.ViewHolder viewHolder) {
     }
 
     public static class ViewHolder extends Presenter.ViewHolder {

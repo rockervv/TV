@@ -35,6 +35,7 @@ import com.fongmi.android.tv.utils.ResUtil;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class CollectActivity extends BaseActivity {
 
@@ -57,7 +58,7 @@ public class CollectActivity extends BaseActivity {
     }
 
     private CollectFragment getFragment() {
-        return (CollectFragment) mBinding.pager.getAdapter().instantiateItem(mBinding.pager, 0);
+        return (CollectFragment) Objects.requireNonNull(mBinding.pager.getAdapter()).instantiateItem(mBinding.pager, 0);
     }
 
     private String getKeyword() {
@@ -105,7 +106,7 @@ public class CollectActivity extends BaseActivity {
         mViewModel.search.observe(this, result -> {
             getFragment().addVideo(result.getList());
             mAdapter.add(Collect.create(result.getList()));
-            mBinding.pager.getAdapter().notifyDataSetChanged();
+            Objects.requireNonNull(mBinding.pager.getAdapter()).notifyDataSetChanged();
         });
     }
 

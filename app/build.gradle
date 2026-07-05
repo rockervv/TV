@@ -123,11 +123,11 @@ android {
             //noinspection ChromeOsAbiSupport
             ndk { abiFilters "arm64-v8a" }
         }
-        armeabi_v7a {
-            dimension "abi"
+        //armeabi_v7a {
+        //    dimension "abi"
             //noinspection ChromeOsAbiSupport
-            ndk { abiFilters "armeabi-v7a" }
-        }
+        //    ndk { abiFilters "armeabi-v7a" }
+        //}
         leanback {
             dimension 'mode'
         }

@@ -10,6 +10,7 @@ import com.github.catvod.crawler.SpiderNull;
 
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class PyLoader {
@@ -35,11 +36,7 @@ public class PyLoader {
     private void init() {
         try {
             loader = Class.forName("com.undcover.freedom.pyramid.Loader").newInstance();
-            if (loader == null) {
-                Log.d("PyLoader", "Loader instance is null after initialization!");
-            } else {
-                Log.d("PyLoader", "Loader instance created: " + loader.getClass().getName());
-            }
+            Log.d("PyLoader", "Loader instance created: " + loader.getClass().getName());
         } catch (Throwable e) {
             Log.e("PyLoader", "Failed to create Loader instance", e);
             loader = null;
@@ -57,7 +54,7 @@ public class PyLoader {
             if (spiders.containsKey(key)) return spiders.get(key);
             Method method = loader.getClass().getMethod("spider", Context.class, String.class);
             Spider spider = (Spider) method.invoke(loader, App.get(), api);
-            spider.init(App.get(), ext);
+            Objects.requireNonNull(spider).init(App.get(), ext);
             spiders.put(key, spider);
             Site site = Site.find(key);
             if (site != null) site.resetFailures();
@@ -72,7 +69,7 @@ public class PyLoader {
 
     public Object[] proxyInvoke(Map<String, String> params) {
         try {
-            if (!params.containsKey("siteKey")) return spiders.get(recent).proxyLocal(params);
+            if (!params.containsKey("siteKey")) return Objects.requireNonNull(spiders.get(recent)).proxyLocal(params);
             return BaseLoader.get().getSpider(params).proxyLocal(params);
         } catch (Throwable e) {
             Log.e("PyLoader", "proxyInvoke failed", e);

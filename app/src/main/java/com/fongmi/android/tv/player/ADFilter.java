@@ -65,6 +65,12 @@ public class ADFilter {
         }
 
         String rawContent = String.join("\n", lines);
+        
+        // 如果是 Master Playlist (包含變體串流資訊)，不進行廣告過濾
+        if (rawContent.contains("#EXT-X-STREAM-INF")) {
+            return new M3U8AdFilterResult(rawContent, 0, 0.0);
+        }
+
         String cacheKey = url + "_" + rawContent.hashCode();
         M3U8AdFilterResult cached = cache.get(cacheKey);
         if (cached != null) return cached;
@@ -74,9 +80,8 @@ public class ADFilter {
         int totalTsCount = 0;
 
         for (String line : lines) {
-            if (line.endsWith(".ts") || line.endsWith(".jpeg") || line.endsWith(".jpg")) {
+            if (line.endsWith(".ts") || line.endsWith(".jpeg") || line.endsWith(".jpg") || line.contains(".ts?") || line.contains(".jpeg?") || line.contains(".jpg?")) {
                 totalTsCount++;
-                // 提取前兩層目錄作為特徵，例如 "/20240706/JYhxNTES" 或 "/20260621/EksfpUSn"
                 String feature = getUrlFeature(line);
                 pathCountMap.put(feature, pathCountMap.getOrDefault(feature, 0) + 1);
             }
@@ -87,13 +92,10 @@ public class ADFilter {
         int maxCount = 0;
         Log.d("M3U8Parser", "=== 網址特徵統計開始 ===");
         for (Map.Entry<String, Integer> entry : pathCountMap.entrySet()) {
+            Log.d("M3U8Parser", "特徵路徑: [" + entry.getKey() + "] 出現次數: " + entry.getValue());
             if (entry.getValue() > maxCount) {
-                //Log.d("M3U8Parser", "特徵路徑: [" + entry.getKey() + "] 出現次數: " + entry.getValue());
-
                 maxCount = entry.getValue();
                 mainFeature = entry.getKey();
-                Log.d("M3U8Parser", "特徵路徑: [" + mainFeature + "] 出現次數: " + maxCount);
-
             }
         }
         Log.d("M3U8Parser", "➔ 最終選定的主流特徵 (正片): [" + mainFeature + "]");
@@ -146,34 +148,27 @@ public class ADFilter {
                     output.append(line).append("\n");
                     continue;
                 }
-                //String nextExtInf = (i + 1 < lines.size()) ? lines.get(i + 1) : null;
-                //String nextTsLine = (i + 2 < lines.size()) ? lines.get(i + 2) : null;
-                // --- 擴充開始：動態向後尋找下一個 EXTINF 和 TS 網址，跳過夾帶的標籤 ---
+                
                 String nextExtInf = null;
                 String nextTsLine = null;
                 int lookAhead = i + 1;
 
-                // 往下找第一個出現的 #EXTINF:
                 while (lookAhead < lines.size()) {
                     String forwardLine = lines.get(lookAhead);
                     if (forwardLine.startsWith("#EXTINF:")) {
                         nextExtInf = forwardLine;
-                        // 再下一行通常就是 TS 網址
                         if (lookAhead + 1 < lines.size()) {
                             nextTsLine = lines.get(lookAhead + 1);
                         }
                         break;
                     }
-                    // 如果遇到下一個不連續標記或結束標籤，代表中間沒有媒體片段了
                     if (forwardLine.equals("#EXT-X-DISCONTINUITY") || forwardLine.equals("#EXT-X-ENDLIST")) {
                         break;
                     }
                     lookAhead++;
                 }
-                // --- 擴充結束 ---
 
                 Log.d("M3U8Parser", "遇到 DISCONTINUITY，向後尋找結果 -> 找到的 EXTINF: [" + nextExtInf + "], TS網址: [" + nextTsLine + "]");
-
 
                 if (!inAd) {
                     if (nextExtInf != null && nextExtInf.startsWith("#EXTINF:") && nextTsLine != null) {
@@ -182,19 +177,21 @@ public class ADFilter {
 
                         Log.d("M3U8Parser", "DISCONTINUITY 廣告判定 -> 舊邏輯判斷: " + isAdOld + ", 聰明邏輯判斷: " + isAdSmart);
 
-
-                        // 2. 修正：結合您原本的偵測與「聰明特徵比對」
                         if (isAdSmart || isAdOld) {
                             inAd = true;
                             Log.d("M3U8Parser", "➔ DISCONTINUITY 判定成功：進入廣告狀態");
-
-                        } else if ((nextTsLine.endsWith(".ts") || nextTsLine.endsWith(".jpeg") || nextTsLine.endsWith(".jpg"))) {
+                        } else if (isMediaSegment(nextTsLine)) {
                             Long nextNumber = extractSegmentNumber(nextTsLine);
                             if (lastSegmentNumber != null && nextNumber != null && nextNumber == lastSegmentNumber + 1) {
                                 output.append(line).append("\n");
                             } else {
-                                inAd = true;
-                                Log.d("M3U8Parser", "➔ 序號不連續，判定進入廣告狀態");
+                                // 只有在明確有主流特徵且當前符合主流特徵時，才允許忽略序號不連續
+                                if (!mainFeature.isEmpty()) {
+                                    output.append(line).append("\n");
+                                } else {
+                                    inAd = true;
+                                    Log.d("M3U8Parser", "➔ 序號不連續且無主流特徵保證，判定進入廣告狀態");
+                                }
                             }
                         } else {
                             inAd = true;
@@ -212,8 +209,7 @@ public class ADFilter {
                 continue;
             }
 
-            if (line.endsWith(".ts") || line.endsWith(".jpeg") || line.endsWith(".jpg")) {
-                // === 📊 LOG 點 3：TS 檔案處理階段 ===
+            if (isMediaSegment(line)) {
                 boolean isAdOld = isAdUrl(line);
                 boolean isAdSmart = isAdUrlSmart(line, mainFeature);
 
@@ -224,18 +220,16 @@ public class ADFilter {
                     inAd = true;
                 }
 
-
                 Long currentNumber = extractSegmentNumber(line);
                 if (!inAd) {
                     if (pendingExtInfLine != null) output.append(pendingExtInfLine).append("\n");
                     output.append(line).append("\n");
                     lastSegmentNumber = currentNumber;
+                } else {
+                    Log.d("M3U8Parser", "成功過濾廣告片段: " + line);
                 }
                 pendingExtInfLine = null;
                 continue;
-            } else {
-                // 如果在廣告狀態中，記錄過濾掉的網址
-                Log.d("M3U8Parser", "成功過濾廣告片段: " + line);
             }
 
             if (!inAd) {
@@ -244,6 +238,10 @@ public class ADFilter {
                     pendingExtInfLine = null;
                 }
                 output.append(line).append("\n");
+            } else {
+                if (!line.startsWith("#")) {
+                    Log.d("M3U8Parser", "成功過濾廣告相關行: " + line);
+                }
             }
         }
 
@@ -273,6 +271,12 @@ public class ADFilter {
 
     // === 💡 新增的兩個統計輔助方法 ===
 
+    private static boolean isMediaSegment(String line) {
+        if (line == null) return false;
+        String lower = line.toLowerCase();
+        return lower.endsWith(".ts") || lower.endsWith(".jpeg") || lower.endsWith(".jpg") || lower.contains(".ts?") || lower.contains(".jpeg?") || lower.contains(".jpg?");
+    }
+
     /**
      * 提取網址前置的目錄結構作為統計特徵
      * 例如 "/20240706/JYhxNTES/2000kb/hls/l2edmBGC.ts" -> "/20240706/JYhxNTES"
@@ -293,14 +297,14 @@ public class ADFilter {
         if (lastSlashIdx > 0) {
             String feature = cleanUrl.substring(0, lastSlashIdx);
 
-            // 防呆：如果去掉協定標頭後，特徵太短或根本沒有目錄層級，就回傳空（不參與統計）
+            // 防呆：如果去掉協定標頭後，特徵太短或根本沒有目錄層級，就回傳其主機名（不參與過細統計）
             String checkStr = feature.replace("https://", "").replace("http://", "");
-            if (checkStr.length() < 3 || !checkStr.contains("/")) {
-                return "";
+            if (checkStr.length() < 3) {
+                return "[short_path]";
             }
             return feature;
         }
-        return ""; // 沒有斜線代表只是單純的檔名，不參與統計
+        return "[relative]"; // 沒有斜線代表只是單純的檔名，視為同一個特徵層級
     }
 
     /**

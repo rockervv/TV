@@ -589,5 +589,13 @@ public class Setting {
         Prefers.put("dlna", dlna);
     }
 
+    public static boolean isNormalize() {
+        return Prefers.getBoolean("normalize", false);
+    }
+
+    public static void putNormalize(boolean normalize) {
+        Prefers.put("normalize", normalize);
+    }
+
 
 }

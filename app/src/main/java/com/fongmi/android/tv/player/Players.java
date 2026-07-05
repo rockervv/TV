@@ -1,6 +1,8 @@
 package com.fongmi.android.tv.player;
 
 import android.app.Activity;
+import android.media.audiofx.LoudnessEnhancer;
+import android.util.Log;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.graphics.drawable.BitmapDrawable;
@@ -21,6 +23,9 @@ import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.analytics.AnalyticsListener;
+import androidx.media3.exoplayer.source.LoadEventInfo;
+import androidx.media3.exoplayer.source.MediaLoadData;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.util.EventLogger;
 import androidx.media3.ui.PlayerView;
@@ -93,6 +98,7 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
     private MediaSessionCompat session;
     private IjkVideoView ijkPlayer;
     private DanmakuView danmuView;
+    private LoudnessEnhancer enhancer;
     private ExoPlayer exoPlayer;
     private ParseJob parseJob;
     private List<Sub> subs;
@@ -173,6 +179,14 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
         exoPlayer = new ExoPlayer.Builder(App.get()).setLoadControl(ExoUtil.buildLoadControl()).setTrackSelector(ExoUtil.buildTrackSelector()).setRenderersFactory(ExoUtil.buildRenderersFactory(decode)).setMediaSourceFactory(ExoUtil.buildMediaSourceFactory()).build();
         exoPlayer.setAudioAttributes(AudioAttributes.DEFAULT, !Setting.isPlayWithOthers());
         exoPlayer.addAnalyticsListener(new EventLogger());
+        exoPlayer.addAnalyticsListener(new AnalyticsListener() {
+            @Override
+            public void onLoadStarted(@NonNull EventTime eventTime, @NonNull LoadEventInfo loadEventInfo, @NonNull MediaLoadData mediaLoadData) {
+                if (mediaLoadData.dataType == C.DATA_TYPE_MEDIA) {
+                    Log.d("ExoPlayerLoad", "Loading Segment: " + loadEventInfo.uri);
+                }
+            }
+        });
         exoPlayer.setHandleAudioBecomingNoisy(true);
         exoPlayer.setPlayWhenReady(true);
         exoPlayer.addListener(this);
@@ -180,7 +194,7 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
     }
 
     private void initIjk(IjkVideoView view) {
-        ijkPlayer = view.render(Setting.getRender()).decode(decode);
+        ijkPlayer = view.render(Setting.getRender()).normalize(Setting.isNormalize()).decode(decode);
         ijkPlayer.addListener(this);
         ijkPlayer.setPlayer(player);
     }
@@ -559,9 +573,11 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
 
     private void releaseExo() {
         if (exoPlayer == null) return;
+        if (enhancer != null) enhancer.release();
         exoPlayer.removeListener(this);
         exoPlayer.release();
         exoPlayer = null;
+        enhancer = null;
     }
 
     private void releaseIjk() {
@@ -804,6 +820,16 @@ public class Players implements Player.Listener, IMediaPlayer.Listener, ParseCal
     @Override
     public void onBufferingUpdate(IMediaPlayer mp, int percent) {
         setPlaybackState(isPlaying() ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED);
+    }
+
+    @Override
+    public void onAudioSessionIdChanged(int audioSessionId) {
+        if (Setting.isNormalize()) {
+            if (enhancer != null) enhancer.release();
+            enhancer = new LoudnessEnhancer(audioSessionId);
+            enhancer.setTargetGain(2000); // 20dB boost for quiet sources, limiter will handle peaks
+            enhancer.setEnabled(true);
+        }
     }
 
     @Override

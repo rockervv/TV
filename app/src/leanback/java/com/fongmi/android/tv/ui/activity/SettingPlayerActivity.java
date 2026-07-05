@@ -49,6 +49,7 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, B
         setVisible();
         mBinding.player.requestFocus();
         mBinding.uaText.setText(Setting.getUa());
+        mBinding.normalizeText.setText(getSwitch(Setting.isNormalize()));
         mBinding.tunnelText.setText(getSwitch(Setting.isTunnel()));
         mBinding.bufferText.setText(String.valueOf(Setting.getBuffer()));
         mBinding.rtspText.setText((rtsp = ResUtil.getStringArray(R.array.select_rtsp))[Setting.getRtsp()]);
@@ -73,6 +74,7 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, B
         mBinding.decode.setOnClickListener(this::setDecode);
         mBinding.render.setOnClickListener(this::setRender);
         mBinding.tunnel.setOnClickListener(this::setTunnel);
+        mBinding.normalize.setOnClickListener(this::setNormalize);
         mBinding.caption.setOnClickListener(this::setCaption);
         mBinding.caption.setOnLongClickListener(this::onCaption);
     }
@@ -154,6 +156,11 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, B
         Setting.putTunnel(!Setting.isTunnel());
         mBinding.tunnelText.setText(getSwitch(Setting.isTunnel()));
         if (Setting.isTunnel() && Setting.getRender() == 1) setRender(view);
+    }
+
+    private void setNormalize(View view) {
+        Setting.putNormalize(!Setting.isNormalize());
+        mBinding.normalizeText.setText(getSwitch(Setting.isNormalize()));
     }
 
     private void setCaption(View view) {

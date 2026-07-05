@@ -1,0 +1,90 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:translateX="22"
+        android:translateY="22"
+        android:scaleX="0.25"
+        android:scaleY="0.25">
+
+        <!-- 1. 圓角立方體頂面 -->
+        <path android:pathData="M118,48 Q128,43 138,48 L206,83 Q214,88 206,93 L138,128 Q128,133 118,128 L50,93 Q42,88 50,83 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="44"
+                    android:startY="84"
+                    android:endX="212"
+                    android:endY="92"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#FF36D1DC" />
+                    <item android:offset="1.0" android:color="#FF5B86E5" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 2. 右前側切面 -->
+        <path android:pathData="M128,133 L206,93 Q214,88 214,98 L214,170 Q214,180 206,184 L128,222 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="128"
+                    android:startY="128"
+                    android:endX="220"
+                    android:endY="224"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#FFDCE35B" />
+                    <item android:offset="1.0" android:color="#FF96E6A1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 3. 左前側切面 -->
+        <path android:pathData="M128,133 L50,93 Q42,88 42,98 L42,170 Q42,180 50,184 L128,222 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="128"
+                    android:startY="128"
+                    android:endX="36"
+                    android:endY="224"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#FFFA709A" />
+                    <item android:offset="1.0" android:color="#FFFEE140" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 4. 高光交界線 -->
+        <path
+            android:pathData="M128,133 L128,222"
+            android:strokeColor="#40FFFFFF"
+            android:strokeWidth="3.5"
+            android:strokeLineCap="round" />
+
+        <!-- 5. 文字 R (完美置中與黃金比例修正版) -->
+        <!-- 垂直主骨幹：精確置中平移，垂直總長度 48 單位 -->
+        <path
+            android:pathData="M60,123 L60,167"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="8"
+            android:strokeLineCap="round" />
+
+        <!-- 上半部圓弧：高度 22 單位，圓弧切線斜率完美貼合 27.1 度透視 -->
+        <path
+            android:pathData="M60,123 L103,146.2 C112,151.8 112,160.8 103,167.4 L70,150"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="8"
+            android:strokeLineJoin="round"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000" />
+
+        <!-- 右下斜腿：起點完美銜接中線節點，向右下方自然延展 26 單位 -->
+        <path
+            android:pathData="M92,163.6 L107,189.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="8"
+            android:strokeLineCap="round" />
+    </group>
+</vector>

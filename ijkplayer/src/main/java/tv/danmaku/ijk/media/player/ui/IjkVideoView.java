@@ -69,6 +69,8 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
     private long mCurrentBufferPosition;
     private float mCurrentSpeed;
 
+    private boolean mNormalize;
+
     private boolean mKeepContentOnPlayerReset;
 
     private IRenderView.ISurfaceHolder mSurfaceHolder;
@@ -129,6 +131,11 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
 
     public IjkVideoView render(int render) {
         setRender(render);
+        return this;
+    }
+
+    public IjkVideoView normalize(boolean normalize) {
+        this.mNormalize = normalize;
         return this;
     }
 
@@ -473,6 +480,9 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
         mPlayer.setOption(player, "soundtouch", 1);
         mPlayer.setOption(player, "start-on-prepared", 1);
         mPlayer.setOption(player, "subtitle", 1);
+        if (mNormalize) {
+            mPlayer.setOption(player, "af", "loudnorm=I=-16:TP=-1.5:LRA=11");
+        }
         mPlayer.setOption(format, "protocol_whitelist", "async,cache,crypto,file,http,https,pipe,rtmp,rtp,tcp,tls,udp,data,ijkinject,ijklongurl,ijksegment,ijkhttphook,ijklivehook,ijktcphook,ijkurlhook,ijkmediadatasource");
         if (url.contains("rtsp") || url.contains("udp") || url.contains("rtp")) {
             mPlayer.setOption(format, "infbuf", 1);

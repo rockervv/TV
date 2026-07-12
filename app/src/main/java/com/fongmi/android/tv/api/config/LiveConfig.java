@@ -170,7 +170,9 @@ public class LiveConfig {
         try {
             initLive(object);
             initOther(object);
-            BaseLoader.get().parseJar(Json.safeString(object, "spider"));
+            String spider = Json.safeString(object, "spider");
+            Log.d("LiveConfig", "Found spider URL: " + spider);
+            BaseLoader.get().parseJar(spider, object.toString());
         } catch (Throwable e) {
             Log.e("LiveConfig", "parseConfig failed", e);
         } finally {
@@ -220,6 +222,14 @@ public class LiveConfig {
     private void bootLive() {
         Setting.putBootLive(false);
         LiveActivity.start(App.get());
+    }
+
+    public void ensureLoaded() {
+        if (config == null || config.getUrl().isEmpty()) load(new Callback());
+    }
+
+    public void applyKeepsToGroups(List<Group> items) {
+        // Not implemented
     }
 
     public void parse(JsonObject object) {

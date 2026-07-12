@@ -46,8 +46,6 @@ import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.impl.LiveCallback;
 import com.fongmi.android.tv.impl.PassCallback;
 import com.fongmi.android.tv.model.LiveViewModel;
-import com.fongmi.android.tv.player.IjkUtil;
-import com.fongmi.android.tv.player.exo.ExoUtil;
 import com.fongmi.android.tv.player.Players;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.service.PlaybackService;
@@ -81,8 +79,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-
-import tv.danmaku.ijk.media.player.ui.IjkVideoView;
 
 public class LiveActivity extends BaseActivity implements Clock.Callback, CustomKeyDownLive.Listener, TrackDialog.Listener, PlayerDialog.Listener, Biometric.Callback, PassCallback, LiveCallback, GroupAdapter.OnClickListener, ChannelAdapter.OnClickListener, EpgDataAdapter.OnClickListener, CastDialog.Listener, InfoDialog.Listener {
 
@@ -123,15 +119,6 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, Custom
 
     private PlayerView getExo() {
         return mBinding.exo;
-    }
-
-    private IjkVideoView getIjk() {
-        return mBinding.ijk;
-    }
-
-    private Drawable getDefaultArtwork() {
-        if (mPlayers.isExo()) return getExo().getDefaultArtwork();
-        return getIjk().getDefaultArtwork();
     }
 
     private Group getKeep() {
@@ -229,12 +216,10 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, Custom
     }
 
     private void setPlayerView() {
-        getIjk().setPlayer(mPlayers.getPlayer());
         mBinding.control.action.speed.setText(mPlayers.getSpeedText());
         mBinding.control.action.player.setText(mPlayers.getPlayerText());
         mBinding.control.action.speed.setEnabled(mPlayers.canAdjustSpeed());
-        getExo().setVisibility(mPlayers.isExo() ? View.VISIBLE : View.GONE);
-        getIjk().setVisibility(mPlayers.isIjk() ? View.VISIBLE : View.GONE);
+        getExo().setVisibility(View.VISIBLE);
     }
 
     private void setDecodeView() {
@@ -242,10 +227,9 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, Custom
     }
 
     private void setVideoView() {
-        mPlayers.init(getExo(), getIjk());
+        mPlayers.init(getExo());
         setScale(Setting.getLiveScale());
         ExoUtil.setSubtitleView(mBinding.exo);
-        IjkUtil.setSubtitleView(mBinding.ijk);
         mBinding.control.action.invert.setActivated(Setting.isInvert());
         mBinding.control.action.across.setActivated(Setting.isAcross());
         mBinding.control.action.change.setActivated(Setting.isChange());
@@ -261,7 +245,6 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, Custom
 
     private void setScale(int scale) {
         getExo().setResizeMode(scale);
-        getIjk().setResizeMode(scale);
         mBinding.control.action.scale.setText(ResUtil.getStringArray(R.array.select_scale)[scale]);
     }
 
@@ -454,7 +437,7 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, Custom
 
     private void onDecode(boolean save) {
         mPlayers.toggleDecode(save);
-        mPlayers.init(getExo(), getIjk());
+        mPlayers.init(getExo());
         mPlayers.setMediaSource();
         setDecodeView();
         setR1Callback();
@@ -605,13 +588,11 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, Custom
             @Override
             public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
                 getExo().setDefaultArtwork(resource);
-                getIjk().setDefaultArtwork(resource);
             }
 
             @Override
             public void onLoadFailed(@Nullable Drawable error) {
                 getExo().setDefaultArtwork(error);
-                getIjk().setDefaultArtwork(error);
             }
 
             @Override
@@ -762,7 +743,7 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, Custom
     @Override
     public void onSubtitleClick() {
         App.post(this::hideControl, 200);
-        SubtitleView subtitleView = mPlayers.isIjk() ? getIjk().getSubtitleView() : getExo().getSubtitleView();
+        SubtitleView subtitleView = getExo().getSubtitleView();
         App.post(() -> SubtitleDialog.create().view(subtitleView).full(true).show(this), 200);
     }
 
@@ -888,7 +869,7 @@ public class LiveActivity extends BaseActivity implements Clock.Callback, Custom
     }
 
     private void checkError(ErrorEvent event) {
-        if (mChannel != null && mChannel.getPlayerType() == -1 && event.isUrl() && event.getRetry() > 0 && getToggleCount() < 2 && mPlayers.getPlayer() != Players.SYS) {
+        if (mChannel != null && mChannel.getPlayerType() == -1 && event.isUrl() && event.getRetry() > 0 && getToggleCount() < 2 && mPlayers.getPlayer() != Players.MEDIA3) {
             toggleCount++;
             nextPlayer();
         } else {

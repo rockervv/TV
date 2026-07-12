@@ -11,7 +11,7 @@ import android.os.Build;
 
 import androidx.annotation.NonNull;
 
-import com.android.cast.dlna.dmr.DLNARendererService;
+import com.fongmi.android.tv.service.DLNARendererService;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.LiveConfig;
@@ -45,7 +45,7 @@ public class BootReceiver extends BroadcastReceiver {
 
         private void doJob() {
             LiveConfig.get().init().load();
-            if (com.fongmi.android.tv.Setting.isDlna()) DLNARendererService.Companion.start(App.get(), R.drawable.ic_logo);
+            if (com.fongmi.android.tv.Setting.isDlna()) DLNARendererService.start(App.get());
             ((ConnectivityManager) App.get().getSystemService(Context.CONNECTIVITY_SERVICE)).unregisterNetworkCallback(this);
         }
     }

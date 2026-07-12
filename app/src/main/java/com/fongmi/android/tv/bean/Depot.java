@@ -25,7 +25,7 @@ public class Depot {
     }
 
     public String getUrl() {
-        return TextUtils.isEmpty(url) ? "" : UrlUtil.fixUrl(url);
+        return TextUtils.isEmpty(url) ? "" : url;
     }
 
     public String getName() {

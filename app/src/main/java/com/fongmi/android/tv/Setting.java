@@ -4,11 +4,16 @@ package com.fongmi.android.tv;
 import android.content.Intent;
 import android.provider.Settings;
 
-import com.fongmi.android.tv.player.Players;
+import com.fongmi.android.tv.player.engine.PlayerEngine;
+import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.utils.LanguageUtil;
 import com.github.catvod.utils.Prefers;
 
 public class Setting {
+
+    public static String getSwitch(boolean value) {
+        return com.fongmi.android.tv.utils.ResUtil.getString(value ? R.string.setting_on : R.string.setting_off);
+    }
 
     public static String getDoh() {
         return Prefers.getString("doh");
@@ -75,7 +80,7 @@ public class Setting {
     }
 
     public static int getPlayer() {
-        return Prefers.getInt("player", Players.EXO);
+        return Prefers.getInt("player", PlayerSetting.ENGINE_EXO);
     }
 
     public static void putPlayer(int player) {
@@ -91,7 +96,7 @@ public class Setting {
     }
 
     public static int getDecode(int player) {
-        return Prefers.getInt("decode_" + player, Players.HARD);
+        return Prefers.getInt("decode_" + player, PlayerEngine.HARD);
     }
 
     public static void putDecode(int player, int decode) {
@@ -258,54 +263,6 @@ public class Setting {
         Prefers.put("play_with_others", play);
     }
 
-    public static boolean isDanmu() {
-        return Prefers.getBoolean("danmu");
-    }
-
-    public static void putDanmu(boolean danmu) {
-        Prefers.put("danmu", danmu);
-    }
-
-    public static boolean isDanmuLoad() {
-        return Prefers.getBoolean("danmu_load", true);
-    }
-
-    public static void putDanmuLoad(boolean load) {
-        Prefers.put("danmu_load", load);
-    }
-
-    public static int getDanmuSpeed() {
-        return Math.min(Math.max(Prefers.getInt("danmu_speed", 2), 0), 3);
-    }
-
-    public static void putDanmuSpeed(int speed) {
-        Prefers.put("danmu_speed", speed);
-    }
-
-    public static float getDanmuSize() {
-        return Math.min(Math.max(Prefers.getFloat("danmu_size", 1.0f), 0.6f), 2.0f);
-    }
-
-    public static void putDanmuSize(float size) {
-        Prefers.put("danmu_size", size);
-    }
-
-    public static int getDanmuLine(int line) {
-        return Math.min(Math.max(Prefers.getInt("danmu_line", line), 1), 15);
-    }
-
-    public static void putDanmuLine(int line) {
-        Prefers.put("danmu_line", line);
-    }
-
-    public static int getDanmuAlpha() {
-        return Math.min(Math.max(Prefers.getInt("danmu_alpha", 90), 10), 100);
-    }
-
-    public static void putDanmuAlpha(int alpha) {
-        Prefers.put("danmu_alpha", alpha);
-    }
-
     public static boolean isCaption() {
         return Prefers.getBoolean("caption");
     }
@@ -328,6 +285,14 @@ public class Setting {
 
     public static void putBackupMode(int auto) {
         Prefers.put("backup_mode", auto);
+    }
+
+    public static boolean isAdblock() {
+        return Prefers.getBoolean("adblock", true);
+    }
+
+    public static void putAdblock(boolean adblock) {
+        Prefers.put("adblock", adblock);
     }
 
     public static boolean isZhuyin() {

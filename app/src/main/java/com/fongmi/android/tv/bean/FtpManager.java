@@ -43,6 +43,11 @@ public class FtpManager {
         this.gisttoken = gtoken;
         this.useGist = true;
     }
+
+    public String getPath() {
+        return path;
+    }
+
     public FtpManager(String server, String path, int port, String username, String password, boolean useFTPS) {
         this.server = server;
         this.path = path;

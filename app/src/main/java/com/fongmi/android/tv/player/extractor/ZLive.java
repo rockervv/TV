@@ -1,8 +1,7 @@
 package com.fongmi.android.tv.player.extractor;
 
+import android.net.Uri;
 import android.os.SystemClock;
-
-import com.fongmi.android.tv.player.Source;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 
@@ -18,8 +17,8 @@ public class ZLive implements Source.Extractor {
     }
 
     @Override
-    public boolean match(String scheme, String host) {
-        return "zlive".equals(scheme);
+    public boolean match(Uri uri) {
+        return "zlive".equals(uri.getScheme());
     }
 
     @Override

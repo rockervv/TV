@@ -39,7 +39,7 @@ Updater implements Download.Callback {
     }
 
     private File getFile() {
-        return Path.cache("update.apk");
+        return Path.externalCache("update.apk");
     }
 
     private String getJson() {

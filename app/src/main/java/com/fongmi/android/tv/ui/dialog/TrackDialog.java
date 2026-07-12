@@ -19,8 +19,8 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.bean.Sub;
 import com.fongmi.android.tv.bean.Track;
 import com.fongmi.android.tv.databinding.DialogTrackBinding;
-import com.fongmi.android.tv.player.Players;
-import com.fongmi.android.tv.player.custom.TrackNameProvider;
+import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.player.track.TrackNameProvider;
 import com.fongmi.android.tv.ui.adapter.TrackAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
 import com.fongmi.android.tv.utils.FileChooser;
@@ -30,8 +30,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import tv.danmaku.ijk.media.player.misc.ITrackInfo;
-
 public final class TrackDialog extends BaseDialog implements TrackAdapter.OnClickListener {
 
     private final TrackNameProvider provider;
@@ -39,7 +37,7 @@ public final class TrackDialog extends BaseDialog implements TrackAdapter.OnClic
     private DialogTrackBinding binding;
     private Listener listener;
     private ChooserListener cListener;
-    private Players player;
+    private PlayerManager player;
     private boolean vod;
     private int type;
 
@@ -57,7 +55,7 @@ public final class TrackDialog extends BaseDialog implements TrackAdapter.OnClic
         return this;
     }
 
-    public TrackDialog player(Players player) {
+    public TrackDialog player(PlayerManager player) {
         this.player = player;
         return this;
     }
@@ -115,12 +113,11 @@ public final class TrackDialog extends BaseDialog implements TrackAdapter.OnClic
     private List<Track> getTrack() {
         List<Track> items = new ArrayList<>();
         if (player.isExo()) addExoTrack(items);
-        if (player.isIjk()) addIjkTrack(items);
         return items;
     }
 
     private void addExoTrack(List<Track> items) {
-        List<Tracks.Group> groups = player.exo().getCurrentTracks().getGroups();
+        List<Tracks.Group> groups = player.getCurrentTracks().getGroups();
         for (int i = 0; i < groups.size(); i++) {
             Tracks.Group trackGroup = groups.get(i);
             if (trackGroup.getType() != type) continue;
@@ -128,25 +125,11 @@ public final class TrackDialog extends BaseDialog implements TrackAdapter.OnClic
                 Track item = new Track(type, provider.getTrackName(trackGroup.getTrackFormat(j)));
                 item.setAdaptive(trackGroup.isAdaptiveSupported());
                 item.setSelected(trackGroup.isTrackSelected(j));
-                item.setPlayer(player.getPlayer());
+                item.setPlayer(player.getEngine());
                 item.setGroup(i);
                 item.setTrack(j);
                 items.add(item);
             }
-        }
-    }
-
-    private void addIjkTrack(List<Track> items) {
-        int track = player.ijk().getSelectedTrack(type);
-        List<ITrackInfo> trackInfos = player.ijk().getTrackInfo();
-        for (int i = 0; i < trackInfos.size(); i++) {
-            ITrackInfo trackInfo = trackInfos.get(i);
-            if (trackInfo.getTrackType() != type) continue;
-            Track item = new Track(type, provider.getTrackName(trackInfo));
-            item.setPlayer(player.getPlayer());
-            item.setSelected(track == i);
-            item.setTrack(i);
-            items.add(item);
         }
     }
 

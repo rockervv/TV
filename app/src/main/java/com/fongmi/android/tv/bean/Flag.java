@@ -75,9 +75,17 @@ public class Flag implements Parcelable {
         return activated;
     }
 
+    public boolean isSelected() {
+        return isActivated();
+    }
+
     public void setActivated(Flag item) {
         this.activated = item.equals(this);
         if (activated) item.episodes = episodes;
+    }
+
+    public void setSelected(Flag item) {
+        setActivated(item);
     }
 
     public int getPosition() {

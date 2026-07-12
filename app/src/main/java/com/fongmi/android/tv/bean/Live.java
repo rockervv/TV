@@ -140,6 +140,10 @@ public class Live {
         this.url = url;
     }
 
+    public String getKeep() {
+        return ""; // Not implemented
+    }
+
     public String getName() {
         return TextUtils.isEmpty(name) ? "" : name;
     }

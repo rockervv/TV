@@ -94,6 +94,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         History item = mItems.get(position);
+        android.util.Log.d("HistoryAdapter", "Binding history item: " + item.getVodName() + ", Pic: " + item.getVodPic());
         setFocusListener(holder.binding);
         setClickListener(holder.itemView, item);
         holder.binding.name.setText(item.getVodName());

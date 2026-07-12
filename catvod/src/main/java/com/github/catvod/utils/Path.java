@@ -40,6 +40,14 @@ public class Path {
         return Init.context().getCacheDir();
     }
 
+    public static File externalCache() {
+        return Init.context().getExternalCacheDir();
+    }
+
+    public static File externalCache(String name) {
+        return new File(externalCache(), name);
+    }
+
     public static File thunderCache() {
         File internal = Init.context().getCacheDir();
         String dir = Prefers.getString("thunder_cache_dir", internal.getAbsolutePath());
@@ -89,6 +97,10 @@ public class Path {
         return mkdir(new File(cache() + File.separator + "exo"));
     }
 
+    public static File mpv() {
+        return mkdir(new File(tv() + File.separator + "mpv"));
+    }
+
     public static File epg() {
         return mkdir(new File(cache() + File.separator + "epg"));
     }
@@ -119,6 +131,10 @@ public class Path {
 
     public static File files(String name) {
         return new File(files(), name);
+    }
+
+    public static File mpv(String name) {
+        return new File(mpv(), name);
     }
 
     public static File epg(String name) {
@@ -185,6 +201,22 @@ public class Path {
         } catch (IOException e) {
             e.printStackTrace();
             return new byte[0];
+        }
+    }
+
+    public static File write(File file, InputStream is) {
+        try {
+            FileOutputStream fos = new FileOutputStream(create(file));
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = is.read(buffer)) != -1) fos.write(buffer, 0, read);
+            fos.flush();
+            fos.close();
+            is.close();
+            return file;
+        } catch (Exception ignored) {
+            ignored.printStackTrace();
+            return file;
         }
     }
 

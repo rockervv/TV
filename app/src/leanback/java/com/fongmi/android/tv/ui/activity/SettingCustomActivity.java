@@ -3,6 +3,7 @@ package com.fongmi.android.tv.ui.activity;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.os.Build;
 import android.view.View;
 
 import androidx.viewbinding.ViewBinding;
@@ -15,24 +16,21 @@ import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.CacheDirCallback;
 import com.fongmi.android.tv.impl.LanguageCallback;
 import com.fongmi.android.tv.impl.MenuKeyCallback;
-import com.fongmi.android.tv.impl.X5WebViewCallback;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.ButtonsDialog;
 import com.fongmi.android.tv.ui.dialog.CacheDirDialog;
 import com.fongmi.android.tv.ui.dialog.DisplayDialog;
 import com.fongmi.android.tv.ui.dialog.LanguageDialog;
 import com.fongmi.android.tv.ui.dialog.MenuKeyDialog;
-import com.fongmi.android.tv.ui.dialog.X5WebViewDialog;
 import com.fongmi.android.tv.utils.LanguageUtil;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.utils.Shell;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.permissionx.guolindev.PermissionX;
-import com.tencent.smtt.sdk.QbSdk;
 import java.util.Locale;
 
-public class SettingCustomActivity extends BaseActivity implements MenuKeyCallback, X5WebViewCallback, LanguageCallback, CacheDirCallback {
+public class SettingCustomActivity extends BaseActivity implements MenuKeyCallback, LanguageCallback, CacheDirCallback {
 
     private ActivitySettingCustomBinding mBinding;
     private String[] quality;
@@ -215,7 +213,6 @@ public class SettingCustomActivity extends BaseActivity implements MenuKeyCallba
         int index = Setting.getParseWebView();
         Setting.putParseWebView(index = index == parseWebview.length - 1 ? 0 : ++index);
         mBinding.parseWebviewText.setText(parseWebview[index]);
-        if (index == 1 && QbSdk.getTbsVersion(App.get()) <= 0) X5WebViewDialog.create(this).show();
     }
 
     private void setConfigCache(View view) {
@@ -227,8 +224,8 @@ public class SettingCustomActivity extends BaseActivity implements MenuKeyCallba
     private void setDlna(View view) {
         Setting.putDlna(!Setting.isDlna());
         mBinding.dlnaText.setText(getSwitch(Setting.isDlna()));
-        if (Setting.isDlna()) com.android.cast.dlna.dmr.DLNARendererService.Companion.start(this, R.drawable.ic_logo);
-        else stopService(new Intent(this, com.android.cast.dlna.dmr.DLNARendererService.class));
+        if (Setting.isDlna()) com.fongmi.android.tv.service.DLNARendererService.start(this);
+        else stopService(new Intent(this, com.fongmi.android.tv.service.DLNARendererService.class));
     }
 
     private void onReset(View view) {
@@ -254,28 +251,6 @@ public class SettingCustomActivity extends BaseActivity implements MenuKeyCallba
         LanguageUtil.setLocale(LanguageUtil.getLocale(Setting.getLanguage()));
         mBinding.languageText.setText((ResUtil.getStringArray(R.array.select_language))[Setting.getLanguage()]);
         App.post(() -> Util.restartApp(this), 1000);
-    }
-
-    @Override
-    public void onX5Success() {
-        int index = 1;
-        Setting.putParseWebView(index);
-        mBinding.parseWebviewText.setText(parseWebview[index]);
-        App.post(() -> Util.restartApp(this), 500);
-    }
-
-    @Override
-    public void onX5Error() {
-        int index = 0;
-        Setting.putParseWebView(index);
-        mBinding.parseWebviewText.setText(parseWebview[index]);
-    }
-
-    @Override
-    public void onX5Cancel() {
-        int index = 0;
-        Setting.putParseWebView(index);
-        mBinding.parseWebviewText.setText(parseWebview[index]);
     }
 
     @Override

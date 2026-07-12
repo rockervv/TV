@@ -56,7 +56,6 @@ public class SettingPlayerFragment extends BaseFragment implements UaCallback, B
         mBinding.captionText.setText(getSwitch(Setting.isCaption()));
         mBinding.bufferText.setText(String.valueOf(Setting.getBuffer()));
         mBinding.playWithOthersText.setText(getSwitch(Setting.isPlayWithOthers()));
-        mBinding.danmuLoadText.setText(getSwitch(Setting.isDanmuLoad()));
         mBinding.rtspText.setText((rtsp = ResUtil.getStringArray(R.array.select_rtsp))[Setting.getRtsp()]);
         mBinding.flagText.setText((flag = ResUtil.getStringArray(R.array.select_flag))[Setting.getFlag()]);
         mBinding.httpText.setText((http = ResUtil.getStringArray(R.array.select_exo_http))[Setting.getHttp()]);
@@ -83,7 +82,6 @@ public class SettingPlayerFragment extends BaseFragment implements UaCallback, B
         mBinding.caption.setOnClickListener(this::setCaption);
         mBinding.caption.setOnLongClickListener(this::onCaption);
         mBinding.playWithOthers.setOnClickListener(this::setPlayWithOthers);
-        mBinding.danmuLoad.setOnClickListener(this::setDanmuLoad);
         mBinding.background.setOnClickListener(this::onBackground);
     }
 
@@ -182,11 +180,6 @@ public class SettingPlayerFragment extends BaseFragment implements UaCallback, B
     private void setPlayWithOthers(View view) {
         Setting.putPlayWithOthers(!Setting.isPlayWithOthers());
         mBinding.playWithOthersText.setText(getSwitch(Setting.isPlayWithOthers()));
-    }
-
-    private void setDanmuLoad(View view) {
-        Setting.putDanmuLoad(!Setting.isDanmuLoad());
-        mBinding.danmuLoadText.setText(getSwitch(Setting.isDanmuLoad()));
     }
 
     private void onBackground(View view) {

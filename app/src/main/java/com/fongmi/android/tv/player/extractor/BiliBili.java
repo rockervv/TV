@@ -1,20 +1,18 @@
 package com.fongmi.android.tv.player.extractor;
 
 import android.net.Uri;
-
-import com.fongmi.android.tv.player.Source;
+import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Json;
 import com.github.catvod.utils.Util;
 import com.google.common.net.HttpHeaders;
-
 import okhttp3.Headers;
 
 public class BiliBili implements Source.Extractor {
 
     @Override
-    public boolean match(String scheme, String host) {
-        return "live.bilibili.com".equals(host);
+    public boolean match(Uri uri) {
+        return "live.bilibili.com".equals(UrlUtil.host(uri));
     }
 
     @Override

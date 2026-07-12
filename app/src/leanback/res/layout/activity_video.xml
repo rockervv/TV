@@ -29,19 +29,6 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <tv.danmaku.ijk.media.player.ui.IjkVideoView
-            android:id="@+id/ijk"
-            style="@style/Player.Vod"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
-
-        <master.flame.danmaku.ui.widget.DanmakuView
-            android:id="@+id/danmaku"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
-
         <include
             android:id="@+id/widget"
             layout="@layout/view_widget_vod"
@@ -282,43 +269,26 @@
                 android:paddingEnd="24dp"
                 android:visibility="gone" />
 
-            <com.fongmi.android.tv.ui.custom.CustomHorizontalGridView
-                android:id="@+id/episodeHori"
+            <androidx.leanback.widget.HorizontalGridView
+                android:id="@+id/episode"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
                 android:clipChildren="false"
                 android:clipToPadding="false"
-                android:layout_marginBottom="12dp"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"
-                android:focusable="false"
-                app:focusOutEnd="true"
-                app:focusOutFront="true"
                 android:visibility="gone" />
 
-            <com.fongmi.android.tv.ui.custom.CustomHorizontalGridView
+            <androidx.leanback.widget.HorizontalGridView
                 android:id="@+id/array"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
                 android:clipChildren="false"
                 android:clipToPadding="false"
-                android:layout_marginBottom="12dp"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"
-                android:visibility="gone" />
-
-            <androidx.leanback.widget.VerticalGridView
-                android:id="@+id/episodeVert"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipChildren="false"
-                android:clipToPadding="false"
-                android:layout_marginBottom="12dp"
-                android:paddingStart="24dp"
-                android:paddingEnd="24dp"
-                android:focusable="false"
-                app:focusOutEnd="true"
-                app:focusOutFront="true"
                 android:visibility="gone" />
 
             <com.fongmi.android.tv.ui.custom.CustomHorizontalGridView

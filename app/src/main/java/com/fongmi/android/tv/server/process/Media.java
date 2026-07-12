@@ -4,7 +4,7 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.text.TextUtils;
 
-import com.fongmi.android.tv.player.Players;
+import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.server.Nano;
 import com.fongmi.android.tv.server.Server;
 import com.google.gson.JsonObject;
@@ -36,7 +36,7 @@ public class Media implements Process {
         return Nano.success(result.toString());
     }
 
-    private Players getPlayer() {
+    private PlayerManager getPlayer() {
         return Server.get().getPlayer();
     }
 

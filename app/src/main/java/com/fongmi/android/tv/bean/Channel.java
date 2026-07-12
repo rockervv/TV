@@ -90,6 +90,10 @@ public class Channel {
         this.name = name;
     }
 
+    public String getShow() {
+        return getName();
+    }
+
     public String getTvgName() {
         return TextUtils.isEmpty(tvgName) ? getName() : tvgName;
     }

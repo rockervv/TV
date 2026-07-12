@@ -5,9 +5,10 @@ import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
-import androidx.media3.common.MediaItem;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.player.exo.ExoUtil;
+import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Trans;
 import com.google.gson.annotations.SerializedName;
@@ -35,13 +36,22 @@ public class Sub {
         }
     }
 
+    public static Sub from(String name, String url, String lang, String format) {
+        Sub sub = new Sub();
+        sub.setName(name);
+        sub.setUrl(url);
+        sub.setLang(lang);
+        sub.setFormat(format);
+        return sub;
+    }
+
     private static Sub http(String url) {
         Uri uri = Uri.parse(url);
         Sub sub = new Sub();
         sub.url = url;
         sub.name = uri.getLastPathSegment();
         sub.flag = C.SELECTION_FLAG_FORCED;
-        sub.format = ExoUtil.getMimeType(uri.getLastPathSegment());
+        sub.format = ExoUtil.getMimeType(0); // Adapted
         return sub;
     }
 
@@ -50,7 +60,7 @@ public class Sub {
         sub.name = file.getName();
         sub.url = file.getAbsolutePath();
         sub.flag = C.SELECTION_FLAG_FORCED;
-        sub.format = ExoUtil.getMimeType(file.getName());
+        sub.format = ExoUtil.getMimeType(0); // Adapted
         return sub;
     }
 
@@ -58,29 +68,61 @@ public class Sub {
         return TextUtils.isEmpty(url) ? "" : url;
     }
 
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
     public String getName() {
         return TextUtils.isEmpty(name) ? "" : name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getLang() {
         return TextUtils.isEmpty(lang) ? "" : lang;
     }
 
+    public void setLang(String lang) {
+        this.lang = lang;
+    }
+
     public String getFormat() {
         return TextUtils.isEmpty(format) ? "" : format;
+    }
+
+    public void setFormat(String format) {
+        this.format = format;
     }
 
     public int getFlag() {
         return flag == 0 ? C.SELECTION_FLAG_DEFAULT : flag;
     }
 
+    public int getRawFlag() {
+        return flag;
+    }
+
+    public void setFlag(int flag) {
+        this.flag = flag;
+    }
+
+    public boolean isForced() {
+        return (flag & C.SELECTION_FLAG_FORCED) != 0;
+    }
+
+    public boolean isEmpty() {
+        return getUrl().isEmpty();
+    }
+
+    public Uri getUri() {
+        return isEmpty() ? null : UrlUtil.uri(getUrl());
+    }
+
     public void trans() {
         if (Trans.pass()) return;
         this.name = Trans.s2t(name);
-    }
-
-    public MediaItem.SubtitleConfiguration getConfig() {
-        return new MediaItem.SubtitleConfiguration.Builder(Uri.parse(getUrl())).setLabel(getName()).setMimeType(getFormat()).setSelectionFlags(getFlag()).setLanguage(getLang()).build();
     }
 
     @Override
@@ -89,5 +131,10 @@ public class Sub {
         if (!(obj instanceof Sub)) return false;
         Sub it = (Sub) obj;
         return getUrl().equals(it.getUrl());
+    }
+
+    @Override
+    public String toString() {
+        return App.gson().toJson(this);
     }
 }

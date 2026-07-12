@@ -1,9 +1,11 @@
 package com.fongmi.android.tv.api.loader;
 
+import android.content.Context;
 import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.Decoder;
+import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.crawler.Spider;
@@ -28,41 +30,43 @@ public class JarLoader {
 
     private final ConcurrentHashMap<String, DexClassLoader> loaders;
     private final ConcurrentHashMap<String, Method> methods;
-    private final ConcurrentHashMap<String, Spider> spiders;
+    private final ConcurrentHashMap<String, Object> locks;
     private String recent;
 
     public JarLoader() {
-        loaders = new ConcurrentHashMap<>();
-        methods = new ConcurrentHashMap<>();
-        spiders = new ConcurrentHashMap<>();
+        this.loaders = new ConcurrentHashMap<>();
+        this.methods = new ConcurrentHashMap<>();
+        this.locks = new ConcurrentHashMap<>();
     }
 
     public void clear() {
-        for (Spider spider : spiders.values()) App.execute(spider::destroy);
-        loaders.clear();
-        methods.clear();
-        spiders.clear();
+        this.loaders.clear();
+        this.methods.clear();
+        this.locks.clear();
+        this.recent = null;
     }
 
     public void setRecent(String recent) {
         this.recent = recent;
     }
 
-    private void load(String key, File file) {
+    public DexClassLoader dex(String jar) {
+        String key = Util.md5(jar);
+        if (!loaders.containsKey(key)) parseJar(key, jar, null);
+        return loaders.get(key);
+    }
+
+    private void load(String key, File file, String json) {
+        if (Thread.interrupted()) return;
         try {
             if (file.exists() && file.length() > 0) {
-                Log.e("JarLoader", "Loading: " + key + " file: " + file.getAbsolutePath());
-
-                // 確保檔案在載入前是唯讀的，解決 Android 14+ 寫入權限檢查問題
-                if (file.canWrite()) {
-                    file.setWritable(false, false);
-                }
-
-                loaders.put(key, new DexClassLoader(file.getAbsolutePath(), Path.jar().getAbsolutePath(), null, App.get().getClassLoader()));
-                invokeInit(key);
-                putProxy(key);
-            } else {
-                Log.e("JarLoader", "Key: " + key + " File not found or empty: " + file.getAbsolutePath());
+                Log.d("JarLoader", "Loading JAR file: " + file.getAbsolutePath() + " (key: " + key + ")");
+                if (file.canWrite()) file.setWritable(false, false);
+                String cachePath = Path.jar().getAbsolutePath();
+                DexClassLoader loader = new DexClassLoader(file.getAbsolutePath(), cachePath, cachePath, App.get().getClassLoader());
+                invokeInit(loader, json);
+                invokeProxy(key, loader);
+                loaders.put(key, loader);
             }
         } catch (Throwable e) {
             Log.e("JarLoader", "Key: " + key + " Failed to load jar: " + file.getAbsolutePath(), e);
@@ -71,72 +75,114 @@ public class JarLoader {
         }
     }
 
-    private void invokeInit(String key) {
+    private void invokeInit(DexClassLoader loader, String json) {
         try {
-            DexClassLoader loader = loaders.get(key);
-            if (loader == null) return;
+            // 🚀 1. 嘗試多個路徑將 JSON 注入到 SpiderDebug 全域單例中
+            String[] debugClz = {"com.github.catvod.crawler.SpiderDebug", "com.github.catvod.spider.SpiderDebug", "com.github.catvod.utils.SpiderDebug"};
+            for (String name : debugClz) {
+                try {
+                    Class<?> clzDebug = loader.loadClass(name);
+                    Method methodDebug = clzDebug.getDeclaredMethod("init", String.class);
+                    methodDebug.setAccessible(true);
+                    methodDebug.invoke(null, json);
+                    Log.d("JarLoader", "Successfully injected JSON into " + name + ".init()");
+                    break;
+                } catch (Throwable ignored) {}
+            }
+
             Class<?> clz = loader.loadClass("com.github.catvod.spider.Init");
-            Method method = clz.getMethod("init", android.content.Context.class);
-            method.invoke(clz, App.get());
+            Method[] methods = clz.getDeclaredMethods();
+
+            // 🚀 2. 針對 Log 中出現的 i(String) 進行精準注入 (判斷是傳 URL 還是 JSON)
+            try {
+                Method method = clz.getDeclaredMethod("i", String.class);
+                method.setAccessible(true);
+                String url = VodConfig.getUrl();
+                if (url.startsWith("http")) {
+                    Log.d("JarLoader", "Invoking discovered JAR Init.i(String) with Config URL");
+                    method.invoke(null, url);
+                } else {
+                    Log.d("JarLoader", "Invoking discovered JAR Init.i(String) with JSON");
+                    method.invoke(null, json);
+                }
+            } catch (NoSuchMethodException ignored) {
+            } catch (Throwable e) {
+                Log.w("JarLoader", "Init.i(String) failed, likely mismatched expectation: " + e.getMessage());
+            }
+
+            // 🚀 3. 強制列出所有方法簽章，方便確認
+            for (Method m : methods) {
+                StringBuilder params = new StringBuilder();
+                for (Class<?> p : m.getParameterTypes()) params.append(p.getSimpleName()).append(",");
+                Log.d("JarLoader", "Init Method: " + m.getName() + "(" + params + ")");
+            }
+
+            // 1. 優先嘗試 init(Context, String)
+            try {
+                Method method = clz.getDeclaredMethod("init", Context.class, String.class);
+                method.setAccessible(true);
+                Log.d("JarLoader", "Invoking JAR init(Context, String)");
+                method.invoke(null, App.get(), json);
+                return;
+            } catch (NoSuchMethodException ignored) {}
+
+            // 2. 次要嘗試 init(Context, JSONObject)
+            try {
+                Method method = clz.getDeclaredMethod("init", Context.class, JSONObject.class);
+                method.setAccessible(true);
+                Log.d("JarLoader", "Invoking JAR init(Context, JSONObject)");
+                method.invoke(null, App.get(), new JSONObject(json != null ? json : "{}"));
+                return;
+            } catch (NoSuchMethodException ignored) {}
+
+            // 3. 最後嘗試標準 init(Context)
+            try {
+                Method method = clz.getDeclaredMethod("init", Context.class);
+                method.setAccessible(true);
+                Log.d("JarLoader", "Invoking JAR init(Context)");
+                method.invoke(null, App.get());
+            } catch (NoSuchMethodException e) {
+                Log.e("JarLoader", "No valid init method found in JAR!");
+            }
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof org.json.JSONException) {
+                Log.w("JarLoader", "JAR Init.init warned: JSON data is empty or invalid. This is usually safe to ignore.");
+            } else {
+                Log.e("JarLoader", "JAR Init.init target exception", cause);
+            }
         } catch (Throwable e) {
-            Log.e("JarLoader", "invokeInit failed for key: " + key, e);
+            Log.e("JarLoader", "invokeInit failed", e);
         }
     }
 
-    private void putProxy(String key) {
+    private void invokeProxy(String key, DexClassLoader loader) {
         try {
-            DexClassLoader loader = loaders.get(key);
-            if (loader == null) return;
             Class<?> clz = loader.loadClass("com.github.catvod.spider.Proxy");
             Method method = clz.getMethod("proxy", Map.class);
             methods.put(key, method);
         } catch (Throwable e) {
-            Log.e("JarLoader", "putProxy failed for key: " + key, e);
+            Log.e("JarLoader", "invokeProxy failed for key: " + key, e);
         }
     }
 
     private File download(String url, String md5) {
         try {
             File jar = Path.jar(url);
-            if (!md5.isEmpty() && Util.equals(url, md5)) {
-                Log.d("JarLoader", "Use cached jar: " + url + " with MD5:" + md5  + "\ncache: " + jar);
-
-                return jar;
-            }
-
-            // 修正的快取檢查（此處示範：若檔案已存在且不為空則用快取，可依實際需求微調 MD5 比對）
             if (jar.exists() && jar.length() > 0) {
-                // 安全防禦：回傳前確保快取檔是唯讀的，防止 Android 14+ 閃退
-                if (jar.canWrite()) {
-                    jar.setWritable(false, false);
-                }
-                Log.d("JarLoader", "Use cached jar: " + jar.getAbsolutePath());
+                if (jar.canWrite()) jar.setWritable(false, false);
                 return jar;
             }
-
-            Log.d("JarLoader", "Downloading jar from: " + url);
             okhttp3.Response response = OkHttp.newCall(url).execute();
             if (response.isSuccessful()) {
                 byte[] bytes = response.body().bytes();
                 if (bytes.length > 0) {
-                    Log.d("JarLoader", "Download success: " + url + " size: " + bytes.length);
-
-                    // 如果舊檔案存在且被鎖定為唯讀，必須先刪除或解鎖，否則 Path.write 會寫入失敗
-                    if (jar.exists()) {
-                        jar.delete();
-                    }
-
+                    if (jar.exists()) jar.delete();
                     File savedJar = Path.write(jar, bytes);
-
-                    // 2. 關鍵修正：移除寫入權限，設定為唯讀
-                    if (savedJar.exists()) {
-                        savedJar.setWritable(false, false);
-                    }
-
+                    if (savedJar.exists()) savedJar.setWritable(false, false);
                     return savedJar;
                 }
             }
-            Log.e("JarLoader", "Download failed: " + url + " code: " + response.code());
             return jar;
         } catch (Exception e) {
             Log.e("JarLoader", "Download exception: " + url, e);
@@ -144,48 +190,47 @@ public class JarLoader {
         }
     }
 
-    public synchronized void parseJar(String key, String jar) {
+    public synchronized void parseJar(String key, String jar, String json) {
+        Log.d("JarLoader", "parseJar called with jar: " + jar + ", json length: " + (json != null ? json.length() : 0));
         if (loaders.containsKey(key)) return;
-        String[] texts = jar.split(";md5;");
-        String md5 = texts.length > 1 ? texts[1].trim() : "";
-        jar = texts[0];
-        Log.d("JarLoader", "Parsing jar: " + jar + " md5: " + md5);
-        if (!md5.isEmpty() && Util.equals(jar, md5)) {
-            load(key, Path.jar(jar));
-        } else if (jar.startsWith("img+")) {
-            load(key, Decoder.getSpider(jar));
-        } else if (jar.startsWith("http")) {
-            load(key, download(jar, md5));
-        } else if (jar.startsWith("file")) {
-            load(key, Path.local(jar));
-        } else if (jar.startsWith("assets")) {
-            parseJar(key, UrlUtil.convert(jar));
-        } else if (!jar.isEmpty()) {
-            parseJar(key, UrlUtil.convert(jar));
+        if (jar.startsWith("assets")) jar = UrlUtil.convert(jar);
+        Object lock = locks.computeIfAbsent(key, k -> new Object());
+        synchronized (lock) {
+            if (loaders.containsKey(key)) return;
+            String[] texts = jar.split(";md5;");
+            String md5 = texts.length > 1 ? texts[1].trim() : "";
+            if (md5.startsWith("http")) md5 = OkHttp.string(md5).trim();
+            jar = texts[0];
+            if (!md5.isEmpty() && Util.equals(jar, md5)) {
+                load(key, Path.jar(jar), json);
+            } else if (jar.startsWith("img+")) {
+                load(key, Decoder.getSpider(jar), json);
+            } else if (jar.startsWith("http")) {
+                load(key, download(jar, md5), json);
+            } else if (jar.startsWith("file")) {
+                load(key, Path.local(jar), json);
+            } else if (!jar.isEmpty()) {
+                parseJar(key, UrlUtil.convert(jar), json);
+            }
         }
     }
 
     public Spider getSpider(String key, String api, String ext, String jar) {
         try {
-            String jaKey = Util.md5(jar);
-            String spKey = jaKey + key;
-            if (spiders.containsKey(spKey)) return spiders.get(spKey);
-            if (!loaders.containsKey(jaKey)) parseJar(jaKey, jar);
-            DexClassLoader loader = loaders.get(jaKey);
-            if (loader == null) {
-                Log.e("JarLoader", "DexClassLoader is null for jaKey: " + jaKey);
-                return new SpiderNull();
-            }
+            DexClassLoader loader = dex(jar);
+            if (loader == null) return new SpiderNull();
             Spider spider = (Spider) loader.loadClass("com.github.catvod.spider." + api.split("csp_")[1]).newInstance();
-            spider.init(App.get(), ext);
-            spiders.put(spKey, spider);
-            Site site = Site.find(key);
-            if (site != null) site.resetFailures();
+            if (android.text.TextUtils.isEmpty(ext) || ext.equals("{}")) {
+                Log.d("JarLoader", "getSpider with empty set:" + api);
+                spider.init(App.get());
+            } else {
+                spider.init(App.get(), ext);
+                Log.d("JarLoader", "getSpider :[" + api + "] ext [" + ext + "]");
+            }
+
             return spider;
         } catch (Throwable e) {
             Log.e("JarLoader", "getSpider failed: " + api, e);
-            Site site = Site.find(key);
-            if (site != null) site.setBlacklist();
             return new SpiderNull();
         }
     }

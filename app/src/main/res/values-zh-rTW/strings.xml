@@ -31,8 +31,14 @@
     <string name="play">播放</string>
     <string name="play_op">片頭</string>
     <string name="play_ed">片尾</string>
+    <string name="play_exo">EXO</string>
+    <string name="play_mpv">MPV</string>
+    <string name="play_other">其它</string>
     <string name="play_next">下集</string>
     <string name="play_prev">上集</string>
+    <string name="play_stop">停止</string>
+    <string name="play_repeat">循環</string>
+    <string name="play_reset">重播</string>
     <string name="play_episodes">選集</string>
     <string name="play_loop">循環</string>
     <string name="play_timer">定時</string>
@@ -41,8 +47,9 @@
     <string name="play_duration">進度</string>
     <string name="play_mini_progress">迷你</string>
     <string name="play_video_title">標題</string>
-    <string name="play_danmu">彈幕</string>
+
     <string name="play_save">儲存M3U8</string>
+    <string name="play_save_success">M3U8 已儲存至：%1$s</string>
     <string name="play_display">屏顯</string>
     <string name="play_speed">倍速</string>
     <string name="play_change">換源</string>
@@ -77,7 +84,7 @@
     <string name="setting_live">直播</string>
     <string name="setting_wall">壁紙</string>
     <string name="setting_player">播放設定</string>
-    <string name="setting_danmu">彈幕設定</string>
+
     <string name="setting_custom">個性設定</string>
     <string name="setting_config_cache">接口暫存</string>
     <string name="setting_cache_dir">迅雷暫存</string>
@@ -105,23 +112,21 @@
     <string name="setting_restore">恢復</string>
     <string name="setting_version">版本</string>
     <string name="setting_about">關於</string>
+    <string name="setting_netflix">啟用遙控器 Netflix 快捷鍵</string>
     <string name="setting_storage">權限</string>
     <string name="setting_off">關閉</string>
     <string name="setting_on">開啟</string>
 
     <!-- Player -->
     <string name="player">播放核心</string>
+    <string name="player_engine">播放引擎</string>
+    <string name="player_debug">偵錯</string>
     <string name="player_decode">解碼方式</string>
     <string name="player_render">渲染方式</string>
     <string name="player_scale">縮放比例</string>
     <string name="player_caption">字幕樣式</string>
     <string name="player_play_with_others">同时播放</string>
-    <string name="player_danmu_load">彈幕載入</string>
-    <string name="player_danmu_speed">彈幕速度</string>
-    <string name="player_danmu_size">彈幕大小</string>
-    <string name="player_danmu_line">彈幕行數</string>
-    <string name="player_danmu_alpha">彈幕透明</string>
-    <string name="player_danmu_sync">彈幕同步</string>
+
     <string name="player_background">背景播放</string>
     <string name="player_flag">線路播放</string>
     <string name="player_episode">選集樣式</string>
@@ -129,6 +134,25 @@
     <string name="player_exo_http">連線方式</string>
     <string name="player_exo_buffer">緩衝時間</string>
     <string name="player_rtsp">RTSP 通道</string>
+    <string name="player_adblock">廣告過濾</string>
+    <string name="player_speed">長按倍速</string>
+    <string name="player_decode_setting">解碼設置</string>
+    <string name="player_preload_setting">預加載設置</string>
+    <string name="player_mpv_conf">mpv.conf</string>
+    <string name="player_mpv_gpu_next">gpu-next</string>
+    <string name="player_mpv_vulkan">vulkan</string>
+    <string name="player_preload">預加載</string>
+    <string name="player_preload_threads">預加載線程</string>
+    <string name="player_preload_threads_value">%1$d 線程</string>
+    <string name="player_preload_size">預加載大小</string>
+    <string name="player_preload_time">預加載時間</string>
+    <string name="player_preload_time_value">%1$d 秒</string>
+    <string name="player_audio_pass_through">音訊直通</string>
+    <string name="player_audio_decode">音訊軟解</string>
+    <string name="player_video_decode">視訊軟解</string>
+    <string name="player_aac_track">優先AAC軌道</string>
+    <string name="player_dv7_fallback">DV7回退</string>
+    <string name="player_tunnel">隧道模式</string>
     <string name="player_ua">User-Agent</string>
 
     <!-- Search -->
@@ -170,12 +194,6 @@
     <string name="update_check">正在檢查更新…</string>
     <string name="update_confirm">更新</string>
 
-    <!-- X5 WebView -->
-    <string name="x5webview_title">X5 WebView</string>
-    <string name="x5webview_download_enable">解壓X5 WebView並啟用?</string>
-    <string name="x5webview_enabled">X5 WebView已啟用</string>
-    <string name="x5webview_parsing">X5 WebView嗅探中</string>
-
     <!-- Crash -->
     <string name="crash_info">發生意外錯誤\n抱歉給您帶來不便</string>
     <string name="crash_restart">重新啟動</string>
@@ -205,16 +223,10 @@
 
     <string-array name="select_player">
         <item>系統</item>
-        <item>IJK</item>
         <item>EXO</item>
     </string-array>
 
-    <string-array name="select_danmu_speed">
-        <item>超慢</item>
-        <item>慢</item>
-        <item>適中</item>
-        <item>快</item>
-    </string-array>
+
 
     <string-array name="select_quality">
         <item>低</item>

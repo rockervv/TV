@@ -3,17 +3,17 @@ package com.fongmi.android.tv.impl;
 import android.support.v4.media.session.MediaSessionCompat;
 
 import com.fongmi.android.tv.event.ActionEvent;
-import com.fongmi.android.tv.player.Players;
+import com.fongmi.android.tv.player.PlayerManager;
 
 public class SessionCallback extends MediaSessionCompat.Callback {
 
-    private final Players player;
+    private final PlayerManager player;
 
-    public static SessionCallback create(Players player) {
+    public static SessionCallback create(PlayerManager player) {
         return new SessionCallback(player);
     }
 
-    private SessionCallback(Players player) {
+    private SessionCallback(PlayerManager player) {
         this.player = player;
     }
 

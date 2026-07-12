@@ -2,6 +2,7 @@ package com.fongmi.android.tv.ui.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
 
@@ -10,33 +11,29 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.databinding.ActivitySettingPlayerBinding;
-import com.fongmi.android.tv.impl.BufferCallback;
-import com.fongmi.android.tv.impl.SyncCallback;
+import com.fongmi.android.tv.impl.SpeedListener;
 import com.fongmi.android.tv.impl.UaCallback;
-import com.fongmi.android.tv.player.Players;
+import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
-import com.fongmi.android.tv.ui.dialog.BufferDialog;
+import com.fongmi.android.tv.ui.dialog.MpvConfDialog;
+import com.fongmi.android.tv.ui.dialog.SpeedDialog;
 import com.fongmi.android.tv.ui.dialog.UaDialog;
 import com.fongmi.android.tv.utils.ResUtil;
 
-public class SettingPlayerActivity extends BaseActivity implements UaCallback, BufferCallback, SyncCallback {
+import java.text.DecimalFormat;
+
+public class SettingPlayerActivity extends BaseActivity implements UaCallback, SpeedListener {
 
     private ActivitySettingPlayerBinding mBinding;
+    private DecimalFormat format;
     private String[] caption;
-    private String[] player;
-    private String[] decode;
     private String[] render;
     private String[] scale;
-    private String[] http;
-    private String[] flag;
-    private String[] rtsp;
+    private String[] reset;
+    private String[] engine;
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, SettingPlayerActivity.class));
-    }
-
-    private String getSwitch(boolean value) {
-        return getString(value ? R.string.setting_on : R.string.setting_off);
     }
 
     @Override
@@ -45,45 +42,140 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, B
     }
 
     @Override
-    protected void initView() {
+    protected void initView(Bundle savedInstanceState) {
         setVisible();
-        mBinding.player.requestFocus();
-        mBinding.uaText.setText(Setting.getUa());
-        mBinding.normalizeText.setText(getSwitch(Setting.isNormalize()));
-        mBinding.tunnelText.setText(getSwitch(Setting.isTunnel()));
-        mBinding.bufferText.setText(String.valueOf(Setting.getBuffer()));
-        mBinding.rtspText.setText((rtsp = ResUtil.getStringArray(R.array.select_rtsp))[Setting.getRtsp()]);
-        mBinding.flagText.setText((flag = ResUtil.getStringArray(R.array.select_flag))[Setting.getFlag()]);
-        mBinding.httpText.setText((http = ResUtil.getStringArray(R.array.select_exo_http))[Setting.getHttp()]);
-        mBinding.scaleText.setText((scale = ResUtil.getStringArray(R.array.select_scale))[Setting.getScale()]);
-        mBinding.playerText.setText((player = ResUtil.getStringArray(R.array.select_player))[Setting.getPlayer()]);
-        mBinding.decodeText.setText((decode = ResUtil.getStringArray(R.array.select_decode))[Setting.getDecode(Setting.getPlayer())]);
-        mBinding.renderText.setText((render = ResUtil.getStringArray(R.array.select_render))[Setting.getRender()]);
-        mBinding.captionText.setText((caption = ResUtil.getStringArray(R.array.select_caption))[Setting.isCaption() ? 1 : 0]);
+        setPlaybackModeText();
+        mBinding.engine.requestFocus();
+        format = new DecimalFormat("0.#");
+        mBinding.speedText.setText(format.format(PlayerSetting.getSpeed()));
+        mBinding.adblockText.setText(Setting.getSwitch(Setting.isAdblock()));
+        mBinding.mpvVulkanText.setText(Setting.getSwitch(PlayerSetting.isMpvVulkan()));
+        mBinding.mpvGpuNextText.setText(Setting.getSwitch(PlayerSetting.isMpvGpuNext()));
+        mBinding.backgroundText.setText(Setting.getSwitch(PlayerSetting.isBackgroundOn()));
+        mBinding.scaleText.setText((scale = ResUtil.getStringArray(R.array.select_scale))[PlayerSetting.getScale()]);
+        mBinding.resetText.setText((reset = ResUtil.getStringArray(R.array.select_reset))[Setting.getReset()]);
+        mBinding.captionText.setText((caption = ResUtil.getStringArray(R.array.select_caption))[PlayerSetting.isCaption() ? 1 : 0]);
+        mBinding.normalizeText.setText(Setting.getSwitch(Setting.isNormalize()));
     }
 
     @Override
     protected void initEvent() {
-        mBinding.ua.setOnClickListener(this::onUa);
-        mBinding.rtsp.setOnClickListener(this::setRtsp);
-        mBinding.http.setOnClickListener(this::setHttp);
-        mBinding.flag.setOnClickListener(this::setFlag);
-        mBinding.scale.setOnClickListener(this::setScale);
-        mBinding.buffer.setOnClickListener(this::onBuffer);
-        mBinding.player.setOnClickListener(this::setPlayer);
-        mBinding.decode.setOnClickListener(this::setDecode);
+        mBinding.engine.setOnClickListener(this::setEngine);
+        mBinding.reset.setOnClickListener(this::setReset);
+        mBinding.mpvConf.setOnClickListener(this::onMpvConf);
+        mBinding.mpvGpuNext.setOnClickListener(this::setMpvGpuNext);
+        mBinding.mpvVulkan.setOnClickListener(this::setMpvVulkan);
         mBinding.render.setOnClickListener(this::setRender);
-        mBinding.tunnel.setOnClickListener(this::setTunnel);
-        mBinding.normalize.setOnClickListener(this::setNormalize);
+        mBinding.scale.setOnClickListener(this::setScale);
         mBinding.caption.setOnClickListener(this::setCaption);
         mBinding.caption.setOnLongClickListener(this::onCaption);
+        mBinding.speed.setOnClickListener(this::onSpeed);
+        mBinding.normalize.setOnClickListener(this::setNormalize);
+        mBinding.background.setOnClickListener(this::onBackground);
+        mBinding.adblock.setOnClickListener(this::setAdblock);
+        mBinding.preload.setOnClickListener(this::onPreloadSetting);
+        mBinding.decode.setOnClickListener(this::onDecodeSetting);
+        mBinding.ua.setOnClickListener(this::onUa);
     }
 
     private void setVisible() {
-        mBinding.caption.setVisibility(Setting.hasCaption() ? View.VISIBLE : View.GONE);
-        mBinding.http.setVisibility(Players.isExo(Setting.getPlayer()) ? View.VISIBLE : View.GONE);
-        mBinding.buffer.setVisibility(Players.isExo(Setting.getPlayer()) ? View.VISIBLE : View.GONE);
-        mBinding.tunnel.setVisibility(Players.isExo(Setting.getPlayer()) ? View.VISIBLE : View.GONE);
+        boolean exo = !PlayerSetting.isMpv();
+        if (PlayerSetting.isBackgroundPiP()) PlayerSetting.putBackground(1);
+        mBinding.mpvConf.setVisibility(exo ? View.GONE : View.VISIBLE);
+        mBinding.mpvVulkan.setVisibility(exo ? View.GONE : View.VISIBLE);
+        mBinding.mpvGpuNext.setVisibility(exo ? View.GONE : View.VISIBLE);
+        mBinding.decode.setVisibility(exo ? View.VISIBLE : View.GONE);
+        mBinding.adblock.setVisibility(exo ? View.VISIBLE : View.GONE);
+        mBinding.caption.setVisibility(PlayerSetting.hasCaption() ? View.VISIBLE : View.GONE);
+    }
+
+    private void setEngine(View view) {
+        int index = (PlayerSetting.getEngine() + 1) % engine.length;
+        PlayerSetting.putEngine(index);
+        setPlaybackModeText();
+        setVisible();
+    }
+
+    private void setReset(View view) {
+        int index = (Setting.getReset() + 1) % reset.length;
+        Setting.putReset(index);
+        mBinding.resetText.setText(reset[index]);
+    }
+
+    private void onMpvConf(View view) {
+        MpvConfDialog.show(this);
+    }
+
+    private void setMpvGpuNext(View view) {
+        PlayerSetting.putMpvGpuNext(!PlayerSetting.isMpvGpuNext());
+        mBinding.mpvGpuNextText.setText(Setting.getSwitch(PlayerSetting.isMpvGpuNext()));
+    }
+
+    private void setMpvVulkan(View view) {
+        PlayerSetting.putMpvVulkan(!PlayerSetting.isMpvVulkan());
+        mBinding.mpvVulkanText.setText(Setting.getSwitch(PlayerSetting.isMpvVulkan()));
+    }
+
+    private void setRender(View view) {
+        int index = (PlayerSetting.getRender() + 1) % render.length;
+        PlayerSetting.putRender(index);
+        setPlaybackModeText();
+    }
+
+    private void setPlaybackModeText() {
+        engine = ResUtil.getStringArray(R.array.select_engine);
+        render = ResUtil.getStringArray(R.array.select_render);
+        mBinding.engineText.setText(engine[PlayerSetting.getEngine()]);
+        mBinding.renderText.setText(render[PlayerSetting.getRender()]);
+    }
+
+    private void setScale(View view) {
+        int index = (PlayerSetting.getScale() + 1) % scale.length;
+        mBinding.scaleText.setText(scale[index]);
+        PlayerSetting.putScale(index);
+    }
+
+    private void setCaption(View view) {
+        PlayerSetting.putCaption(!PlayerSetting.isCaption());
+        mBinding.captionText.setText(caption[PlayerSetting.isCaption() ? 1 : 0]);
+    }
+
+    private boolean onCaption(View view) {
+        if (PlayerSetting.isCaption()) startActivity(new Intent(Settings.ACTION_CAPTIONING_SETTINGS));
+        return PlayerSetting.isCaption();
+    }
+
+    private void onSpeed(View view) {
+        SpeedDialog.show(this);
+    }
+
+    @Override
+    public void setSpeed(float speed) {
+        mBinding.speedText.setText(format.format(speed));
+        PlayerSetting.putSpeed(speed);
+    }
+
+    private void onBackground(View view) {
+        PlayerSetting.putBackground(PlayerSetting.isBackgroundOn() ? 0 : 1);
+        mBinding.backgroundText.setText(Setting.getSwitch(PlayerSetting.isBackgroundOn()));
+    }
+
+    private void setNormalize(View view) {
+        Setting.putNormalize(!Setting.isNormalize());
+        mBinding.normalizeText.setText(Setting.getSwitch(Setting.isNormalize()));
+    }
+
+    private void setAdblock(View view) {
+        Setting.putAdblock(!Setting.isAdblock());
+        mBinding.adblockText.setText(Setting.getSwitch(Setting.isAdblock()));
+    }
+
+    private void onPreloadSetting(View view) {
+        SettingPreloadActivity.start(this);
+    }
+
+    private void onDecodeSetting(View view) {
+        SettingDecodeActivity.start(this);
     }
 
     private void onUa(View view) {
@@ -92,86 +184,12 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, B
 
     @Override
     public void setUa(String ua) {
-        mBinding.uaText.setText(ua);
         Setting.putUa(ua);
     }
 
-    private void setRtsp(View view) {
-        int index = Setting.getRtsp();
-        Setting.putRtsp(index = index == rtsp.length - 1 ? 0 : ++index);
-        mBinding.rtspText.setText(rtsp[index]);
-    }
-
-    private void setHttp(View view) {
-        int index = Setting.getHttp();
-        Setting.putHttp(index = index == http.length - 1 ? 0 : ++index);
-        mBinding.httpText.setText(http[index]);
-    }
-
-    private void setFlag(View view) {
-        int index = Setting.getFlag();
-        Setting.putFlag(index = index == flag.length - 1 ? 0 : ++index);
-        mBinding.flagText.setText(flag[index]);
-    }
-
-    private void setScale(View view) {
-        int index = Setting.getScale();
-        Setting.putScale(index = index == scale.length - 1 ? 0 : ++index);
-        mBinding.scaleText.setText(scale[index]);
-    }
-
-    private void onBuffer(View view) {
-        BufferDialog.create(this).show();
-    }
-
     @Override
-    public void setBuffer(int times) {
-        mBinding.bufferText.setText(String.valueOf(times));
-        Setting.putBuffer(times);
+    protected void onResume() {
+        super.onResume();
+        if (mBinding != null) setPlaybackModeText();
     }
-
-    private void setPlayer(View view) {
-        int index = Setting.getPlayer();
-        Setting.putPlayer(index = index == player.length - 1 ? 0 : ++index);
-        mBinding.playerText.setText(player[index]);
-        mBinding.decodeText.setText(decode[Setting.getDecode(index)]);
-        setVisible();
-    }
-
-    private void setDecode(View view) {
-        int player = Setting.getPlayer();
-        int index = Setting.getDecode(player);
-        Setting.putDecode(player, index = index == decode.length - 1 ? 0 : ++index);
-        mBinding.decodeText.setText(decode[index]);
-    }
-
-    private void setRender(View view) {
-        int index = Setting.getRender();
-        Setting.putRender(index = index == render.length - 1 ? 0 : ++index);
-        mBinding.renderText.setText(render[index]);
-        if (Setting.isTunnel() && Setting.getRender() == 1) setTunnel(view);
-    }
-
-    private void setTunnel(View view) {
-        Setting.putTunnel(!Setting.isTunnel());
-        mBinding.tunnelText.setText(getSwitch(Setting.isTunnel()));
-        if (Setting.isTunnel() && Setting.getRender() == 1) setRender(view);
-    }
-
-    private void setNormalize(View view) {
-        Setting.putNormalize(!Setting.isNormalize());
-        mBinding.normalizeText.setText(getSwitch(Setting.isNormalize()));
-    }
-
-    private void setCaption(View view) {
-        Setting.putCaption(!Setting.isCaption());
-        mBinding.captionText.setText(caption[Setting.isCaption() ? 1 : 0]);
-    }
-
-    private boolean onCaption(View view) {
-        if (Setting.isCaption()) startActivity(new Intent(Settings.ACTION_CAPTIONING_SETTINGS));
-        return Setting.isCaption();
-    }
-    @Override
-    public void setSync() {    }
 }

@@ -167,7 +167,9 @@ public class VodConfig {
             initSite(object);
             initParse(object);
             initOther(object);
-            BaseLoader.get().parseJar(Json.safeString(object, "spider"));
+            String spider = Json.safeString(object, "spider");
+            Log.d("VodConfig", "Found spider URL: " + spider);
+            BaseLoader.get().parseJar(spider, object.toString());
             if (loadLive && object.has("lives")) initLive(object);
             String notice = Json.safeString(object, "notice");
             config.logo(Json.safeString(object, "logo"));
@@ -247,6 +249,10 @@ public class VodConfig {
         return site.getJar();
     }
 
+    public void ensureLoaded() {
+        if (config == null || config.getUrl().isEmpty()) load(null);
+    }
+
     public List<Doh> getDoh() {
         List<Doh> items = Doh.get(App.get());
         if (doh == null) return items;
@@ -295,6 +301,7 @@ public class VodConfig {
     }
 
     private void setFlags(List<String> flags) {
+        this.flags.clear();
         this.flags.addAll(flags);
     }
 

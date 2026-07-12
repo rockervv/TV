@@ -2,19 +2,21 @@ package com.fongmi.android.tv.utils;
 
 import android.net.Uri;
 import android.text.TextUtils;
-
 import com.fongmi.android.tv.server.Server;
 import com.github.catvod.utils.UriUtil;
 import com.google.common.net.HttpHeaders;
+import java.io.File;
 
 public class UrlUtil {
 
     public static Uri uri(String url) {
-        return Uri.parse(url.trim().replace("\\", ""));
+        if (url == null) return Uri.EMPTY;
+        url = url.trim().replace("\\", "");
+        return url.startsWith("/") ? Uri.fromFile(new File(url)) : Uri.parse(url);
     }
 
     public static String scheme(String url) {
-        return url == null ? "" : scheme(Uri.parse(url));
+        return url == null ? "" : scheme(uri(url));
     }
 
     public static String scheme(Uri uri) {
@@ -23,7 +25,7 @@ public class UrlUtil {
     }
 
     public static String host(String url) {
-        return url == null ? "" : host(Uri.parse(url));
+        return url == null ? "" : host(uri(url));
     }
 
     public static String host(Uri uri) {
@@ -31,8 +33,12 @@ public class UrlUtil {
         return host == null ? "" : host.toLowerCase().trim();
     }
 
+    public static String path(String url) {
+        return url == null ? "" : path(uri(url));
+    }
+
     public static String path(Uri uri) {
-        String path = uri.getPath();
+        String path = uri.getLastPathSegment();
         return path == null ? "" : path.trim();
     }
 
@@ -42,12 +48,20 @@ public class UrlUtil {
 
     public static String convert(String url) {
         String scheme = scheme(url);
-        if ("clan".equals(scheme)) return convert(fixUrl(url));
-        if ("local".equals(scheme)) return url.replace("local://", Server.get().getAddress("/"));
-        if ("assets".equals(scheme)) return url.replace("assets://", Server.get().getAddress("/"));
-        if ("file".equals(scheme)) return url.replace("file://", Server.get().getAddress("/file/"));
-        if ("proxy".equals(scheme)) return url.replace("proxy://", Server.get().getAddress("/proxy?"));
-        return url;
+        String prefix = scheme + "://";
+        return switch (scheme) {
+            case "assets" -> url.replace(prefix, Server.get().getAddress("/"));
+            case "proxy" -> url.replace(prefix, Server.get().getAddress("/proxy?"));
+            case "file" -> Server.get().getAddress("/file/") + Uri.encode(url.substring((prefix).length()), "/");
+            default -> url;
+        };
+    }
+
+    public static String getName(String url) {
+        Uri uri = uri(url);
+        String path = path(uri);
+        String host = host(uri);
+        return !path.isEmpty() ? path : !host.isEmpty() ? host : url;
     }
 
     public static String fixUrl(String url) {

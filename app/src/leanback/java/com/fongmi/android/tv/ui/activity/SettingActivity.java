@@ -30,7 +30,7 @@ import com.fongmi.android.tv.impl.LiveCallback;
 import com.fongmi.android.tv.impl.ProxyCallback;
 import com.fongmi.android.tv.impl.SiteCallback;
 //import com.fongmi.android.tv.impl.SyncCallback;
-import com.fongmi.android.tv.player.Source;
+import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.BackupDialog;
 import com.fongmi.android.tv.ui.dialog.ConfigDialog;
@@ -115,7 +115,6 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         mBinding.backup.setOnClickListener(this::onBackup);
         mBinding.restore.setOnClickListener(this::onRestore);
         mBinding.player.setOnClickListener(this::onPlayer);
-        mBinding.danmu.setOnClickListener(this::onDanmu);
         mBinding.version.setOnClickListener(this::onVersion);
         mBinding.vod.setOnLongClickListener(this::onVodEdit);
         mBinding.vodHome.setOnClickListener(this::onVodHome);
@@ -264,10 +263,6 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
 
     private void onPlayer(View view) {
         SettingPlayerActivity.start(this);
-    }
-
-    private void onDanmu(View view) {
-        SettingDanmuActivity.start(this);
     }
 
     private void onVersion(View view) {

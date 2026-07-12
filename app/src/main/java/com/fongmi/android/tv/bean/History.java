@@ -275,6 +275,14 @@ public class History {
         return getCreateTime() == 0 && getPosition() == 0;
     }
 
+    public boolean canSave() {
+        return getDuration() > 0 || getPosition() > 0;
+    }
+
+    public boolean canSync() {
+        return getDuration() > 30000;
+    }
+
     public boolean isFinished() {
         return getDuration() > 0 && (getPosition() >= getDuration() * 0.9 || getPosition() > getDuration() - 30 * 1000);
     }
@@ -293,6 +301,11 @@ public class History {
 
     public static void delete(int cid) {
         AppDatabase.get().getHistoryDao().delete(cid);
+    }
+
+    public History merge() {
+        merge(find(), false);
+        return this;
     }
 
     private void checkParam(History item) {
@@ -326,6 +339,7 @@ public class History {
     }
 
     public History save() {
+        //android.util.Log.d("History", "Saving history: " + getVodName() + ", Pic: " + getVodPic() + ", LastUpdated: " + lastUpdated);
         if (lastUpdated == 0 || lastUpdated < getCurrentUTCTime()) {
             setLastUpdated(getCurrentUTCTime());
         }
@@ -427,11 +441,12 @@ public class History {
         AppDatabase.get().getHistoryDao().insertOrUpdate(items);
     }
     private static void updateAllColumns(History existingItem, History newItem) {
-        existingItem.setVodPic(newItem.getVodPic());
-        existingItem.setVodName(newItem.getVodName());
-        existingItem.setVodFlag(newItem.getVodFlag());
-        existingItem.setVodRemarks(newItem.getVodRemarks());
-        existingItem.setEpisodeUrl(newItem.getEpisodeUrl());
+        android.util.Log.d("History", "Updating columns for: " + existingItem.getVodName() + ". Old Pic: " + existingItem.getVodPic() + ", New Pic: " + newItem.getVodPic());
+        if (!TextUtils.isEmpty(newItem.getVodPic())) existingItem.setVodPic(newItem.getVodPic());
+        if (!TextUtils.isEmpty(newItem.getVodName())) existingItem.setVodName(newItem.getVodName());
+        if (!TextUtils.isEmpty(newItem.getVodFlag())) existingItem.setVodFlag(newItem.getVodFlag());
+        if (!TextUtils.isEmpty(newItem.getVodRemarks())) existingItem.setVodRemarks(newItem.getVodRemarks());
+        if (!TextUtils.isEmpty(newItem.getEpisodeUrl())) existingItem.setEpisodeUrl(newItem.getEpisodeUrl());
         existingItem.setRevSort(newItem.isRevSort());
         existingItem.setRevPlay(newItem.isRevPlay());
         existingItem.setCreateTime(newItem.getCreateTime());

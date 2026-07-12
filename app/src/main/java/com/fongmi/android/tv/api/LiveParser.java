@@ -10,7 +10,7 @@ import com.fongmi.android.tv.bean.ClearKey;
 import com.fongmi.android.tv.bean.Drm;
 import com.fongmi.android.tv.bean.Group;
 import com.fongmi.android.tv.bean.Live;
-import com.fongmi.android.tv.player.Players;
+import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Json;
@@ -268,7 +268,7 @@ public class LiveParser {
             } catch (Exception e) {
                 key = null;
             } finally {
-                player = Players.EXO;
+                player = PlayerSetting.ENGINE_EXO;
             }
         }
 
@@ -278,7 +278,7 @@ public class LiveParser {
             } catch (Exception e) {
                 type = null;
             } finally {
-                player = Players.EXO;
+                player = PlayerSetting.ENGINE_EXO;
             }
         }
 

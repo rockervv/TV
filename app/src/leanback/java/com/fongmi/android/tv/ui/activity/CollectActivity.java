@@ -103,7 +103,7 @@ public class CollectActivity extends BaseActivity {
 
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
-        mViewModel.search.observe(this, result -> {
+        mViewModel.getSearch().observe(this, result -> {
             getFragment().addVideo(result.getList());
             mAdapter.add(Collect.create(result.getList()));
             Objects.requireNonNull(mBinding.pager.getAdapter()).notifyDataSetChanged();
@@ -133,7 +133,7 @@ public class CollectActivity extends BaseActivity {
 
     private void search(Site site) {
         try {
-            mViewModel.searchContent(site, getKeyword(), false);
+            mViewModel.searchContent(site, getKeyword(), false, "1");
         } catch (Throwable e) {
             site.setBlacklist();
         }

@@ -97,7 +97,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
     }
 
     private boolean isIndexs() {
-        return getSite().isIndexs();
+        return getSite().isIndex();
     }
 
     private Page getLastPage() {
@@ -142,7 +142,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
 
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
-        mViewModel.result.observe(getViewLifecycleOwner(), result -> {
+        mViewModel.getResult().observe(getViewLifecycleOwner(), result -> {
             boolean first = mScroller.first();
             int size = result.getList().size();
             if (size > 0) addVideo(result);

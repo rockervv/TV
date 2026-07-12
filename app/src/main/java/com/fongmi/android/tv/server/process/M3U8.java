@@ -2,7 +2,8 @@ package com.fongmi.android.tv.server.process;
 
 import androidx.media3.common.util.Log;
 
-import com.fongmi.android.tv.player.ADFilter;
+import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.player.util.ADFilter;
 import com.fongmi.android.tv.server.Nano;
 import com.fongmi.android.tv.server.Server;
 import com.github.catvod.net.OkHttp;
@@ -17,10 +18,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import fi.iki.elonen.NanoHTTPD;
 import okhttp3.Headers;
 import okhttp3.Response;
+import android.util.LruCache;
 
 public class M3U8 implements Process {
 
-    private static final Map<String, CacheItem> urlCache = new ConcurrentHashMap<>();
+    //private static final Map<String, CacheItem> urlCache = new ConcurrentHashMap<>();
+
+    private static final LruCache<String, CacheItem> urlCache = new LruCache<>(5);
     private static final long CACHE_TIME = 30 * 1000; // 30 秒快取
 
     private static class CacheItem {
@@ -55,7 +59,10 @@ public class M3U8 implements Process {
         // 檢查 URL 快取
         CacheItem cached = urlCache.get(targetUrl);
         if (cached != null && !cached.isExpired()) {
-            return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", cached.content);
+            Log.d("M3U8Proxy", "🛡️ Cache found:\n-----------\n" + cached.content.substring(0, 200) + "\n------------\n");
+
+            //return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", cached.content);
+            return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", cached.content);
         }
 
         String proxyUrlPrefix = Server.get().getAddress("/m3u8?url=");
@@ -67,6 +74,22 @@ public class M3U8 implements Process {
                 if (key.equalsIgnoreCase("host") || key.equalsIgnoreCase("connection") || key.equalsIgnoreCase("remote-addr")) continue;
                 headersBuilder.add(key, entry.getValue());
             }
+
+            // 2. 🚀 萬能魔改大招：動態繼承爬蟲吐回來的專屬破防 Headers！
+            PlayerManager player = Server.get().getPlayer();
+            Map<String, String> spiderHeaders = player != null ? player.getHeaders() : null;
+            if (spiderHeaders != null && !spiderHeaders.isEmpty()) {
+                for (Map.Entry<String, String> entry : spiderHeaders.entrySet()) {
+                    headersBuilder.set(entry.getKey(), entry.getValue());
+                }
+                Log.d("M3U8Proxy", "🛡️ 成功動態繼承外部爬蟲的防盜鏈專屬標頭！");
+            }
+
+            // 確保 User-Agent 存在
+            if (headersBuilder.build().get("User-Agent") == null) {
+                headersBuilder.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            }
+
 
             try (Response response = OkHttp.newCall(targetUrl, headersBuilder.build()).execute()) {
                 if (!response.isSuccessful()) return Nano.error("HTTP " + response.code());
@@ -106,9 +129,20 @@ public class M3U8 implements Process {
                 }
 
                 if (result.length() == 0) return Nano.error("Filtered m3u8 is empty");
+
+
                 String finalM3u8 = result.toString();
+
+                // 🚀 核心偵錯 Hook：在回傳前，把過濾後的內容前 200 個字列印出來看
+                if (finalM3u8.length() > 200) {
+                    Log.e("M3U8Proxy_DEBUG", "📥 吐給播放器的開頭內容是: \n" + finalM3u8.substring(0, 200));
+                } else {
+                    Log.e("M3U8Proxy_DEBUG", "📥 吐給播放器的內容（過短）: \n" + finalM3u8);
+                }
+
                 urlCache.put(targetUrl, new CacheItem(finalM3u8));
-                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", finalM3u8);
+                //return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", finalM3u8);
+                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", finalM3u8);
             }
 
         } catch (Exception e) {

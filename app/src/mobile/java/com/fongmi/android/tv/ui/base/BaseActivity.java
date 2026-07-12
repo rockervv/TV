@@ -63,7 +63,11 @@ public abstract class BaseActivity extends AppCompatActivity {
         return false;
     }
 
+    protected void initView() {
+    }
+
     protected void initView(Bundle savedInstanceState) {
+        initView();
     }
 
     protected void initEvent() {

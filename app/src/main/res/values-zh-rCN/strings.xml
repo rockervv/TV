@@ -31,8 +31,14 @@
     <string name="play">播放</string>
     <string name="play_op">片头</string>
     <string name="play_ed">片尾</string>
+    <string name="play_exo">EXO</string>
+    <string name="play_mpv">MPV</string>
+    <string name="play_other">其它</string>
     <string name="play_next">下集</string>
     <string name="play_prev">上集</string>
+    <string name="play_stop">停止</string>
+    <string name="play_repeat">循环</string>
+    <string name="play_reset">重播</string>
     <string name="play_episodes">选集</string>
     <string name="play_loop">循环</string>
     <string name="play_timer">定时</string>
@@ -41,7 +47,7 @@
     <string name="play_duration">进度</string>
     <string name="play_mini_progress">迷你</string>
     <string name="play_video_title">标题</string>
-    <string name="play_danmu">弹幕</string>
+
     <string name="play_display">屏显</string>
     <string name="play_speed">倍速</string>
     <string name="play_change">换源</string>
@@ -76,7 +82,7 @@
     <string name="setting_live">直播</string>
     <string name="setting_wall">壁纸</string>
     <string name="setting_player">播放设置</string>
-    <string name="setting_danmu">弹幕设置</string>
+
     <string name="setting_custom">个性设置</string>
     <string name="setting_config_cache">接口缓存</string>
     <string name="setting_cache_dir">迅雷缓存</string>
@@ -104,23 +110,21 @@
     <string name="setting_restore">恢复</string>
     <string name="setting_version">版本</string>
     <string name="setting_about">关于</string>
+    <string name="setting_netflix">启用遥控器 Netflix 快捷键</string>
     <string name="setting_storage">权限</string>
     <string name="setting_off">关闭</string>
     <string name="setting_on">开启</string>
 
     <!-- Player -->
     <string name="player">播放核心</string>
+    <string name="player_engine">播放引擎</string>
+    <string name="player_debug">调试</string>
     <string name="player_decode">解码方式</string>
     <string name="player_render">渲染方式</string>
     <string name="player_scale">缩放比例</string>
     <string name="player_caption">字幕样式</string>
     <string name="player_play_with_others">同时播放</string>
-    <string name="player_danmu_load">弹幕加载</string>
-    <string name="player_danmu_speed">弹幕速度</string>
-    <string name="player_danmu_size">弹幕大小</string>
-    <string name="player_danmu_line">弹幕行数</string>
-    <string name="player_danmu_alpha">弹幕透明</string>
-    <string name="player_danmu_sync">弹幕同步</string>
+
     <string name="player_background">后台播放</string>
     <string name="player_flag">线路播放</string>
     <string name="player_episode">选集样式</string>
@@ -168,12 +172,6 @@
     <string name="update_check">正在检测更新…</string>
     <string name="update_confirm">更新</string>
 
-    <!-- X5 WebView -->
-    <string name="x5webview_title">X5 WebView</string>
-    <string name="x5webview_download_enable">解压X5 WebView并启用?</string>
-    <string name="x5webview_enabled">X5 WebView已启用</string>
-    <string name="x5webview_parsing">X5 WebView嗅探中</string>
-
     <!-- Crash -->
     <string name="crash_info">发生意外错误\n抱歉给您带来不便</string>
     <string name="crash_restart">重新启动</string>
@@ -203,16 +201,10 @@
 
     <string-array name="select_player">
         <item>系统</item>
-        <item>IJK</item>
         <item>EXO</item>
     </string-array>
 
-    <string-array name="select_danmu_speed">
-        <item>超慢</item>
-        <item>慢</item>
-        <item>适中</item>
-        <item>快</item>
-    </string-array>
+
 
     <string-array name="select_quality">
         <item>低</item>

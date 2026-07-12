@@ -1,30 +1,26 @@
 plugins {
-    id 'com.android.library'
+    alias libs.plugins.android.library
 }
 
 android {
     namespace 'com.fongmi.quickjs'
-
-    compileSdk 35
+    compileSdk libs.versions.compileSdk.get().toInteger()
 
     defaultConfig {
-        minSdk 21
-        targetSdk 28
+        minSdk libs.versions.minSdk.get().toInteger()
+        targetSdk libs.versions.targetSdk.get().toInteger()
     }
 
-    lint {
-        disable 'UnsafeOptInUsageError'
-    }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
 }
 
 dependencies {
     implementation project(':catvod')
-    implementation 'org.jsoup:jsoup:' + jsoupVersion
-    implementation 'net.sourceforge.streamsupport:android-retrofuture:1.7.4'
-    implementation(ext: 'jar', name: 'wrapper-java', group: 'fongmi', version: 'release')
-    implementation(ext: 'aar', name: 'wrapper-android-release', group: 'fongmi', version: 'release')
+    implementation libs.quickjs.android
+    implementation libs.quickjs.java
+    coreLibraryDesugaring libs.desugar
 }

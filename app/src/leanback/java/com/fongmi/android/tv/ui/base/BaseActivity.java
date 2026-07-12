@@ -40,7 +40,7 @@ public abstract class BaseActivity extends AppCompatActivity {
         EventBus.getDefault().register(this);
         Util.hideSystemUI(this);
         setBackCallback();
-        initView();
+        initView(savedInstanceState);
         initEvent();
     }
 
@@ -63,6 +63,10 @@ public abstract class BaseActivity extends AppCompatActivity {
     }
 
     protected void initView() {
+    }
+
+    protected void initView(Bundle savedInstanceState) {
+        initView();
     }
 
     protected void initEvent() {

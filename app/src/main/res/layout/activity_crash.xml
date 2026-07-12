@@ -23,6 +23,23 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_margin="16dp"
+        android:layout_weight="1"
+        android:background="#20000000"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/error"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/grey_400"
+            android:textSize="12sp"
+            android:fontFamily="monospace" />
+    </androidx.core.widget.NestedScrollView>
+
     <Button
         android:id="@+id/restart"
         android:layout_width="wrap_content"

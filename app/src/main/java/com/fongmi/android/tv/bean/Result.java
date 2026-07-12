@@ -64,12 +64,16 @@ public class Result implements Parcelable {
     private String jxFrom;
     @SerializedName("flag")
     private String flag;
-    @SerializedName("danmaku")
-    private String danmaku;
     @SerializedName("format")
     private String format;
     @SerializedName("click")
     private String click;
+    @SerializedName("desc")
+    private String desc;
+    @SerializedName("artwork")
+    private String artwork;
+    @SerializedName("position")
+    private Long position;
     @SerializedName("js")
     private String js;
     @SerializedName("key")
@@ -226,14 +230,6 @@ public class Result implements Parcelable {
         this.flag = flag;
     }
 
-    public String getDanmaku() {
-        return TextUtils.isEmpty(danmaku) ? "" : danmaku;
-    }
-
-    public void setDanmaku(String danmaku) {
-        this.danmaku = danmaku;
-    }
-
     public String getFormat() {
         return format;
     }
@@ -288,6 +284,42 @@ public class Result implements Parcelable {
 
     public Drm getDrm() {
         return drm;
+    }
+
+    public void setDrm(Drm drm) {
+        this.drm = drm;
+    }
+
+    public Vod getVod() {
+        return getList().isEmpty() ? new Vod() : getList().get(0);
+    }
+
+    public String getDesc() {
+        return TextUtils.isEmpty(desc) ? "" : desc;
+    }
+
+    public String getArtwork() {
+        return TextUtils.isEmpty(artwork) ? "" : artwork;
+    }
+
+    public Long getPosition() {
+        return position;
+    }
+
+    public boolean hasDesc() {
+        return !getDesc().isEmpty();
+    }
+
+    public boolean hasArtwork() {
+        return !getArtwork().isEmpty();
+    }
+
+    public boolean hasPosition() {
+        return getPosition() != null;
+    }
+
+    public boolean isUseParse() {
+        return getJx() == 1 || getParse() == 1;
     }
 
     public boolean hasMsg() {

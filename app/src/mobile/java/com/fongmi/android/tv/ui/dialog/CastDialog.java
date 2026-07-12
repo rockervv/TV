@@ -36,8 +36,8 @@ import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Util;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 
-import org.fourthline.cling.support.lastchange.EventedValue;
-import org.fourthline.cling.support.model.TransportState;
+import org.jupnp.support.lastchange.EventedValue;
+import org.jupnp.support.model.TransportState;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
@@ -162,22 +162,22 @@ public class CastDialog extends BaseDialog implements DeviceAdapter.OnClickListe
     }
 
     @Override
-    public void onDeviceAdded(@NonNull org.fourthline.cling.model.meta.Device<?, ?, ?> device) {
+    public void onDeviceAdded(@NonNull org.jupnp.model.meta.Device<?, ?, ?> device) {
         adapter.addAll(DLNADevice.get().add(device));
     }
 
     @Override
-    public void onDeviceRemoved(@NonNull org.fourthline.cling.model.meta.Device<?, ?, ?> device) {
+    public void onDeviceRemoved(@NonNull org.jupnp.model.meta.Device<?, ?, ?> device) {
         adapter.remove(DLNADevice.get().remove(device));
     }
 
     @Override
-    public void onConnected(@NonNull org.fourthline.cling.model.meta.Device<?, ?, ?> device) {
+    public void onConnected(@NonNull org.jupnp.model.meta.Device<?, ?, ?> device) {
         control.setAVTransportURI(video.getUrl(), video.getName(), this);
     }
 
     @Override
-    public void onDisconnected(@NonNull org.fourthline.cling.model.meta.Device<?, ?, ?> device) {
+    public void onDisconnected(@NonNull org.jupnp.model.meta.Device<?, ?, ?> device) {
         Notify.show(R.string.device_offline);
     }
 

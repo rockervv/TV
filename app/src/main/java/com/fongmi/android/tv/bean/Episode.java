@@ -113,6 +113,10 @@ public class Episode implements Parcelable {
         return rule1(episode.getName());
     }
 
+    public boolean matchesName(Episode episode) {
+        return episode != null && getName().equals(episode.getName());
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;

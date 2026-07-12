@@ -15,7 +15,7 @@ import androidx.annotation.Nullable;
 import androidx.core.os.HandlerCompat;
 
 import com.fongmi.android.tv.api.config.LiveConfig;
-import com.fongmi.android.tv.player.ADFilter;
+import com.fongmi.android.tv.player.util.ADFilter;
 import com.fongmi.android.tv.ui.activity.CrashActivity;
 import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.utils.LanguageUtil;
@@ -41,8 +41,8 @@ public class App extends Application {
         System.setProperty("java.net.preferIPv6Addresses", "false");
         System.setProperty("net.java.preferIPv4Stack", "true");
         System.setProperty("net.java.preferIPv6Addresses", "false");
-        System.setProperty("org.fourthline.cling.network.useIPv4Names", "true");
-        System.setProperty("org.fourthline.cling.network.useIPv6Names", "false");
+        System.setProperty("org.jupnp.network.useIPv4Names", "true");
+        System.setProperty("org.jupnp.network.useIPv6Names", "false");
     }
 
     private final ExecutorService executor;
@@ -135,8 +135,9 @@ public class App extends Application {
         HistorySyncManager.SyncAll();
         //new SyncTask().execute();
 
-        CaocConfig.Builder.create().backgroundMode(CaocConfig.BACKGROUND_MODE_SILENT).errorActivity(CrashActivity.class).apply();
+        CaocConfig.Builder.create().backgroundMode(CaocConfig.BACKGROUND_MODE_SHOW_CUSTOM).errorActivity(CrashActivity.class).apply();
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
+
             @Override
             public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
                 if (activity != activity()) setActivity(activity);
@@ -172,6 +173,43 @@ public class App extends Application {
             }
         });
 
+        ADFilter.initListener();
+
+        // 🚀 終極魔改大招：App 自我迴環網路廣播喚醒 (繞過 Android 14 背景 CEC 限制)
+        execute(() -> {
+            try {
+                // 延遲 1 秒執行，確保 App 網路元件已完全就緒
+                Thread.sleep(1000);
+
+                // 1. 建立標準的 SSDP (UPnP/DLNA 喚醒) M-SEARCH 廣播字串
+                String ssdpPacket = "M-SEARCH * HTTP/1.1\r\n" +
+                        "HOST: 239.255.255.250:1900\r\n" +
+                        "MAN: \"ssdp:discover\"\r\n" +
+                        "MX: 1\r\n" +
+                        "ST: urn:schemas-upnp-org:device:MediaRenderer:1\r\n\r\n";
+
+                byte[] sendData = ssdpPacket.getBytes();
+
+                // 2. 對本地迴環地址 (127.0.0.1) 與 標準 UPnP 廣播地址發射魔術包
+                java.net.DatagramSocket socket = new java.net.DatagramSocket();
+                socket.setBroadcast(true);
+
+                // 向自己發射，強迫系統網路層喚醒硬體
+                java.net.DatagramPacket localPacket = new java.net.DatagramPacket(sendData, sendData.length, java.net.InetAddress.getByName("127.0.0.1"), 1900);
+                socket.send(localPacket);
+
+                // 同步向同網域群播發射，雙重保險
+                java.net.DatagramPacket multicastPacket = new java.net.DatagramPacket(sendData, sendData.length, java.net.InetAddress.getByName("239.255.255.250"), 1900);
+                socket.send(multicastPacket);
+
+                socket.close();
+                android.util.Log.e("App", "🛡️ [Self-Loopback] App 已成功向自己發射網路喚醒魔術包，強制逼迫系統發動實體 CEC！");
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        });
+
+/**
         ADFilter.setM3U8ParseListener(new ADFilter.M3U8ParseListener() {
             private int lastCount = 0;
             private double lastSeconds = 0;
@@ -199,15 +237,18 @@ public class App extends Application {
                 });
             }
         });
-
+ **/
     }
+
 
     private void setupExceptionHandler() {
         Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
             if (isSpiderError(e)) {
                 Log.e("SpiderWatcher", "Intercepted external spider error on thread [" + t.getName() + "]: " + e.getMessage());
-            } else if (defaultHandler != null) {
+            } else if (defaultHandler != null && !defaultHandler.getClass().getName().startsWith("cat.ereza.customactivityoncrash")) {
+                // 如果是 spider error，我們自己吞掉不崩潰
+                // 如果不是，交給系統或是 Caoc 處理
                 defaultHandler.uncaughtException(t, e);
             }
         });
@@ -227,12 +268,14 @@ public class App extends Application {
 
     @Override
     public PackageManager getPackageManager() {
+        if (com.fongmi.hook.Chromium.find()) return getBaseContext().getPackageManager();
         if (!hook) return getBaseContext().getPackageManager();
-        return LiveConfig.get().getHome().getCore();
+        return LiveConfig.get().getHome().getCore().getHook();
     }
 
     @Override
     public String getPackageName() {
+        if (com.fongmi.hook.Chromium.find()) return getBaseContext().getPackageName();
         if (!hook) return getBaseContext().getPackageName();
         return LiveConfig.get().getHome().getCore().getPkg();
     }

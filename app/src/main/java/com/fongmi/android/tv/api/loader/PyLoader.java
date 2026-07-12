@@ -4,76 +4,50 @@ import android.content.Context;
 import android.util.Log;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.bean.Site;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderNull;
 
 import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class PyLoader {
 
-    private final ConcurrentHashMap<String, Spider> spiders;
+    private Method method;
     private Object loader;
-    private String recent;
 
     public PyLoader() {
-        spiders = new ConcurrentHashMap<>();
         init();
     }
 
     public void clear() {
-        for (Spider spider : spiders.values()) App.execute(spider::destroy);
-        spiders.clear();
-    }
-
-    public void setRecent(String recent) {
-        this.recent = recent;
+        this.loader = null;
+        this.method = null;
     }
 
     private void init() {
         try {
-            loader = Class.forName("com.undcover.freedom.pyramid.Loader").newInstance();
-            Log.d("PyLoader", "Loader instance created: " + loader.getClass().getName());
+            loader = Class.forName("com.fongmi.chaquo.Loader").newInstance();
+            method = loader.getClass().getMethod("spider", String.class);
         } catch (Throwable e) {
             Log.e("PyLoader", "Failed to create Loader instance", e);
-            loader = null;
-
         }
     }
 
     public Spider getSpider(String key, String api, String ext) {
         try {
-            if (loader == null) {
-                Log.e("PyLoader", "Loader is null, cannot get spider: " + api);
-                return new SpiderNull();
+            if (loader == null) return new SpiderNull();
+            Spider spider = (Spider) method.invoke(loader, api);
+            if (android.text.TextUtils.isEmpty(ext) || ext.equals("{}")) {
+                Log.d("PyLoader", "getSpider with empty set:" + api);
+                spider.init(App.get());
             }
-
-            if (spiders.containsKey(key)) return spiders.get(key);
-            Method method = loader.getClass().getMethod("spider", Context.class, String.class);
-            Spider spider = (Spider) method.invoke(loader, App.get(), api);
-            Objects.requireNonNull(spider).init(App.get(), ext);
-            spiders.put(key, spider);
-            Site site = Site.find(key);
-            if (site != null) site.resetFailures();
+            else {
+                spider.init(App.get(), ext);
+                Log.d("PyLoader", "getSpider :[" + api + "] ext [" + ext + "]");
+            }
             return spider;
         } catch (Throwable e) {
             Log.e("PyLoader", "getSpider failed for key: " + key + " api: " + api, e);
-            Site site = Site.find(key);
-            if (site != null) site.setBlacklist();
             return new SpiderNull();
-        }
-    }
-
-    public Object[] proxyInvoke(Map<String, String> params) {
-        try {
-            if (!params.containsKey("siteKey")) return Objects.requireNonNull(spiders.get(recent)).proxyLocal(params);
-            return BaseLoader.get().getSpider(params).proxyLocal(params);
-        } catch (Throwable e) {
-            Log.e("PyLoader", "proxyInvoke failed", e);
-            return null;
         }
     }
 }

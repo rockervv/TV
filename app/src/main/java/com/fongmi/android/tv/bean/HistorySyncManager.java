@@ -117,6 +117,13 @@ public class HistorySyncManager {
             List<History> sqliteItems = AppDatabase.get().getHistoryDao().getAllForSync();
             List<History> newMergedItems = History.syncLists(sqliteItems, remoteItems);
 
+            boolean enable_debug = false;
+            if (enable_debug) {
+                for (History item : newMergedItems) {
+                    Log.d("HistorySync", "Synced item: " + item.getVodName() + ", Pic: " + item.getVodPic());
+                }
+            }
+
             History.sync(newMergedItems);
 
             JSONObject newJson = new JSONObject();

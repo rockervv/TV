@@ -1,12 +1,12 @@
 package com.fongmi.android.tv.player.extractor;
 
-import com.fongmi.android.tv.player.Source;
+import android.net.Uri;
 
 public class Video implements Source.Extractor {
 
     @Override
-    public boolean match(String scheme, String host) {
-        return "video".equals(scheme);
+    public boolean match(Uri uri) {
+        return "video".equals(uri.getScheme());
     }
 
     @Override

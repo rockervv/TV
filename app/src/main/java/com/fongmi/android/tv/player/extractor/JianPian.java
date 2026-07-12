@@ -1,53 +1,64 @@
 package com.fongmi.android.tv.player.extractor;
 
 import android.net.Uri;
-
-import com.fongmi.android.tv.player.Source;
+import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.utils.Path;
 import com.p2p.P2PClass;
-
+import java.io.File;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 
 public class JianPian implements Source.Extractor {
 
     private P2PClass p2p;
     private String path;
-    private Map<String, Boolean> pathPaused;
 
     @Override
-    public boolean match(String scheme, String host) {
-        return "tvbox-xg".equals(scheme) || "jianpian".equals(scheme) || "ftp".equals(scheme);
+    public boolean match(Uri uri) {
+        return Arrays.asList("tvbox-xg", "jianpian", "ftp").contains(uri.getScheme());
     }
 
     private void init() {
         if (p2p == null) p2p = new P2PClass();
-        if (pathPaused == null) pathPaused = new HashMap<>();
     }
 
     @Override
     public String fetch(String url) throws Exception {
         init();
         stop();
+        check();
         start(url);
-        return "http://127.0.0.1:" + p2p.port + "/" + URLEncoder.encode(Uri.parse(path).getLastPathSegment(), "GBK");
+        return "http://127.0.0.1:" + p2p.port + "/" + URLEncoder.encode(UrlUtil.path(path), "GBK");
+    }
+
+    private void check() {
+        File jpa = Path.jpa();
+        double cache = getFolderSize(jpa);
+        double total = cache + jpa.getUsableSpace();
+        int percent = (int) (cache / total * 100);
+        if (percent > 10) Path.clear(jpa);
+    }
+
+    private long getFolderSize(File file) {
+        long size = 0;
+        if (file == null) return 0;
+        if (file.isDirectory()) {
+            File[] files = file.listFiles();
+            if (files != null) for (File f : files) size += getFolderSize(f);
+        } else {
+            size = file.length();
+        }
+        return size;
     }
 
     private void start(String url) {
         try {
-            String lastPath = path;
             path = URLDecoder.decode(url).split("\\|")[0];
             path = path.replace("jianpian://pathtype=url&path=", "");
             path = path.replace("tvbox-xg://", "").replace("tvbox-xg:", "");
             path = path.replace("xg://", "ftp://").replace("xgplay://", "ftp://");
-            boolean isDiff = lastPath != null && !lastPath.equals(path);
-            if (isDiff) p2p.P2Pdoxdel(lastPath.getBytes("GBK"));
             p2p.P2Pdoxstart(path.getBytes("GBK"));
-            if (lastPath == null || isDiff) p2p.P2Pdoxadd(path.getBytes("GBK"));
-            if (isDiff && pathPaused.containsKey(lastPath)) pathPaused.remove(lastPath);
-            pathPaused.put(path, false);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -57,16 +68,15 @@ public class JianPian implements Source.Extractor {
     public void stop() {
         try {
             if (p2p == null || path == null) return;
-            if (pathPaused.containsKey(path) && pathPaused.get(path)) return;
             p2p.P2Pdoxpause(path.getBytes("GBK"));
-            pathPaused.put(path, true);
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            path = null;
         }
     }
 
     @Override
     public void exit() {
-        Path.clear(Path.jpa());
     }
 }

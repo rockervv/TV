@@ -1,8 +1,10 @@
 package com.fongmi.android.tv.bean;
 
+import android.net.Uri;
 import android.text.TextUtils;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.utils.UrlUtil;
 import com.google.gson.JsonElement;
 import com.google.gson.annotations.SerializedName;
 
@@ -34,6 +36,10 @@ public class Url {
 
     public int getPosition() {
         return position;
+    }
+
+    public Uri uri() {
+        return UrlUtil.uri(v());
     }
 
     public String v() {

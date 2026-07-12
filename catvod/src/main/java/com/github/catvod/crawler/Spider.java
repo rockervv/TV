@@ -17,6 +17,7 @@ public abstract class Spider {
     }
 
     public void init(Context context, String extend) throws Exception {
+        if (android.text.TextUtils.isEmpty(extend) || extend.equals("{}")) return;
         init(context);
     }
 

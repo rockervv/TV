@@ -99,8 +99,7 @@ public class Action implements Process {
     private void onFile(Map<String, String> params) {
         String path = params.get("path");
         if (TextUtils.isEmpty(path)) return;
-        if (path.endsWith(".xml")) RefreshEvent.danmaku(path);
-        else if (path.endsWith(".apk")) FileUtil.openFile(Path.local(path));
+        if (path.endsWith(".apk")) FileUtil.openFile(Path.local(path));
         else if (path.endsWith(".srt") || path.endsWith(".ssa") || path.endsWith(".ass")) RefreshEvent.subtitle(path);
         else ServerEvent.setting(path);
     }
@@ -112,7 +111,6 @@ public class Action implements Process {
         if ("live".equals(type)) RefreshEvent.live();
         else if ("detail".equals(type)) RefreshEvent.detail();
         else if ("player".equals(type)) RefreshEvent.player();
-        else if ("danmaku".equals(type)) RefreshEvent.danmaku(path);
         else if ("subtitle".equals(type)) RefreshEvent.subtitle(path);
     }
 

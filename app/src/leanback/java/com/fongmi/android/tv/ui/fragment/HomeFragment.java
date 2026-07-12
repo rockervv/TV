@@ -174,6 +174,7 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
     }
 
     public void getHistory(boolean renew) {
+        if (mAdapter == null) return; // 🛡️ 安全防護：若適配器未初始化則跳過
         int historyIndex = getHistoryIndex();
         int recommendIndex = getRecommendIndex();
         if (historyIndex == -1) {
@@ -209,39 +210,34 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
     }
 
     private int getHistoryIndex() {
+        if (mAdapter == null) return -1;
         for (int i = 0; i < mAdapter.size(); i++) if (mAdapter.get(i).equals(R.string.home_history)) return i + 1;
         return -1;
     }
 
     private int getRecommendIndex() {
+        if (mAdapter == null) return -1;
         for (int i = 0; i < mAdapter.size(); i++) if (mAdapter.get(i).equals(R.string.home_recommend)) return i + 1;
         return -1;
     }
 
     @Override
     public void onItemClick(Func item) {
-        switch (item.getResId()) {
-            case R.string.home_history_short:
-                HistoryActivity.start(getActivity());
-                break;
-            case R.string.home_vod:
-                VodActivity.start(getActivity(), getHomeActicity().mResult.clear());
-                break;
-            case R.string.home_live:
-                LiveActivity.start(getActivity());
-                break;
-            case R.string.home_search:
-                SearchActivity.start(getActivity());
-                break;
-            case R.string.home_keep:
-                KeepActivity.start(getActivity());
-                break;
-            case R.string.home_push:
-                PushActivity.start(getActivity());
-                break;
-            case R.string.home_setting:
-                SettingActivity.start(getActivity());
-                break;
+        int resId = item.getResId();
+        if (resId == R.string.home_history_short) {
+            HistoryActivity.start(getActivity());
+        } else if (resId == R.string.home_vod) {
+            VodActivity.start(getActivity(), getHomeActicity().mResult.clear());
+        } else if (resId == R.string.home_live) {
+            LiveActivity.start(getActivity());
+        } else if (resId == R.string.home_search) {
+            SearchActivity.start(getActivity());
+        } else if (resId == R.string.home_keep) {
+            KeepActivity.start(getActivity());
+        } else if (resId == R.string.home_push) {
+            PushActivity.start(getActivity());
+        } else if (resId == R.string.home_setting) {
+            SettingActivity.start(getActivity());
         }
     }
 
@@ -270,7 +266,7 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
 
     @Override
     public void onItemClick(Vod item) {
-        if (getHome().isIndexs()) CollectActivity.start(getActivity(), item.getVodName());
+        if (getHome().isIndex()) CollectActivity.start(getActivity(), item.getVodName());
         else VideoActivity.start(getActivity(), item.getVodId(), item.getVodName(), item.getVodPic());
     }
 

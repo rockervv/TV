@@ -60,13 +60,7 @@ import com.fongmi.android.tv.event.CastEvent;
 import com.fongmi.android.tv.event.ErrorEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.model.SiteViewModel;
-import com.fongmi.android.tv.player.IjkUtil;
-import com.fongmi.android.tv.ui.dialog.PlayerDialog;
-import com.fongmi.android.tv.ui.dialog.SubtitleDialog;
-import com.fongmi.android.tv.utils.Downloader;
-import com.fongmi.android.tv.player.exo.ExoUtil;
 import com.fongmi.android.tv.player.Players;
-import com.fongmi.android.tv.player.danmu.Parser;
 import com.fongmi.android.tv.utils.Timer;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.ui.adapter.EpisodeAdapter;
@@ -78,10 +72,10 @@ import com.fongmi.android.tv.ui.base.BaseVideoActivity;
 import com.fongmi.android.tv.ui.base.ViewType;
 import com.fongmi.android.tv.ui.custom.CustomKeyDownVod;
 import com.fongmi.android.tv.ui.custom.CustomMovement;
+import com.fongmi.android.tv.ui.custom.CustomSeekView;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
 import com.fongmi.android.tv.ui.dialog.CastDialog;
 import com.fongmi.android.tv.ui.dialog.ControlDialog;
-import com.fongmi.android.tv.ui.dialog.DanmuDialog;
 import com.fongmi.android.tv.ui.dialog.EpisodeGridDialog;
 import com.fongmi.android.tv.ui.dialog.EpisodeListDialog;
 import com.fongmi.android.tv.ui.dialog.InfoDialog;
@@ -99,6 +93,7 @@ import com.fongmi.android.tv.utils.Traffic;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.fongmi.android.tv.utils.Util;
 import com.github.bassaer.library.MDColor;
+import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Trans;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.permissionx.guolindev.PermissionX;
@@ -107,6 +102,7 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -115,10 +111,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
-
-import master.flame.danmaku.danmaku.model.BaseDanmaku;
-import master.flame.danmaku.danmaku.model.IDisplayer;
-import tv.danmaku.ijk.media.player.ui.IjkVideoView;
 
 public class VideoActivity extends BaseVideoActivity implements ControlDialog.Listener, FlagAdapter.OnClickListener, EpisodeAdapter.OnClickListener, QualityAdapter.OnClickListener, QuickAdapter.OnClickListener, ParseAdapter.OnClickListener, CastDialog.Listener, InfoDialog.Listener {
 
@@ -197,14 +189,29 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
         return mBinding.exo;
     }
 
-    private IjkVideoView getIjk() {
-        return mBinding.ijk;
+    @Override
+    protected PlaybackService.NavigationCallback getNavigationCallback() {
+        return null;
+    }
+
+    @Override
+    protected PlayerView getPlayerView() {
+        return getExo();
+    }
+
+    @Override
+    protected CustomSeekView getSeekView() {
+        return mBinding.control.seek;
+    }
+
+    @Override
+    protected String getPlaybackKey() {
+        return getHistoryKey();
     }
 
     @Override
     protected Drawable getDefaultArtwork() {
-        if (mPlayers.isExo()) return getExo().getDefaultArtwork();
-        return getIjk().getDefaultArtwork();
+        return getExo().getDefaultArtwork();
     }
 
     private boolean isFromCollect() {
@@ -253,7 +260,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
     protected void initView() {
         mKeyDown = CustomKeyDownVod.create(this, mBinding.video);
         mFrameParams = mBinding.video.getLayoutParams();
-        mDanmakuContext = master.flame.danmaku.danmaku.model.android.DanmakuContext.create();
         mBinding.progressLayout.showProgress();
         mBinding.swipeLayout.setEnabled(false);
         mObserveDetail = this::setDetail;
@@ -274,7 +280,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
         setRecyclerView();
         setVideoView();
         setDisplayView();
-        setDanmuView();
         setViewModel();
         showProgress();
         checkId();
@@ -295,8 +300,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
         mBinding.control.info.setOnClickListener(view -> onInfo());
         mBinding.control.full.setOnClickListener(view -> onFull());
         mBinding.control.keep.setOnClickListener(view -> onKeep());
-        mBinding.control.danmu.setOnClickListener(view -> onDanmu());
-        mBinding.control.danmuSetting.setOnClickListener(view -> onDanmuSetting());
         mBinding.control.play.setOnClickListener(view -> checkPlay());
         mBinding.control.next.setOnClickListener(view -> checkNext());
         mBinding.control.prev.setOnClickListener(view -> checkPrev());
@@ -352,12 +355,10 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
 
     @Override
     protected void setPlayerView() {
-        getIjk().setPlayer(mPlayers.getPlayer());
         mBinding.control.action.player.setText(mPlayers.getPlayerText());
         mBinding.control.action.speed.setEnabled(mPlayers.canAdjustSpeed());
         mBinding.control.action.speed.setText(mPlayers.setSpeed(mHistory.getSpeed()));
-        getExo().setVisibility(mPlayers.isExo() ? View.VISIBLE : View.GONE);
-        getIjk().setVisibility(mPlayers.isIjk() ? View.VISIBLE : View.GONE);
+        getExo().setVisibility(View.VISIBLE);
         if (mControlDialog != null && mControlDialog.isVisible()) mControlDialog.updatePlayer();
     }
 
@@ -368,41 +369,11 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
     }
 
     private void setVideoView() {
-        mPlayers.init(getExo(), getIjk());
+        mPlayers.init(getExo());
         ExoUtil.setSubtitleView(mBinding.exo);
-        IjkUtil.setSubtitleView(mBinding.ijk);
         if (isPort() && ResUtil.isLand(this)) enterFullscreen();
         mBinding.control.action.reset.setText(ResUtil.getStringArray(R.array.select_reset)[Setting.getReset()]);
         mBinding.video.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> mPiP.update(getActivity(), view));
-    }
-
-    private void setVideoView(boolean isInPictureInPictureMode) {
-        if (isInPictureInPictureMode) {
-            mBinding.video.setLayoutParams(new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT));
-        } else {
-            mBinding.video.setLayoutParams(mFrameParams);
-        }
-    }
-
-    public void setDanmuViewSettings() {
-        float[] range = {2.4f, 1.8f, 1.2f, 0.8f};
-        float speed = range[Setting.getDanmuSpeed()];
-        float alpha = Setting.getDanmuAlpha() / 100.0f;
-        float sizeScale = Setting.getDanmuSize();
-        int maxLine = Setting.getDanmuLine(2);
-        HashMap<Integer, Integer> maxLines = new HashMap<>();
-        maxLines.put(BaseDanmaku.TYPE_FIX_TOP, maxLine);
-        maxLines.put(BaseDanmaku.TYPE_SCROLL_RL, maxLine);
-        maxLines.put(BaseDanmaku.TYPE_SCROLL_LR, maxLine);
-        maxLines.put(BaseDanmaku.TYPE_FIX_BOTTOM, maxLine);
-        mDanmakuContext.setMaximumLines(maxLines).setScrollSpeedFactor(speed).setDanmakuTransparency(alpha).setScaleTextSize(sizeScale);
-    }
-
-    private void setDanmuView() {
-        mPlayers.setDanmuView(mBinding.danmaku);
-        setDanmuViewSettings();
-        mDanmakuContext.setDanmakuStyle(IDisplayer.DANMAKU_STYLE_STROKEN, 3).setDanmakuMargin(8);
-        checkDanmuImg();
     }
 
     private void setDisplayView() {
@@ -413,7 +384,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
     @Override
     protected void setScale(int scale) {
         getExo().setResizeMode(scale);
-        getIjk().setResizeMode(scale);
         mBinding.control.action.scale.setText(ResUtil.getStringArray(R.array.select_scale)[scale]);
     }
 
@@ -442,24 +412,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
 
     @Override
     protected void setPlayer(Result result) {
-        result.getUrl().set(mQualityAdapter.getPosition());
-        super.setPlayer(result);
-        if (mControlDialog != null && mControlDialog.isVisible()) mControlDialog.setParseVisible(isUseParse());
-        mBinding.control.parse.setVisibility(isFullscreen() && isUseParse() ? View.VISIBLE : View.GONE);
-        mBinding.swipeLayout.setRefreshing(false);
-        mQualityAdapter.addAll(result);
-    }
-
-    private void setDownload(Result result) {
-        Downloader.get().result(result).start(this);
-    }
-
-    @Override
-    protected void checkDanmu(String danmu) {
-        mBinding.danmaku.release();
-        if (!Setting.isDanmuLoad() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode())) return;
-        mBinding.danmaku.setVisibility(danmu.isEmpty() ? View.GONE : View.VISIBLE);
-        if (danmu.length() > 0) App.execute(() -> mBinding.danmaku.prepare(new Parser(danmu), mDanmakuContext));
     }
 
     @Override
@@ -496,7 +448,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
     public void onItemClick(Result result) {
         try {
             mPlayers.start(result, isUseParse(), getSite().isChangeable() ? getSite().getTimeout() : -1);
-            mBinding.danmaku.hide();
         } catch (Exception e) {
             ErrorEvent.extract(e.getMessage());
             e.printStackTrace();
@@ -592,6 +543,17 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
         mBinding.content.setMaxLines(mBinding.content.getMaxLines() == 2 ? Integer.MAX_VALUE : 2);
     }
 
+    private void onSave() {
+        String content = mPlayers.getM3u8Content();
+        if (content.isEmpty()) {
+            Notify.show(R.string.error_play_url);
+            return;
+        }
+        File file = new File(Path.tv(), mBinding.name.getText().toString() + ".m3u8");
+        Path.write(file, content.getBytes(StandardCharsets.UTF_8));
+        Notify.show(ResUtil.getString(R.string.play_save_success, file.getAbsolutePath()));
+    }
+
     private void onReverse() {
         mHistory.setRevSort(!mHistory.isRevSort());
         reverseEpisode(false);
@@ -627,21 +589,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
         else createKeep();
         RefreshEvent.keep();
         checkKeepImg();
-    }
-
-    private void onDanmu() {
-        Setting.putDanmu(!Setting.isDanmu());
-        checkDanmuImg();
-        showDanmu();
-    }
-
-    private void onDanmuSetting() {
-        DanmuDialog.create().show(this);
-    }
-
-    private void showDanmu() {
-        if (Setting.isDanmu()) mBinding.danmaku.show();
-        else mBinding.danmaku.hide();
     }
 
     private void checkPlay() {
@@ -750,7 +697,7 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
     @Override
     protected void onDecode(boolean save) {
         mPlayers.toggleDecode(save);
-        mPlayers.init(getExo(), getIjk());
+        mPlayers.init(getExo());
         mPlayers.setMediaSource();
         setDecodeView();
         setR1Callback();
@@ -866,7 +813,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
         App.post(() -> mBinding.video.setLayoutParams(new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT)), 50);
         setRequestedOrientation(mPlayers.isPortrait() ? ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         mBinding.control.full.setVisibility(View.GONE);
-        mDanmakuContext.setScaleTextSize(1.0f * Setting.getDanmuSize());
         setRotate(mPlayers.isPortrait(), true);
         Util.hideSystemUI(this);
         App.post(mR3, 2000);
@@ -879,7 +825,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
         mBinding.episode.scrollToPosition(mEpisodeAdapter.getPosition());
         mBinding.control.full.setVisibility(View.VISIBLE);
         mBinding.video.setLayoutParams(mFrameParams);
-        mDanmakuContext.setScaleTextSize(0.8f * Setting.getDanmuSize());
         setRotate(false, false);
         App.post(mR3, 2000);
         hideControl();
@@ -925,8 +870,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
 
     private void showControl() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode()) return;
-        mBinding.control.danmu.setVisibility(isLock() || !mBinding.danmaku.isPrepared() ? View.GONE : View.VISIBLE);
-        mBinding.control.danmuSetting.setVisibility(isLock() || !Setting.isDanmuLoad() || !isVisible(mBinding.danmaku) ? View.GONE : View.VISIBLE);
         mBinding.control.setting.setVisibility(mHistory == null || isFullscreen() ? View.GONE : View.VISIBLE);
         mBinding.control.batteryInfo.setVisibility(isFullscreen() ? View.VISIBLE : View.GONE);
         mBinding.control.right.rotate.setVisibility(isFullscreen() && !isLock() ? View.VISIBLE : View.GONE);
@@ -991,14 +934,12 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
             @Override
             public void onResourceReady(@NonNull Drawable resource, @Nullable com.bumptech.glide.request.transition.Transition<? super Drawable> transition) {
                 getExo().setDefaultArtwork(resource);
-                getIjk().setDefaultArtwork(resource);
                 showPreview(resource);
             }
 
             @Override
             public void onLoadFailed(@Nullable Drawable error) {
                 getExo().setDefaultArtwork(error);
-                getIjk().setDefaultArtwork(error);
                 hidePreview();
             }
 
@@ -1057,10 +998,6 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
         mBinding.control.right.lock.setImageResource(isLock() ? R.drawable.ic_control_lock_on : R.drawable.ic_control_lock_off);
     }
 
-    private void checkDanmuImg() {
-        mBinding.control.danmu.setImageResource(Setting.isDanmu() ? R.drawable.ic_control_danmu_on : R.drawable.ic_control_danmu_off);
-    }
-
     private void checkBatteryImg() {
         int batteryLevel = Util.batteryLevel();
         int resId = R.drawable.ic_battery_00;
@@ -1085,7 +1022,7 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
     @Override
     public void onSubtitleClick() {
         App.post(this::hideControl, 200);
-        androidx.media3.ui.SubtitleView subtitleView = mPlayers.isIjk() ? getIjk().getSubtitleView() : getExo().getSubtitleView();
+        androidx.media3.ui.SubtitleView subtitleView = getExo().getSubtitleView();
         App.post(() -> SubtitleDialog.create().view(subtitleView).full(isFullscreen()).show(this), 200);
     }
 
@@ -1532,11 +1469,9 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
         if (!isFullscreen()) setVideoView(isInPictureInPictureMode);
         if (isInPictureInPictureMode) {
             PlaybackService.start(mPlayers);
-            mBinding.danmaku.hide();
             hideControl();
             hideSheet();
         } else {
-            showDanmu();
             App.post(mR0, 1000);
             setForeground(true);
             if (isStop()) finish();

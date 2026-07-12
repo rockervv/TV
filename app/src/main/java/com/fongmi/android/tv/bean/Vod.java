@@ -106,6 +106,54 @@ public class Vod implements Parcelable {
     public Vod() {
     }
 
+    public String getId() {
+        return getVodId();
+    }
+
+    public String getName() {
+        return getVodName();
+    }
+
+    public String getPic() {
+        return getVodPic();
+    }
+
+    public String getRemarks() {
+        return getVodRemarks();
+    }
+
+    public String getYear() {
+        return getVodYear();
+    }
+
+    public String getArea() {
+        return getVodArea();
+    }
+
+    public String getDirector() {
+        return getVodDirector();
+    }
+
+    public String getActor() {
+        return getVodActor();
+    }
+
+    public String getContent() {
+        return getVodContent();
+    }
+
+    public List<Flag> getFlags() {
+        return getVodFlags();
+    }
+
+    public void setPlayUrl(String vodPlayUrl) {
+        this.vodPlayUrl = vodPlayUrl;
+    }
+
+    public void setPlayFrom(String vodPlayFrom) {
+        this.vodPlayFrom = vodPlayFrom;
+    }
+
     public String getVodId() {
         return TextUtils.isEmpty(vodId) ? "" : vodId.trim();
     }

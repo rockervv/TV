@@ -43,7 +43,7 @@ public class Device {
         return device;
     }
 
-    public static Device get(org.fourthline.cling.model.meta.Device<?, ?, ?> item) {
+    public static Device get(org.jupnp.model.meta.Device<?, ?, ?> item) {
         Device device = new Device();
         device.setUuid(item.getIdentity().getUdn().getIdentifierString());
         device.setName(item.getDetails().getFriendlyName());

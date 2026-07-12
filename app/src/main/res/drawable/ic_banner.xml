@@ -14,44 +14,44 @@
     <!-- 置中放置 Logo (256x256 縮小一點) -->
     <!-- 縮放比例約 0.5，置中座標 (320/2, 180/2) = (160, 90) -->
     <group
-        android:translateX="92"
-        android:translateY="22"
-        android:scaleX="0.5"
-        android:scaleY="0.5">
+        android:translateX="67"
+        android:translateY="-20"
+        android:scaleX="0.7"
+        android:scaleY="0.7">
 
         <!-- 1. 立方體頂面 -->
-        <path android:pathData="M118,48 Q128,43 138,48 L206,83 Q214,88 206,93 L138,128 Q128,133 118,128 L50,93 Q42,88 50,83 Z">
+        <path android:pathData="M122,68 Q128,65 134,68 L206,93 Q214,96 206,99 L134,124 Q128,127 122,124 L50,99 Q42,96 50,93 Z">
             <aapt:attr name="android:fillColor">
                 <gradient
                     android:startX="44"
-                    android:startY="84"
+                    android:startY="96"
                     android:endX="212"
-                    android:endY="92"
+                    android:endY="96"
                     android:type="linear">
-                    <item android:offset="0.0" android:color="#FF36D1DC" />
-                    <item android:offset="1.0" android:color="#FF5B86E5" />
+                    <item android:offset="0.0" android:color="#FF26C1DC" />
+                    <item android:offset="1.0" android:color="#FF4B76E5" />
                 </gradient>
             </aapt:attr>
         </path>
 
         <!-- 2. 右前側切面 -->
-        <path android:pathData="M128,133 L206,93 Q214,88 214,98 L214,170 Q214,180 206,184 L128,222 Z">
-            <aapt:attr name="android:fillColor">
+        <path android:pathData="M128,126 L206,99 Q214,96 214,106 L214,202 Q214,212 206,215 L128,242 Z">
+        <aapt:attr name="android:fillColor">
                 <gradient
                     android:startX="128"
                     android:startY="128"
                     android:endX="220"
                     android:endY="224"
                     android:type="linear">
-                    <item android:offset="0.0" android:color="#FFDCE35B" />
-                    <item android:offset="1.0" android:color="#FF96E6A1" />
+                    <item android:offset="0.0" android:color="#FFCCD34B" />
+                    <item android:offset="1.0" android:color="#FF86D691" />
                 </gradient>
             </aapt:attr>
         </path>
 
         <!-- 3. 左前側切面 -->
-        <path android:pathData="M128,133 L50,93 Q42,88 42,98 L42,170 Q42,180 50,184 L128,222 Z">
-            <aapt:attr name="android:fillColor">
+        <path android:pathData="M128,126 L50,99 Q42,96 42,106 L42,202 Q42,212 50,215 L128,242 Z">
+        <aapt:attr name="android:fillColor">
                 <gradient
                     android:startX="128"
                     android:startY="128"
@@ -74,14 +74,14 @@
         <!-- 5. 文字 R (完美置中與黃金比例修正版) -->
         <!-- 垂直主骨幹：精確置中平移，垂直總長度 48 單位 -->
         <path
-            android:pathData="M60,123 L60,167"
+            android:pathData="M60,131 L60,190"
             android:strokeColor="#FFFFFFFF"
             android:strokeWidth="8"
             android:strokeLineCap="round" />
 
         <!-- 上半部圓弧：高度 22 單位，圓弧切線斜率完美貼合 27.1 度透視 -->
         <path
-            android:pathData="M60,123 L103,146.2 C112,151.8 112,160.8 103,167.4 L70,150"
+            android:pathData="M60,131 L103,147 C112,147.0 112,168.0 103,175 L70,162"
             android:strokeColor="#FFFFFFFF"
             android:strokeWidth="8"
             android:strokeLineJoin="round"
@@ -90,7 +90,7 @@
 
         <!-- 右下斜腿：起點完美銜接中線節點，向右下方自然延展 26 單位 -->
         <path
-            android:pathData="M92,163.6 L107,189.5"
+            android:pathData="M85,172 L107,207"
             android:strokeColor="#FFFFFFFF"
             android:strokeWidth="8"
             android:strokeLineCap="round" />

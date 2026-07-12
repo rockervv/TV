@@ -1,13 +1,19 @@
 package com.fongmi.android.tv.ui.activity;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
+import android.media.AudioManager;
+import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.FocusFinder;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,7 +31,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewpager.widget.ViewPager;
 
-import com.android.cast.dlna.dmr.DLNARendererService;
+import com.fongmi.android.tv.service.DLNARendererService;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
@@ -52,7 +58,7 @@ import com.fongmi.android.tv.event.ServerEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.impl.ConfigCallback;
 import com.fongmi.android.tv.model.SiteViewModel;
-import com.fongmi.android.tv.player.Source;
+import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.custom.CustomTitleView;
@@ -68,7 +74,6 @@ import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
-import com.fongmi.android.tv.utils.Tbs;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.utils.Prefers;
 import com.github.catvod.utils.Trans;
@@ -82,6 +87,8 @@ import org.greenrobot.eventbus.ThreadMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+
 
 public class HomeActivity extends BaseActivity implements CustomTitleView.Listener, TypePresenter.OnClickListener, ConfigCallback {
 
@@ -116,11 +123,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void initView() {
-        if (Setting.isDlna()) DLNARendererService.Companion.start(this, R.drawable.ic_logo);
+        if (Setting.isDlna()) DLNARendererService.start(this);
         mClock = Clock.create(mBinding.clock).format("MM/dd HH:mm:ss");
         Updater.get().release().start(this);
         Server.get().start();
-        Tbs.init();
+        checkStoragePermission();
         setTitleView();
         setRecyclerView();
         setViewModel();
@@ -132,10 +139,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void initRemote() {
         android.util.Log.e("HomeActivity", "initRemote: isTvBox = " + com.fongmi.android.tv.utils.Util.isTvBox());
+
         if (com.fongmi.android.tv.utils.Util.isTvBox()) return;
         View remote = getLayoutInflater().inflate(R.layout.view_virtual_remote, mBinding.root, false);
         mBinding.root.addView(remote);
-        android.util.Log.e("HomeActivity", "initRemote: remote view added to root");
+        Log.e("HomeActivity", "initRemote: remote view added to root");
         View panel = remote.findViewById(R.id.remote_panel);
         View toggle = remote.findViewById(R.id.remote_toggle);
         toggle.setOnClickListener(v -> {
@@ -290,7 +298,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
-        mViewModel.result.observe(this, result -> {
+        mViewModel.getResult().observe(this, result -> {
             setTypes(mResult = result);
         });
     }
@@ -317,13 +325,15 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     public void homeContent() {
+        if (mBinding == null || getHome() == null) return;
         mResult = Result.empty();
         String title = getHome().getName();
         mBinding.title.setText(title.isEmpty() ? ResUtil.getString(R.string.app_name) : title);
         if (getHome().getKey().isEmpty()) return;
         mFocus = getCurrentFocus();
-        getHomeFragment().mBinding.progressLayout.showProgress();
-        mViewModel.homeContent();
+        HomeFragment fragment = getHomeFragment();
+        if (fragment != null && fragment.mBinding != null) fragment.mBinding.progressLayout.showProgress();
+        if (mViewModel != null) mViewModel.homeContent();
     }
 
     public void setTypes(Result result) {
@@ -546,6 +556,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onRefreshEvent(RefreshEvent event) {
         super.onRefreshEvent(event);
+        if (mBinding == null || mAdapter == null) return; // 🛡️ 安全防護
         switch (event.getType()) {
             case CONFIG:
                 setLogo();
@@ -557,7 +568,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 getHomeFragment().refreshRecommond();
                 break;
             case HISTORY:
-                getHomeFragment().getHistory();
+                HomeFragment fragment = getHomeFragment();
+                if (fragment != null) fragment.getHistory();
                 break;
             case SIZE:
                 homeContent();
@@ -706,6 +718,30 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         if (item.getFilter() != null && item.getFilter()) updateFilter(item);
         else if (getFragment().canBack()) getFragment().goBack();
         else if (!coolDown) super.onBackPressed();
+    }
+
+    private void checkStoragePermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                try {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
+                } catch (Exception e) {
+                    try {
+                        Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                        startActivity(intent);
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        } else {
+            PermissionX.init(this)
+                    .permissions(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    .request((allGranted, grantedList, deniedList) -> {
+                        // handle results
+                    });
+        }
     }
 
     @Override

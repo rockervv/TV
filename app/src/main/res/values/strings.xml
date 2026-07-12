@@ -31,8 +31,14 @@
     <string name="play">Play</string>
     <string name="play_op">OP</string>
     <string name="play_ed">ED</string>
+    <string name="play_exo">EXO</string>
+    <string name="play_mpv">MPV</string>
+    <string name="play_other">Other</string>
     <string name="play_next">Next</string>
     <string name="play_prev">Prev</string>
+    <string name="play_stop">Stop</string>
+    <string name="play_repeat">Repeat</string>
+    <string name="play_reset">Replay</string>
     <string name="play_episodes">Episodes</string>
     <string name="play_loop">Loop</string>
     <string name="play_timer">Timer</string>
@@ -41,8 +47,9 @@
     <string name="play_duration">Duration</string>
     <string name="play_mini_progress">Mini</string>
     <string name="play_video_title">Title</string>
-    <string name="play_danmu">Danmu</string>
+
     <string name="play_save">M3U8</string>
+    <string name="play_save_success">M3U8 saved to: %1$s</string>
     <string name="play_display">Display</string>
     <string name="play_speed">Speed</string>
     <string name="play_change">Change</string>
@@ -78,7 +85,7 @@
     <string name="setting_live">Live</string>
     <string name="setting_wall">Wallpaper</string>
     <string name="setting_player">Player setting</string>
-    <string name="setting_danmu">Danmu setting</string>
+
     <string name="setting_custom">Custom setting</string>
     <string name="setting_config_cache">Config cache</string>
     <string name="setting_cache_dir">Thunder cache</string>
@@ -106,6 +113,7 @@
     <string name="setting_restore">Restore</string>
     <string name="setting_version">Version</string>
     <string name="setting_about">About</string>
+    <string name="setting_netflix">Enable Remote Netflix Button</string>
     <string name="setting_storage">Permission</string>
     <string name="setting_normalize">Audio normalization</string>
     <string name="setting_off">Off</string>
@@ -113,17 +121,14 @@
 
     <!-- Player -->
     <string name="player">Player</string>
+    <string name="player_engine">Engine</string>
+    <string name="player_debug">Debug</string>
     <string name="player_decode">Decode</string>
     <string name="player_render">Render</string>
     <string name="player_scale">Scale</string>
     <string name="player_caption">Caption style</string>
     <string name="player_play_with_others">Play with others</string>
-    <string name="player_danmu_load">Danmu load</string>
-    <string name="player_danmu_speed">Danmu speed</string>
-    <string name="player_danmu_size">Danmu size</string>
-    <string name="player_danmu_line">Danmu line</string>
-    <string name="player_danmu_alpha">Danmu alpha</string>
-    <string name="player_danmu_sync">Danmu sync</string>
+
     <string name="player_background">Background play</string>
     <string name="player_flag">Flag play</string>
     <string name="player_episode">Episode style</string>
@@ -131,6 +136,25 @@
     <string name="player_exo_http">HTTP method</string>
     <string name="player_exo_buffer">Buffer time</string>
     <string name="player_rtsp">RTSP channel</string>
+    <string name="player_adblock">Remove ads</string>
+    <string name="player_speed">Press speed</string>
+    <string name="player_decode_setting">Decode setting</string>
+    <string name="player_preload_setting">Preload setting</string>
+    <string name="player_mpv_conf">mpv.conf</string>
+    <string name="player_mpv_gpu_next">gpu-next</string>
+    <string name="player_mpv_vulkan">vulkan</string>
+    <string name="player_preload">Preload</string>
+    <string name="player_preload_threads">Preload threads</string>
+    <string name="player_preload_threads_value">%1$d threads</string>
+    <string name="player_preload_size">Preload size</string>
+    <string name="player_preload_time">Preload time</string>
+    <string name="player_preload_time_value">%1$d seconds</string>
+    <string name="player_audio_pass_through">Audio passthrough</string>
+    <string name="player_audio_decode">Audio software decode</string>
+    <string name="player_video_decode">Video software decode</string>
+    <string name="player_aac_track">Prefer aac track</string>
+    <string name="player_dv7_fallback">DV7 fallback</string>
+    <string name="player_tunnel">Tunnel mode</string>
     <string name="player_ua">User-Agent</string>
 
     <!-- Search -->
@@ -161,8 +185,11 @@
     <string name="error_play_prev">It\'s the first episode!</string>
     <string name="error_play_parse">Unable to parse url</string>
     <string name="error_play_url">Unable to load url\nError code: <xliff:g name="name">%s</xliff:g></string>
+    <string name="error_play_drm">DRM not supported</string>
+    <string name="error_play_tvbus">TVBus error: <xliff:g name="name">%s</xliff:g></string>
     <string name="error_play_flag">No flag data</string>
     <string name="error_play_timeout">Timed out</string>
+    <string name="error_decode_fallback">Hardware decode failed, falling back to software</string>
     <string name="error_detail">No play data</string>
     <string name="error_empty">Not found</string>
 
@@ -170,12 +197,6 @@
     <string name="update_version">New version <xliff:g name="name">%s</xliff:g></string>
     <string name="update_check">Checking for updates…</string>
     <string name="update_confirm">Update</string>
-
-    <!-- X5 WebView -->
-    <string name="x5webview_title">X5 WebView</string>
-    <string name="x5webview_download_enable">Unzip X5 WebView and Enable?</string>
-    <string name="x5webview_enabled">X5 WebView Enabled</string>
-    <string name="x5webview_parsing">X5 WebView Parsing</string>
 
     <!-- Crash -->
     <string name="crash_info">An unexpected error occurred.\nSorry for the inconvenience.</string>
@@ -204,18 +225,17 @@
         <item>Hard</item>
     </string-array>
 
+    <string-array name="select_engine">
+        <item>EXO</item>
+        <item>MPV</item>
+    </string-array>
+
     <string-array name="select_player">
         <item>System</item>
-        <item>IJK</item>
         <item>EXO</item>
     </string-array>
 
-    <string-array name="select_danmu_speed">
-        <item>Super slow</item>
-        <item>Slow</item>
-        <item>Moderate</item>
-        <item>Fast</item>
-    </string-array>
+
 
     <string-array name="select_render">
         <item>Surface</item>

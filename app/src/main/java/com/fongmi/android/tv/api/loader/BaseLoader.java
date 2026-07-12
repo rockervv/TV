@@ -2,6 +2,7 @@ package com.fongmi.android.tv.api.loader;
 
 import android.util.Log;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Live;
@@ -17,12 +18,18 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import dalvik.system.DexClassLoader;
 
 public class BaseLoader {
 
+    private final ConcurrentHashMap<String, Spider> spiders;
+    private final ConcurrentHashMap<String, Object> locks;
     private final JarLoader jarLoader;
     private final PyLoader pyLoader;
     private final JsLoader jsLoader;
+    private String recent;
 
     private static class Loader {
         static volatile BaseLoader INSTANCE = new BaseLoader();
@@ -33,82 +40,70 @@ public class BaseLoader {
     }
 
     private BaseLoader() {
+        this.spiders = new ConcurrentHashMap<>();
+        this.locks = new ConcurrentHashMap<>();
         this.jarLoader = new JarLoader();
         this.pyLoader = new PyLoader();
         this.jsLoader = new JsLoader();
     }
 
     public void clear() {
-        this.jarLoader.clear();
-        this.pyLoader.clear();
-        this.jsLoader.clear();
+        Task.execute(() -> {
+            for (Spider spider : spiders.values()) App.execute(spider::destroy);
+            jarLoader.clear();
+            pyLoader.clear();
+            jsLoader.clear();
+            spiders.clear();
+            locks.clear();
+        });
     }
 
-    public JsLoader getJsLoader() {
-        return jsLoader;
+    public Spider getSpider(String key) {
+        Site site = VodConfig.get().getSite(key);
+        Live live = LiveConfig.get().getLive(key);
+        if (!site.isEmpty()) return site.spider();
+        if (!live.isEmpty()) return live.spider();
+        if (spiders.containsKey(key)) return spiders.get(key);
+        return new SpiderNull();
     }
 
     public Spider getSpider(String key, String api, String ext, String jar) {
         if (api == null || api.isEmpty()) return new SpiderNull();
         Site site = Site.find(key);
-        if (site != null && site.isBlacklist()) {
-            String name = VodConfig.get().getSite(key).getName();
-            Log.d("BaseLoader", "Skip blacklisted site: " + (name.isEmpty() ? key : name) + ", Failures: " + site.getFailures() + ", Expiry: " + com.fongmi.android.tv.utils.Util.format(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()), site.getBlacklist()));
-            return new SpiderNull();
+        if (site != null && site.isBlacklist()) return new SpiderNull();
+        if (spiders.containsKey(key)) return spiders.get(key);
+        Object lock = locks.computeIfAbsent(key, k -> new Object());
+        synchronized (lock) {
+            if (spiders.containsKey(key)) return spiders.get(key);
+            Spider spider = new SpiderNull();
+            if (api.startsWith("csp_")) spider = jarLoader.getSpider(key, api, ext, jar);
+            else if (api.contains(".py")) spider = pyLoader.getSpider(key, api, ext);
+            else if (api.contains(".js")) spider = jsLoader.getSpider(key, api, ext, jar);
+            if (!(spider instanceof SpiderNull)) spiders.put(key, spider);
+            return spider;
         }
-
-        boolean csp = api.startsWith("csp_");
-        if (csp) return jarLoader.getSpider(key, api, ext, jar);
-
-        String file = api.substring(api.lastIndexOf("/") + 1);
-        boolean js = file.contains(".js");
-        boolean py = file.contains(".py");
-        if (py) return pyLoader.getSpider(key, api, ext);
-        else if (js) return jsLoader.getSpider(key, api, ext);
-
-        else return new SpiderNull();
     }
 
-    public Spider getSpider(Map<String, String> params) {
-        if (!params.containsKey("siteKey")) return new SpiderNull();
-        Live live = LiveConfig.get().getLive(params.get("siteKey"));
-        Site site = VodConfig.get().getSite(params.get("siteKey"));
-        if (!site.isEmpty()) return site.spider();
-        if (!live.isEmpty()) return live.spider();
-        return new SpiderNull();
+    public String getRecent() {
+        return recent;
     }
 
     public void setRecent(String key, String api, String jar) {
-        boolean csp = api.startsWith("csp_");
-        if (csp) {
-            jarLoader.setRecent(jar);
-            return;
-        }
-
-        String file = api.substring(api.lastIndexOf("/") + 1);
-        boolean js = file.contains(".js");
-        boolean py = file.contains(".py");
-
-        if (js) jsLoader.setRecent(key);
-        else if (py) pyLoader.setRecent(key);
+        this.recent = key;
+        if (api.startsWith("csp_")) jarLoader.setRecent(jar);
     }
 
     public Object[] proxyLocal(Map<String, String> params) {
-        String url = params.get("url");
-        String doType = params.get("do");
-        Log.d("ProxyLocal", "do=" + doType + " url=" + url);
-
-        if ("js".equals(params.get("do"))) {
-            return jsLoader.proxyInvoke(params);
-        } else if ("py".equals(params.get("do"))) {
-            return pyLoader.proxyInvoke(params);
-        } else {
-            return jarLoader.proxyInvoke(params);
-        }
+        return Proxy.local(params);
     }
 
-    public void parseJar(String jar) {
-        jarLoader.parseJar(Util.md5(jar), jar);
+    public void parseJar(String jar, String json) {
+        Log.d("BaseLoader", "Relaying parseJar to JarLoader for: " + jar);
+        jarLoader.parseJar(Util.md5(jar), jar, json);
+    }
+
+    public DexClassLoader dex(String jar) {
+        return jarLoader.dex(jar);
     }
 
     public JSONObject jsonExt(String key, LinkedHashMap<String, String> jxs, String url) throws Throwable {

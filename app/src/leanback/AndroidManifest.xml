@@ -16,7 +16,6 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application android:banner="@drawable/ic_banner">
@@ -152,15 +151,22 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"
             android:screenOrientation="sensorLandscape" />
 
+        <activity
+            android:name=".ui.activity.SettingPreloadActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"
+            android:screenOrientation="sensorLandscape" />
+
+        <activity
+            android:name=".ui.activity.SettingDecodeActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"
+            android:screenOrientation="sensorLandscape" />
+
 <!--         <activity-->
 <!--            android:name=".ui.activity.SettingSyncActivity"-->
 <!--            android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"-->
 <!--            android:screenOrientation="sensorLandscape" />-->
 
-        <activity
-            android:name=".ui.activity.SettingDanmuActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"
-            android:screenOrientation="sensorLandscape" />
+
 
         <activity
             android:name=".ui.activity.SettingCustomActivity"
@@ -168,8 +174,9 @@
             android:screenOrientation="sensorLandscape" />
 
         <service
-            android:name="com.android.cast.dlna.dmr.DLNARendererService"
-            android:exported="false" />
+            android:name=".service.DLNARendererService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <receiver
             android:name=".receiver.BootReceiver"

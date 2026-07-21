@@ -7,38 +7,42 @@ import android.text.TextUtils;
 import androidx.annotation.NonNull;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.gson.FilterAdapter;
+import com.fongmi.android.tv.gson.HeaderAdapter;
 import com.fongmi.android.tv.gson.MsgAdapter;
 import com.fongmi.android.tv.gson.UrlAdapter;
-import com.github.catvod.utils.Json;
+import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.utils.Trans;
-import com.google.gson.JsonElement;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
+import com.tickaroo.tikxml.TikXml;
+import com.tickaroo.tikxml.annotation.Element;
+import com.tickaroo.tikxml.annotation.Path;
+import com.tickaroo.tikxml.annotation.Xml;
 
 import org.json.JSONObject;
-import org.simpleframework.xml.ElementList;
-import org.simpleframework.xml.Path;
-import org.simpleframework.xml.Root;
-import org.simpleframework.xml.core.Persister;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Root(name = "rss", strict = false)
+import okio.Buffer;
+
+@Xml(name = "rss")
 public class Result implements Parcelable {
 
     @Path("class")
-    @ElementList(entry = "ty", required = false, inline = true)
+    @Element(name = "ty")
     @SerializedName("class")
     private List<Class> types;
 
     @Path("list")
-    @ElementList(entry = "video", required = false, inline = true)
+    @Element(name = "video")
     @SerializedName("list")
     private List<Vod> list;
 
@@ -50,34 +54,34 @@ public class Result implements Parcelable {
     @JsonAdapter(UrlAdapter.class)
     private Url url;
 
+    @SerializedName("header")
+    @JsonAdapter(HeaderAdapter.class)
+    private Map<String, String> header;
+
     @SerializedName("msg")
     @JsonAdapter(MsgAdapter.class)
     private String msg;
 
     @SerializedName("subs")
     private List<Sub> subs;
-    @SerializedName("header")
-    private JsonElement header;
     @SerializedName("playUrl")
     private String playUrl;
+    @SerializedName("artwork")
+    private String artwork;
     @SerializedName("jxFrom")
     private String jxFrom;
     @SerializedName("flag")
     private String flag;
+    @SerializedName("desc")
+    private String desc;
     @SerializedName("format")
     private String format;
     @SerializedName("click")
     private String click;
-    @SerializedName("desc")
-    private String desc;
-    @SerializedName("artwork")
-    private String artwork;
-    @SerializedName("position")
-    private Long position;
-    @SerializedName("js")
-    private String js;
     @SerializedName("key")
     private String key;
+    @SerializedName("position")
+    private Long position;
     @SerializedName("pagecount")
     private Integer pagecount;
     @SerializedName("parse")
@@ -88,6 +92,14 @@ public class Result implements Parcelable {
     private Integer jx;
     @SerializedName("drm")
     private Drm drm;
+
+    public Result() {
+    }
+
+    protected Result(Parcel in) {
+        this.types = new ArrayList<>();
+        in.readList(this.types, Class.class.getClassLoader());
+    }
 
     public static Result objectFrom(String str) {
         try {
@@ -104,7 +116,7 @@ public class Result implements Parcelable {
 
     public static Result fromXml(String str) {
         try {
-            return new Persister().read(Result.class, str, false).trans();
+            return new TikXml.Builder().exceptionOnUnreadXml(false).build().read(new Buffer().writeUtf8(str), Result.class).trans();
         } catch (Exception e) {
             return empty();
         }
@@ -133,8 +145,8 @@ public class Result implements Parcelable {
         Result result = new Result();
         Class type = new Class();
         type.setTypeFlag("1");
-        type.setTypeId(item.getVodId());
-        type.setTypeName(item.getVodName());
+        type.setTypeId(item.getId());
+        type.setTypeName(item.getName());
         result.setTypes(Arrays.asList(type));
         return result;
     }
@@ -155,15 +167,12 @@ public class Result implements Parcelable {
         return list(Arrays.asList(item));
     }
 
-    public Result() {
-    }
-
     public List<Class> getTypes() {
         return types == null ? Collections.emptyList() : types;
     }
 
     public void setTypes(List<Class> types) {
-        if (types.size() > 0) this.types = types;
+        this.types = types;
     }
 
     public List<Vod> getList() {
@@ -182,10 +191,6 @@ public class Result implements Parcelable {
         return url == null ? Url.create() : url;
     }
 
-    public void setUrl(Url url) {
-        this.url = url;
-    }
-
     public void setUrl(String url) {
         this.url = getUrl().replace(url);
     }
@@ -199,15 +204,19 @@ public class Result implements Parcelable {
     }
 
     public List<Sub> getSubs() {
-        return subs == null ? new ArrayList<>() : subs;
+        return subs == null ? new ArrayList<>() : new ArrayList<>(subs);
     }
 
-    public JsonElement getHeader() {
-        return header;
+    public void setSubs(List<Sub> subs) {
+        if (getSubs().isEmpty()) this.subs = subs;
     }
 
-    public void setHeader(JsonElement header) {
-        if (getHeader() == null) this.header = header;
+    public Map<String, String> getHeader() {
+        return header == null ? new HashMap<>() : header;
+    }
+
+    public void setHeader(Map<String, String> header) {
+        if (getHeader().isEmpty()) this.header = header;
     }
 
     public String getPlayUrl() {
@@ -216,6 +225,10 @@ public class Result implements Parcelable {
 
     public void setPlayUrl(String playUrl) {
         this.playUrl = playUrl;
+    }
+
+    public String getArtwork() {
+        return TextUtils.isEmpty(artwork) ? "" : artwork;
     }
 
     public String getJxFrom() {
@@ -230,8 +243,16 @@ public class Result implements Parcelable {
         this.flag = flag;
     }
 
+    public String getDesc() {
+        return TextUtils.isEmpty(desc) ? "" : Util.clean(desc);
+    }
+
     public String getFormat() {
         return format;
+    }
+
+    public void setFormat(String format) {
+        this.format = format;
     }
 
     public String getClick() {
@@ -242,14 +263,6 @@ public class Result implements Parcelable {
         this.click = click;
     }
 
-    public String getJs() {
-        return TextUtils.isEmpty(js) ? "" : js;
-    }
-
-    public void setJs(String js) {
-        this.js = js;
-    }
-
     public String getKey() {
         return TextUtils.isEmpty(key) ? "" : key;
     }
@@ -258,16 +271,20 @@ public class Result implements Parcelable {
         this.key = key;
     }
 
+    public Long getPosition() {
+        return position;
+    }
+
+    public void setPosition(Long position) {
+        this.position = position;
+    }
+
     public Integer getPageCount() {
         return pagecount == null ? 0 : pagecount;
     }
 
-    public Integer getParse(Integer def) {
-        return parse == null ? def : parse;
-    }
-
     public Integer getParse() {
-        return getParse(0);
+        return parse == null ? 0 : parse;
     }
 
     public void setParse(Integer parse) {
@@ -290,24 +307,8 @@ public class Result implements Parcelable {
         this.drm = drm;
     }
 
-    public Vod getVod() {
-        return getList().isEmpty() ? new Vod() : getList().get(0);
-    }
-
-    public String getDesc() {
-        return TextUtils.isEmpty(desc) ? "" : desc;
-    }
-
-    public String getArtwork() {
-        return TextUtils.isEmpty(artwork) ? "" : artwork;
-    }
-
-    public Long getPosition() {
-        return position;
-    }
-
-    public boolean hasDesc() {
-        return !getDesc().isEmpty();
+    public boolean hasMsg() {
+        return !getMsg().isEmpty();
     }
 
     public boolean hasArtwork() {
@@ -318,24 +319,29 @@ public class Result implements Parcelable {
         return getPosition() != null;
     }
 
-    public boolean isUseParse() {
-        return getJx() == 1 || getParse() == 1;
+    public boolean hasDesc() {
+        return !getDesc().isEmpty();
     }
 
-    public boolean hasMsg() {
-        return getMsg().length() > 0;
+    public boolean isUseParse() {
+        if (!VodConfig.hasParse()) return false;
+        return (getPlayUrl().isEmpty() && VodConfig.get().getFlags().contains(getFlag())) || getJx() == 1;
+    }
+
+    public boolean needParse() {
+        return getParse() == 1 || getJx() == 1;
     }
 
     public String getRealUrl() {
         return getPlayUrl() + getUrl().v();
     }
 
-    public Map<String, String> getHeaders() {
-        return Json.toMap(getHeader());
-    }
-
     public Style getStyle(Style style) {
         return getList().isEmpty() ? Style.rect() : getList().get(0).getStyle(style);
+    }
+
+    public Vod getVod() {
+        return getList().isEmpty() ? new Vod() : getList().get(0);
     }
 
     public Result clear() {
@@ -345,9 +351,9 @@ public class Result implements Parcelable {
 
     public Result trans() {
         if (Trans.pass()) return this;
-        for (Class type : getTypes()) type.trans();
-        for (Vod vod : getList()) vod.trans();
-        for (Sub sub : getSubs()) sub.trans();
+        getTypes().forEach(Class::trans);
+        getList().forEach(Vod::trans);
+        getSubs().forEach(Sub::trans);
         return this;
     }
 
@@ -365,13 +371,6 @@ public class Result implements Parcelable {
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeList(this.types);
-        dest.writeTypedList(this.list);
-    }
-
-    protected Result(Parcel in) {
-        this.types = new ArrayList<>();
-        in.readList(this.types, Class.class.getClassLoader());
-        this.list = in.createTypedArrayList(Vod.CREATOR);
     }
 
     public static final Creator<Result> CREATOR = new Creator<>() {

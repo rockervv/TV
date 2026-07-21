@@ -2,15 +2,23 @@ package com.fongmi.android.tv.utils;
 
 import android.net.Uri;
 import android.text.TextUtils;
+
 import com.fongmi.android.tv.server.Server;
 import com.github.catvod.utils.UriUtil;
 import com.google.common.net.HttpHeaders;
+
 import java.io.File;
 
 public class UrlUtil {
 
+    public static String fixUrl(String url) {
+        if (TextUtils.isEmpty(url)) return "";
+        if (url.startsWith("http") || url.startsWith("file") || url.startsWith("clan")) return url;
+        if (url.startsWith("/")) return "file://" + url;
+        return "http://" + url;
+    }
+
     public static Uri uri(String url) {
-        if (url == null) return Uri.EMPTY;
         url = url.trim().replace("\\", "");
         return url.startsWith("/") ? Uri.fromFile(new File(url)) : Uri.parse(url);
     }
@@ -64,24 +72,10 @@ public class UrlUtil {
         return !path.isEmpty() ? path : !host.isEmpty() ? host : url;
     }
 
-    public static String fixUrl(String url) {
-        if (url.contains("/localhost/")) url = url.replace("/localhost/", "/");
-        if (url.startsWith("clan")) url = url.replace("clan", "file");
-        return url;
-    }
-
     public static String fixHeader(String key) {
         if (HttpHeaders.USER_AGENT.equalsIgnoreCase(key)) return HttpHeaders.USER_AGENT;
         if (HttpHeaders.REFERER.equalsIgnoreCase(key)) return HttpHeaders.REFERER;
         if (HttpHeaders.COOKIE.equalsIgnoreCase(key)) return HttpHeaders.COOKIE;
         return key;
-    }
-
-    public static String fixDownloadUrl(String url) {
-        if (TextUtils.isEmpty(url)) return "";
-        Uri uri = UrlUtil.uri(url);
-        if (!uri.toString().startsWith("http://127.0.0.1:")) return uri.toString();
-        String download = uri.getQueryParameter("url");
-        return TextUtils.isEmpty(download) ? uri.toString() : download;
     }
 }

@@ -7,7 +7,7 @@ import android.view.WindowManager;
 import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.GridLayoutManager;
 
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.databinding.DialogCacheDirBinding;
 import com.fongmi.android.tv.impl.CacheDirCallback;
 import com.fongmi.android.tv.ui.adapter.CacheDirAdapter;

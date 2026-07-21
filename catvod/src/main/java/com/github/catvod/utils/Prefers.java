@@ -16,7 +16,7 @@ import java.util.Map;
 
 public class Prefers {
 
-    private static SharedPreferences getPrefers() {
+    public static SharedPreferences getPrefers() {
         return PreferenceManager.getDefaultSharedPreferences(Init.context());
     }
 
@@ -81,7 +81,17 @@ public class Prefers {
         } else if (obj instanceof Long) {
             getPrefers().edit().putLong(key, (Long) obj).apply();
         } else if (obj instanceof LazilyParsedNumber) {
-            getPrefers().edit().putInt(key, ((LazilyParsedNumber) obj).intValue()).apply();
+            LazilyParsedNumber lpn = (LazilyParsedNumber) obj;
+            if (lpn.toString().contains(".")) {
+                getPrefers().edit().putFloat(key, lpn.floatValue()).apply();
+            } else {
+                long val = lpn.longValue();
+                if (val <= Integer.MAX_VALUE && val >= Integer.MIN_VALUE) {
+                    getPrefers().edit().putInt(key, (int) val).apply();
+                } else {
+                    getPrefers().edit().putLong(key, val).apply();
+                }
+            }
         }
     }
 
@@ -97,17 +107,9 @@ public class Prefers {
         try {
             Gson gson = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LAZILY_PARSED_NUMBER).create();
             Map<String, Object> map = gson.fromJson(Path.read(file), new TypeToken<Map<String, Object>>() {}.getType());
-            for (Map.Entry<String, ?> entry : map.entrySet()) Prefers.put(entry.getKey(), convert(entry));
+            for (Map.Entry<String, ?> entry : map.entrySet()) Prefers.put(entry.getKey(), entry.getValue());
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-
-    private static Object convert(Map.Entry<String, ?> entry) {
-        if ("danmu_size".equals(entry.getKey())) {
-            return Float.parseFloat(entry.getValue().toString());
-        } else {
-            return entry.getValue();
         }
     }
 }

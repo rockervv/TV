@@ -11,7 +11,7 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.databinding.DialogDanmuBinding;
 import com.fongmi.android.tv.ui.activity.VideoActivity;
 import com.fongmi.android.tv.utils.ResUtil;

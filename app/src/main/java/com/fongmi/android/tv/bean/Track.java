@@ -1,32 +1,40 @@
 package com.fongmi.android.tv.bean;
 
-import androidx.annotation.NonNull;
+import android.text.TextUtils;
+
 import androidx.room.Entity;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
 import com.fongmi.android.tv.db.AppDatabase;
-import com.fongmi.android.tv.setting.PlayerSetting;
 
+import java.util.Collections;
 import java.util.List;
 
-@Entity(indices = @Index(value = {"key", "player", "type"}, unique = true))
+@Entity(indices = @Index(value = {"key", "type"}, unique = true))
 public class Track {
 
     @PrimaryKey(autoGenerate = true)
     private int id;
     private int type;
-    private int group;
-    private int track;
-    private int player;
     private String key;
     private String name;
+    private String format;
     private boolean selected;
-    private boolean adaptive;
 
-    public Track(int type, String name) {
+    public Track(int type, String name, String format) {
         this.type = type;
         this.name = name;
+        this.format = format;
+    }
+
+    public static List<Track> find(String key) {
+        return TextUtils.isEmpty(key) ? Collections.emptyList() : AppDatabase.get().getTrackDao().find(key);
+    }
+
+    public static void delete(String key) {
+        if (TextUtils.isEmpty(key)) return;
+        AppDatabase.get().getTrackDao().delete(key);
     }
 
     public int getId() {
@@ -45,44 +53,12 @@ public class Track {
         this.type = type;
     }
 
-    public int getGroup() {
-        return group;
-    }
-
-    public void setGroup(int group) {
-        this.group = group;
-    }
-
-    public int getTrack() {
-        return track;
-    }
-
-    public void setTrack(int track) {
-        this.track = track;
-    }
-
-    public int getPlayer() {
-        return player;
-    }
-
-    public void setPlayer(int player) {
-        this.player = player;
-    }
-
     public String getKey() {
         return key;
     }
 
-    public void setKey(@NonNull String key) {
+    public void setKey(String key) {
         this.key = key;
-    }
-
-    public String getFormat() {
-        return getKey();
-    }
-
-    public void setFormat(String format) {
-        setKey(format);
     }
 
     public String getName() {
@@ -93,6 +69,14 @@ public class Track {
         this.name = name;
     }
 
+    public String getFormat() {
+        return format;
+    }
+
+    public void setFormat(String format) {
+        this.format = format;
+    }
+
     public boolean isSelected() {
         return selected;
     }
@@ -101,16 +85,9 @@ public class Track {
         this.selected = selected;
     }
 
-    public boolean isAdaptive() {
-        return adaptive;
-    }
-
-    public void setAdaptive(boolean adaptive) {
-        this.adaptive = adaptive;
-    }
-
-    public boolean isExo(int player) {
-        return getPlayer() == player && player == PlayerSetting.ENGINE_EXO;
+    public Track key(String key) {
+        setKey(key);
+        return this;
     }
 
     public Track toggle() {
@@ -118,15 +95,9 @@ public class Track {
         return this;
     }
 
-    public void save() {
+    public Track save() {
+        if (TextUtils.isEmpty(getKey())) return this;
         AppDatabase.get().getTrackDao().insert(this);
-    }
-
-    public static List<Track> find(String key) {
-        return AppDatabase.get().getTrackDao().find(key);
-    }
-
-    public static void delete(String key) {
-        AppDatabase.get().getTrackDao().delete(key);
+        return this;
     }
 }

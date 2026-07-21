@@ -14,10 +14,9 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Collect;
 import com.fongmi.android.tv.bean.Hot;
@@ -40,7 +39,6 @@ import com.fongmi.android.tv.ui.base.ViewType;
 import com.fongmi.android.tv.ui.custom.CustomScroller;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
-import com.fongmi.android.tv.utils.PauseExecutor;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.net.OkHttp;
@@ -64,7 +62,6 @@ public class CollectActivity extends BaseActivity implements CustomScroller.Call
     private WordAdapter mWordAdapter;
     private CustomScroller mScroller;
     private SiteViewModel mViewModel;
-    private PauseExecutor mExecutor;
     private List<Site> mSites;
 
     public static void start(Activity activity) {
@@ -150,6 +147,7 @@ public class CollectActivity extends BaseActivity implements CustomScroller.Call
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
         mViewModel.search.observe(this, result -> {
+            if (result.getList().isEmpty()) return;
             if (mCollectAdapter.getPosition() == 0) mSearchAdapter.addAll(result.getList());
             mCollectAdapter.add(Collect.create(result.getList()));
             mCollectAdapter.add(result.getList());
@@ -189,19 +187,9 @@ public class CollectActivity extends BaseActivity implements CustomScroller.Call
         mBinding.agent.setVisibility(View.GONE);
         mBinding.view.setVisibility(View.VISIBLE);
         mBinding.result.setVisibility(View.VISIBLE);
-        if (mExecutor != null) mExecutor.shutdownNow();
-        mExecutor = new PauseExecutor(Constant.THREAD_POOL * 2);
         String keyword = mBinding.keyword.getText().toString().trim();
-        for (Site site : mSites) mExecutor.execute(() -> search(site, keyword));
+        mViewModel.searchContent(mSites, keyword, false);
         App.post(() -> mRecordAdapter.add(keyword), 250);
-    }
-
-    private void search(Site site, String keyword) {
-        try {
-            mViewModel.searchContent(site, keyword, false);
-        } catch (Throwable e) {
-            site.setBlacklist();
-        }
     }
 
     private void getHot() {
@@ -232,7 +220,7 @@ public class CollectActivity extends BaseActivity implements CustomScroller.Call
 
     private void onSite(View view) {
         Util.hideKeyboard(mBinding.keyword);
-        App.post(() -> SiteDialog.create(this).search().show(), 50);
+        App.post(() -> SiteDialog.create(this).search().show(this), 50);
     }
 
     private void toggleView(View view) {
@@ -247,7 +235,7 @@ public class CollectActivity extends BaseActivity implements CustomScroller.Call
         mBinding.result.setVisibility(View.GONE);
         mBinding.site.setVisibility(View.VISIBLE);
         mBinding.agent.setVisibility(View.VISIBLE);
-        if (mExecutor != null) mExecutor.shutdownNow();
+        mViewModel.stopSearch();
     }
 
     @Override
@@ -304,13 +292,11 @@ public class CollectActivity extends BaseActivity implements CustomScroller.Call
     @Override
     protected void onResume() {
         super.onResume();
-        if (mExecutor != null) mExecutor.resume();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (mExecutor != null) mExecutor.pause();
     }
 
     @Override

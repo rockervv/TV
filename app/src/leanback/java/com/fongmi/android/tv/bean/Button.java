@@ -3,7 +3,7 @@ package com.fongmi.android.tv.bean;
 import android.text.TextUtils;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.ResUtil;
 
 import java.util.ArrayList;

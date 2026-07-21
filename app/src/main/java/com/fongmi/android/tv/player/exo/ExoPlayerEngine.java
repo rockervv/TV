@@ -64,6 +64,11 @@ public class ExoPlayerEngine implements PlayerEngine {
     }
 
     @Override
+    public void setSubtitleStyle() {
+        // Handled by calling Activity
+    }
+
+    @Override
     public void stop() {
         preCache.stop();
         player.stop();
@@ -87,9 +92,9 @@ public class ExoPlayerEngine implements PlayerEngine {
     @Override
     public ErrorAction handleError(PlaybackException e) {
         return switch (e.errorCode) {
-            case PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> seekToDefaultPosition();
-            case PlaybackException.ERROR_CODE_DECODER_INIT_FAILED, PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED, PlaybackException.ERROR_CODE_DECODING_FAILED -> ErrorAction.DECODE;
-            case PlaybackException.ERROR_CODE_IO_UNSPECIFIED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED -> retryFormat(e.errorCode);
+            case PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> ErrorAction.SEEK;
+            case PlaybackException.ERROR_CODE_DECODER_INIT_FAILED, PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED, PlaybackException.ERROR_CODE_DECODING_FAILED -> ErrorAction.FALLBACK;
+            case PlaybackException.ERROR_CODE_IO_UNSPECIFIED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED -> ErrorAction.FORMAT;
             default -> ErrorAction.FATAL;
         };
     }
@@ -100,17 +105,5 @@ public class ExoPlayerEngine implements PlayerEngine {
         preCache.start(player, item);
         player.prepare();
         player.play();
-    }
-
-    private ErrorAction seekToDefaultPosition() {
-        player.seekToDefaultPosition();
-        player.prepare();
-        return ErrorAction.RECOVERED;
-    }
-
-    private ErrorAction retryFormat(int errorCode) {
-        spec.setFormat(ExoUtil.getMimeType(errorCode));
-        startInternal(player.getCurrentPosition());
-        return ErrorAction.RECOVERED;
     }
 }

@@ -131,23 +131,37 @@ public class DetailActivity extends BaseActivity implements FlagAdapter.OnClickL
 
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
-        mViewModel.result.observe(this, this::setDetail);
+        mViewModel.result.observe(this, result -> {
+            android.util.Log.d("TV_FATAL", "DetailActivity.Result: " + (result != null ? "list size " + result.getList().size() : "null"));
+            setDetail(result);
+        });
         mViewModel.player.observe(this, new Observer<Result>() {
             @Override
             public void onChanged(Result result) {
-
+                android.util.Log.d("TV_FATAL", "DetailActivity.Player: " + (result != null ? result.getMsg() : "null"));
             }
         });
     }
 
     private void getDetail() {
+        android.util.Log.d("TV_FATAL", "DetailActivity.getDetail: Key=" + getKey() + " Id=" + getId());
         mViewModel.detailContent(getKey(), getId());
     }
 
     private void setDetail(Result result) {
-        if (result.getList().isEmpty()) setEmpty();
-        else setDetail(result.getList().get(0));
-        Notify.show(result.getMsg());
+        if (result == null) {
+            android.util.Log.e("TV_FATAL", "DetailActivity.setDetail: result is null");
+            setEmpty();
+            return;
+        }
+        if (result.getList().isEmpty()) {
+            android.util.Log.w("TV_FATAL", "DetailActivity.setDetail: empty list. Msg: " + result.getMsg());
+            setEmpty();
+        } else {
+            android.util.Log.d("TV_FATAL", "DetailActivity.setDetail: " + result.getList().get(0).getVodName());
+            setDetail(result.getList().get(0));
+        }
+        if (!TextUtils.isEmpty(result.getMsg())) Notify.show(result.getMsg());
     }
 
     private void setEmpty() {
@@ -163,6 +177,7 @@ public class DetailActivity extends BaseActivity implements FlagAdapter.OnClickL
     }
 
     private void setDetail(Vod item) {
+        android.util.Log.d("TV_FATAL", "DetailActivity.setDetail(Vod): " + item.getVodName());
         mBinding.progressLayout.showContent();
         mBinding.name.setText(item.getVodName(getName()));
         setText(mBinding.site, R.string.detail_site, getSite().getName());

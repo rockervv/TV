@@ -16,6 +16,20 @@ public class Style implements Parcelable {
     @SerializedName("ratio")
     private float ratio;
 
+    public Style(String type) {
+        this.type = type;
+    }
+
+    public Style(String type, float ratio) {
+        this.type = type;
+        this.ratio = ratio;
+    }
+
+    protected Style(Parcel in) {
+        this.type = in.readString();
+        this.ratio = in.readFloat();
+    }
+
     public static Style rect() {
         return new Style("rect", 0.75f);
     }
@@ -28,18 +42,6 @@ public class Style implements Parcelable {
         if (land == 1) return new Style("rect", ratio == 0 ? 1.33f : ratio);
         if (circle == 1) return new Style("oval", ratio == 0 ? 1.0f : ratio);
         return null;
-    }
-
-    public Style() {
-    }
-
-    public Style(String type) {
-        this.type = type;
-    }
-
-    public Style(String type, float ratio) {
-        this.type = type;
-        this.ratio = ratio;
     }
 
     public String getType() {
@@ -67,21 +69,17 @@ public class Style implements Parcelable {
     }
 
     public int getViewType() {
-        switch (getType()) {
-            case "oval":
-                return ViewType.OVAL;
-            case "list":
-                return ViewType.LIST;
-            default:
-                return ViewType.RECT;
-        }
+        return switch (getType()) {
+            case "oval" -> ViewType.OVAL;
+            case "list" -> ViewType.LIST;
+            default -> ViewType.RECT;
+        };
     }
 
     @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof Style)) return false;
-        Style it = (Style) obj;
+        if (!(obj instanceof Style it)) return false;
         return getType().equals(it.getType()) && getRatio() == it.getRatio();
     }
 
@@ -94,11 +92,6 @@ public class Style implements Parcelable {
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(this.type);
         dest.writeFloat(this.ratio);
-    }
-
-    protected Style(Parcel in) {
-        this.type = in.readString();
-        this.ratio = in.readFloat();
     }
 
     public static final Creator<Style> CREATOR = new Creator<>() {

@@ -4,27 +4,29 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
 
+import androidx.annotation.Nullable;
+
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.impl.Diffable;
 import com.github.catvod.utils.Trans;
 import com.google.gson.annotations.SerializedName;
+import com.tickaroo.tikxml.annotation.Attribute;
+import com.tickaroo.tikxml.annotation.TextContent;
+import com.tickaroo.tikxml.annotation.Xml;
 
-import org.simpleframework.xml.Attribute;
-import org.simpleframework.xml.Root;
-import org.simpleframework.xml.Text;
-
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 
-@Root(strict = false)
-public class Class implements Parcelable {
+@Xml
+public class Class implements Parcelable, Diffable<Class> {
 
-    @Attribute(name = "id", required = false)
+    @Attribute(name = "id")
     @SerializedName(value = "type_id", alternate = "id")
     private String typeId;
 
-    @Text
+    @TextContent
     @SerializedName(value = "type_name", alternate = "name")
     private String typeName;
 
@@ -35,18 +37,29 @@ public class Class implements Parcelable {
     private List<Filter> filters;
 
     @SerializedName("land")
-    private int land;
+    private Integer land;
 
     @SerializedName("circle")
-    private int circle;
+    private Integer circle;
 
     @SerializedName("ratio")
-    private float ratio;
+    private Float ratio;
 
-    private Boolean filter;
-    private boolean activated;
+    private boolean filter;
+    private boolean selected;
 
     public Class() {
+    }
+
+    protected Class(Parcel in) {
+        this.typeId = in.readString();
+        this.typeName = in.readString();
+        this.typeFlag = in.readString();
+        this.filter = in.readByte() != 0;
+        this.land = (Integer) in.readValue(Integer.class.getClassLoader());
+        this.circle = (Integer) in.readValue(Integer.class.getClassLoader());
+        this.ratio = (Float) in.readValue(Float.class.getClassLoader());
+        this.selected = in.readByte() != 0;
     }
 
     public static Class objectFrom(String json) {
@@ -82,37 +95,19 @@ public class Class implements Parcelable {
     }
 
     public void setFilters(List<Filter> filters) {
-        if (filters == null || filters.isEmpty()) return;
         this.filters = filters;
-        this.setFilter(false);
     }
 
     public int getLand() {
-        return land;
+        return land == null ? 0 : land;
     }
 
     public int getCircle() {
-        return circle;
+        return circle == null ? 0 : circle;
     }
 
     public float getRatio() {
-        return ratio;
-    }
-
-    public void setFilter(Boolean filter) {
-        this.filter = filter;
-    }
-
-    public Boolean getFilter() {
-        return filter;
-    }
-
-    public boolean isActivated() {
-        return activated;
-    }
-
-    public void setActivated(boolean activated) {
-        this.activated = activated;
+        return ratio == null ? 0 : ratio;
     }
 
     public boolean toggleFilter() {
@@ -120,8 +115,28 @@ public class Class implements Parcelable {
         return getFilter();
     }
 
+    public boolean getFilter() {
+        return filter;
+    }
+
+    public void setFilter(boolean filter) {
+        this.filter = filter;
+    }
+
+    public boolean isSelected() {
+        return selected;
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
+    }
+
     public boolean isHome() {
         return "home".equals(getTypeId());
+    }
+
+    public boolean isFolder() {
+        return "1".equals(getTypeFlag());
     }
 
     public void trans() {
@@ -133,18 +148,30 @@ public class Class implements Parcelable {
         return Style.get(getLand(), getCircle(), getRatio());
     }
 
-    public HashMap<String, String> getExtend(boolean change) {
+    public HashMap<String, String> getExtend(boolean filter) {
         HashMap<String, String> extend = new HashMap<>();
-        for (Filter filter : getFilters()) if (filter.getInit() != null) extend.put(filter.getKey(), change ? filter.setActivated(filter.getInit()) : filter.getInit());
+        if (filter && !getFilter()) return extend;
+        for (Filter item : getFilters()) {
+            for (Value value : item.getValue()) {
+                if (value.isSelected()) {
+                    extend.put(item.getKey(), value.getV());
+                    break;
+                }
+            }
+        }
         return extend;
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof Class)) return false;
-        Class it = (Class) obj;
-        return getTypeId().equals(it.getTypeId());
+        if (!(obj instanceof Class it)) return false;
+        return Objects.equals(getTypeId(), it.getTypeId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getTypeId());
     }
 
     @Override
@@ -157,25 +184,21 @@ public class Class implements Parcelable {
         dest.writeString(this.typeId);
         dest.writeString(this.typeName);
         dest.writeString(this.typeFlag);
-        dest.writeList(this.filters);
-        dest.writeValue(this.filter);
-        dest.writeInt(this.land);
-        dest.writeInt(this.circle);
-        dest.writeFloat(this.ratio);
-        dest.writeByte(this.activated ? (byte) 1 : (byte) 0);
+        dest.writeByte(this.filter ? (byte) 1 : (byte) 0);
+        dest.writeValue(this.land);
+        dest.writeValue(this.circle);
+        dest.writeValue(this.ratio);
+        dest.writeByte(this.selected ? (byte) 1 : (byte) 0);
     }
 
-    protected Class(Parcel in) {
-        this.typeId = in.readString();
-        this.typeName = in.readString();
-        this.typeFlag = in.readString();
-        this.filters = new ArrayList<>();
-        in.readList(this.filters, Filter.class.getClassLoader());
-        this.filter = (Boolean) in.readValue(Boolean.class.getClassLoader());
-        this.land = in.readInt();
-        this.circle = in.readInt();
-        this.ratio = in.readFloat();
-        this.activated = in.readByte() != 0;
+    @Override
+    public boolean isSameItem(Class other) {
+        return equals(other);
+    }
+
+    @Override
+    public boolean isSameContent(Class other) {
+        return getTypeName().equals(other.getTypeName()) && getTypeFlag().equals(other.getTypeFlag());
     }
 
     public static final Creator<Class> CREATOR = new Creator<>() {

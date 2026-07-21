@@ -34,7 +34,7 @@ public class SiteApi {
 
     public static String call(@NonNull Site site, @NonNull ArrayMap<String, String> params) throws IOException {
         if (!site.getExt().isEmpty()) params.put("extend", site.getExt());
-        Call call = site.getExt().length() <= 1000 ? OkHttp.newCall(site.getApi(), site.getHeaders(), params) : OkHttp.newCall(site.getApi(), site.getHeaders(), OkHttp.toBody(params));
+        Call call = site.getExt().length() <= 1000 ? OkHttp.newCall(site.getApi(), site.getHeader(), params) : OkHttp.newCall(site.getApi(), site.getHeader(), OkHttp.toBody(params));
         try (Response response = call.execute()) {
             return response.body().string();
         }
@@ -49,180 +49,232 @@ public class SiteApi {
     }
 
     @NonNull
-    public static Result homeContent(@NonNull Site site) throws Exception {
-        if (isSpider(site)) {
-            Spider spider = site.recent().spider();
-            boolean crash = Prefers.getBoolean("crash");
-            String home = crash ? "" : spider.homeContent(true);
-            String video = crash ? "" : spider.homeVideoContent();
-            Prefers.put("crash", false);
-            SpiderDebug.log(home);
-            SpiderDebug.log(video);
-            Result result = Result.fromJson(home);
-            List<Vod> list = Result.fromJson(video).getList();
-            if (!list.isEmpty()) result.setList(list);
-            setTypes(site, result);
-            return result;
-        } else if (site.getType() == 4) {
-            ArrayMap<String, String> params = new ArrayMap<>();
-            params.put("filter", "true");
-            String homeContent = call(site, params);
-            SpiderDebug.log(homeContent);
-            Result result = Result.fromJson(homeContent);
-            setTypes(site, result);
-            return result;
-        } else {
-            try (Response response = OkHttp.newCall(site.getApi(), site.getHeaders()).execute()) {
-                String homeContent = response.body().string();
-                SpiderDebug.log(homeContent);
-                Result result = Result.fromType(site.getType(), homeContent);
-                fetchPic(site, result);
+    public static Result homeContent(@NonNull Site site) {
+        try {
+            if (site.isBlacklist()) return Result.empty();
+            if (isSpider(site)) {
+                Spider spider = site.recent().spider();
+                boolean crash = Prefers.getBoolean("crash");
+                String home = crash ? "" : spider.homeContent(true);
+                String video = crash ? "" : spider.homeVideoContent();
+                Prefers.put("crash", false);
+                SpiderDebug.log(home);
+                SpiderDebug.log(video);
+                Result result = Result.fromJson(home);
+                List<Vod> list = Result.fromJson(video).getList();
+                if (!list.isEmpty()) result.setList(list);
                 setTypes(site, result);
                 return result;
+            } else if (site.getType() == 4) {
+                ArrayMap<String, String> params = new ArrayMap<>();
+                params.put("filter", "true");
+                String homeContent = call(site, params);
+                SpiderDebug.log(homeContent);
+                Result result = Result.fromJson(homeContent);
+                setTypes(site, result);
+                return result;
+            } else {
+                try (Response response = OkHttp.newCall(site.getApi(), site.getHeader()).execute()) {
+                    String homeContent = response.body().string();
+                    SpiderDebug.log(homeContent);
+                    Result result = Result.fromType(site.getType(), homeContent);
+                    fetchPic(site, result);
+                    setTypes(site, result);
+                    return result;
+                }
             }
+        } catch (Throwable e) {
+            SpiderDebug.log(site.getName());
+            SpiderDebug.log(e);
+            site.setBlacklist();
+            return Result.empty();
         }
     }
 
     @NonNull
-    public static Result categoryContent(@NonNull String key, @NonNull String tid, @NonNull String page, boolean filter, @NonNull HashMap<String, String> extend) throws Exception {
+    public static Result categoryContent(@NonNull String key, @NonNull String tid, @NonNull String page, boolean filter, @NonNull HashMap<String, String> extend) {
         Site site = VodConfig.get().getSite(key);
-        if (isSpider(site)) {
-            String categoryContent = site.recent().spider().categoryContent(tid, page, filter, extend);
-            SpiderDebug.log(categoryContent);
-            return Result.fromJson(categoryContent);
-        } else {
+        try {
+            if (site.isBlacklist()) return Result.empty();
+            if (isSpider(site)) {
+                String categoryContent = site.recent().spider().categoryContent(tid, page, filter, extend);
+                SpiderDebug.log(categoryContent);
+                return Result.fromJson(categoryContent);
+            } else {
+                ArrayMap<String, String> params = new ArrayMap<>();
+                if (site.getType() == 1 && !extend.isEmpty()) params.put("f", App.gson().toJson(extend));
+                if (site.getType() == 4) params.put("ext", Util.base64(App.gson().toJson(extend), Util.URL_SAFE));
+                params.put("ac", ac(site.getType()));
+                params.put("t", tid);
+                params.put("pg", page);
+                String categoryContent = call(site, params);
+                SpiderDebug.log(categoryContent);
+                return Result.fromType(site.getType(), categoryContent);
+            }
+        } catch (Throwable e) {
+            SpiderDebug.log(key);
+            SpiderDebug.log(e);
+            site.setBlacklist();
+            return Result.empty();
+        }
+    }
+
+    @NonNull
+    public static Result detailContent(@NonNull String key, @NonNull String id) {
+        Site site = VodConfig.get().getSite(key);
+        try {
+            if (site.isBlacklist()) return Result.empty();
+            if (site.isEmpty() && PUSH.equals(key)) {
+                Vod vod = new Vod();
+                vod.setId(id);
+                vod.setName(id);
+                vod.setPlayUrl(id);
+                vod.setPlayFrom(ResUtil.getString(R.string.push));
+                vod.setPic(ResUtil.getString(R.string.push_image));
+                vod.setFlags();
+                Source.get().parse(vod);
+                return Result.vod(vod);
+            } else if (isSpider(site)) {
+                String detailContent = site.recent().spider().detailContent(Arrays.asList(id));
+                SpiderDebug.log(detailContent);
+                Result result = Result.fromJson(detailContent);
+                if (!result.getList().isEmpty()) result.getVod().setFlags();
+                Source.get().parse(result.getVod());
+                return result;
+            } else {
+                ArrayMap<String, String> params = new ArrayMap<>();
+                params.put("ac", ac(site.getType()));
+                params.put("ids", id);
+                String detailContent = call(site, params);
+                SpiderDebug.log(detailContent);
+                Result result = Result.fromType(site.getType(), detailContent);
+                if (!result.getList().isEmpty()) result.getVod().setFlags();
+                Source.get().parse(result.getVod());
+                return result;
+            }
+        } catch (Throwable e) {
+            SpiderDebug.log(key);
+            SpiderDebug.log(e);
+            site.setBlacklist();
+            return Result.empty();
+        }
+    }
+
+    @NonNull
+    public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id) {
+        Site site = VodConfig.get().getSite(key);
+        try {
+            if (site.isBlacklist()) return Result.empty();
+            Source.get().stop();
+            if (site.getType() == 3) {
+                String playerContent = site.recent().spider().playerContent(flag, id, VodConfig.get().getFlags());
+                SpiderDebug.log(playerContent);
+                Result result = Result.fromJson(playerContent);
+                if (result.getFlag().isEmpty()) result.setFlag(flag);
+                result.setUrl(Source.get().fetch(result));
+                result.setHeader(site.getHeader());
+                result.setKey(key);
+                return result;
+            } else if (site.getType() == 4) {
+                ArrayMap<String, String> params = new ArrayMap<>();
+                params.put("play", id);
+                params.put("flag", flag);
+                String playerContent = call(site, params);
+                SpiderDebug.log(playerContent);
+                Result result = Result.fromJson(playerContent);
+                if (result.getFlag().isEmpty()) result.setFlag(flag);
+                result.setUrl(Source.get().fetch(result));
+                result.setHeader(site.getHeader());
+                return result;
+            } else if (site.isEmpty() && PUSH.equals(key)) {
+                Result result = new Result();
+                result.setUrl(id);
+                result.setParse(0);
+                result.setFlag(flag);
+                result.setUrl(Source.get().fetch(result));
+                SpiderDebug.log(result.toString());
+                return result;
+            } else {
+                Result result = new Result();
+                result.setUrl(id);
+                result.setFlag(flag);
+                result.setHeader(site.getHeader());
+                result.setPlayUrl(site.getPlayUrl());
+                result.setParse(Sniffer.isVideoFormat(id) && result.getPlayUrl().isEmpty() ? 0 : 1);
+                result.setUrl(Source.get().fetch(result));
+                SpiderDebug.log(result.toString());
+                return result;
+            }
+        } catch (Throwable e) {
+            SpiderDebug.log(key);
+            SpiderDebug.log(e);
+            site.setBlacklist();
+            return Result.empty();
+        }
+    }
+
+    @NonNull
+    public static Result searchContent(@NonNull Site site, @NonNull String keyword, boolean quick, @NonNull String page) {
+        try {
+            if (site.isBlacklist()) return Result.empty();
+            boolean hasPage = !page.equals("1");
+            if (isSpider(site)) {
+                String searchContent = hasPage ? site.spider().searchContent(keyword, quick, page) : site.spider().searchContent(keyword, quick);
+                SpiderDebug.log(searchContent);
+                Result result = Result.fromJson(searchContent);
+                for (Vod vod : result.getList()) vod.setSite(site);
+                return result;
+            } else {
+                ArrayMap<String, String> params = new ArrayMap<>();
+                params.put("wd", keyword);
+                params.put("quick", String.valueOf(quick));
+                if (hasPage) params.put("pg", page);
+                String searchContent = call(site, params);
+                SpiderDebug.log(searchContent);
+                Result result = fetchPic(site, Result.fromType(site.getType(), searchContent));
+                for (Vod vod : result.getList()) vod.setSite(site);
+                return result;
+            }
+        } catch (Throwable e) {
+            SpiderDebug.log(site.getName());
+            SpiderDebug.log(e);
+            site.setBlacklist();
+            return Result.empty();
+        }
+    }
+
+    @NonNull
+    public static Result action(@NonNull String key, @NonNull String action) {
+        try {
+            Site site = VodConfig.get().getSite(key);
+            if (site.getType() == 3) return Result.fromJson(site.recent().spider().action(action));
+            if (site.getType() == 4) return Result.fromJson(OkHttp.string(action));
+            return Result.empty();
+        } catch (Throwable e) {
+            SpiderDebug.log(key);
+            SpiderDebug.log(e);
+            return Result.empty();
+        }
+    }
+
+    @NonNull
+    public static Result fetchPic(@NonNull Site site, @NonNull Result result) {
+        try {
+            if (site.getType() > 2 || result.getList().isEmpty() || !result.getVod().getPic().isEmpty()) return result;
+            ArrayList<String> ids = new ArrayList<>();
+            boolean empty = site.getCategories().isEmpty();
+            for (Vod item : result.getList()) if (empty || site.getCategories().contains(item.getTypeName())) ids.add(item.getId());
+            if (ids.isEmpty()) return result.clear();
             ArrayMap<String, String> params = new ArrayMap<>();
-            if (site.getType() == 1 && !extend.isEmpty()) params.put("f", App.gson().toJson(extend));
-            if (site.getType() == 4) params.put("ext", Util.base64(App.gson().toJson(extend), Util.URL_SAFE));
             params.put("ac", ac(site.getType()));
-            params.put("t", tid);
-            params.put("pg", page);
-            String categoryContent = call(site, params);
-            SpiderDebug.log(categoryContent);
-            return Result.fromType(site.getType(), categoryContent);
-        }
-    }
-
-    @NonNull
-    public static Result detailContent(@NonNull String key, @NonNull String id) throws Exception {
-        Site site = VodConfig.get().getSite(key);
-        if (site.isEmpty() && PUSH.equals(key)) {
-            Vod vod = new Vod();
-            vod.setVodId(id);
-            vod.setVodName(id);
-            vod.setPlayUrl(id);
-            vod.setPlayFrom(ResUtil.getString(R.string.push));
-            vod.setVodPic(ResUtil.getString(R.string.push_image));
-            vod.setVodFlags();
-            Source.get().parse(vod);
-            return Result.vod(vod);
-        } else if (isSpider(site)) {
-            String detailContent = site.recent().spider().detailContent(Arrays.asList(id));
-            SpiderDebug.log(detailContent);
-            Result result = Result.fromJson(detailContent);
-            if (!result.getList().isEmpty()) result.getVod().setVodFlags();
-            Source.get().parse(result.getVod());
-            return result;
-        } else {
-            ArrayMap<String, String> params = new ArrayMap<>();
-            params.put("ac", ac(site.getType()));
-            params.put("ids", id);
-            String detailContent = call(site, params);
-            SpiderDebug.log(detailContent);
-            Result result = Result.fromType(site.getType(), detailContent);
-            if (!result.getList().isEmpty()) result.getVod().setVodFlags();
-            Source.get().parse(result.getVod());
-            return result;
-        }
-    }
-
-    @NonNull
-    public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id) throws Exception {
-        Site site = VodConfig.get().getSite(key);
-        Source.get().stop();
-        if (site.getType() == 3) {
-            String playerContent = site.recent().spider().playerContent(flag, id, VodConfig.get().getFlags());
-            SpiderDebug.log(playerContent);
-            Result result = Result.fromJson(playerContent);
-            if (result.getFlag().isEmpty()) result.setFlag(flag);
-            result.setUrl(Source.get().fetch(result));
-            result.setHeader(Json.toObject(site.getHeader()));
-            result.setKey(key);
-            return result;
-        } else if (site.getType() == 4) {
-            ArrayMap<String, String> params = new ArrayMap<>();
-            params.put("play", id);
-            params.put("flag", flag);
-            String playerContent = call(site, params);
-            SpiderDebug.log(playerContent);
-            Result result = Result.fromJson(playerContent);
-            if (result.getFlag().isEmpty()) result.setFlag(flag);
-            result.setUrl(Source.get().fetch(result));
-            result.setHeader(Json.toObject(site.getHeader()));
-            return result;
-        } else if (site.isEmpty() && PUSH.equals(key)) {
-            Result result = new Result();
-            result.setUrl(id);
-            result.setParse(0);
-            result.setFlag(flag);
-            result.setUrl(Source.get().fetch(result));
-            SpiderDebug.log(result.toString());
-            return result;
-        } else {
-            Result result = new Result();
-            result.setUrl(id);
-            result.setFlag(flag);
-            result.setHeader(Json.toObject(site.getHeader()));
-            result.setPlayUrl(site.getPlayUrl());
-            result.setParse(Sniffer.isVideoFormat(id) && result.getPlayUrl().isEmpty() ? 0 : 1);
-            result.setUrl(Source.get().fetch(result));
-            SpiderDebug.log(result.toString());
-            return result;
-        }
-    }
-
-    @NonNull
-    public static Result searchContent(@NonNull Site site, @NonNull String keyword, boolean quick, @NonNull String page) throws Exception {
-        boolean hasPage = !page.equals("1");
-        if (isSpider(site)) {
-            String searchContent = hasPage ? site.spider().searchContent(keyword, quick, page) : site.spider().searchContent(keyword, quick);
-            SpiderDebug.log(searchContent);
-            Result result = Result.fromJson(searchContent);
-            for (Vod vod : result.getList()) vod.setSite(site);
-            return result;
-        } else {
-            ArrayMap<String, String> params = new ArrayMap<>();
-            params.put("wd", keyword);
-            params.put("quick", String.valueOf(quick));
-            if (hasPage) params.put("pg", page);
-            String searchContent = call(site, params);
-            SpiderDebug.log(searchContent);
-            Result result = fetchPic(site, Result.fromType(site.getType(), searchContent));
-            for (Vod vod : result.getList()) vod.setSite(site);
-            return result;
-        }
-    }
-
-    @NonNull
-    public static Result action(@NonNull String key, @NonNull String action) throws Exception {
-        Site site = VodConfig.get().getSite(key);
-        if (site.getType() == 3) return Result.fromJson(site.recent().spider().action(action));
-        if (site.getType() == 4) return Result.fromJson(OkHttp.string(action));
-        return Result.empty();
-    }
-
-    @NonNull
-    public static Result fetchPic(@NonNull Site site, @NonNull Result result) throws Exception {
-        if (site.getType() > 2 || result.getList().isEmpty() || !result.getVod().getPic().isEmpty()) return result;
-        ArrayList<String> ids = new ArrayList<>();
-        boolean empty = site.getCategories().isEmpty();
-        for (Vod item : result.getList()) if (empty || site.getCategories().contains(item.getTypeName())) ids.add(item.getId());
-        if (ids.isEmpty()) return result.clear();
-        ArrayMap<String, String> params = new ArrayMap<>();
-        params.put("ac", ac(site.getType()));
-        params.put("ids", TextUtils.join(",", ids));
-        try (Response response = OkHttp.newCall(site.getApi(), site.getHeaders(), params).execute()) {
-            result.setList(Result.fromType(site.getType(), response.body().string()).getList());
+            params.put("ids", TextUtils.join(",", ids));
+            try (Response response = OkHttp.newCall(site.getApi(), site.getHeader(), params).execute()) {
+                result.setList(Result.fromType(site.getType(), response.body().string()).getList());
+                return result;
+            }
+        } catch (Throwable e) {
+            SpiderDebug.log(site.getName());
+            SpiderDebug.log(e);
             return result;
         }
     }

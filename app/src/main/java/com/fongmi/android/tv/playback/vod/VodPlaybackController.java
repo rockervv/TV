@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.playback.vod;
 
 import androidx.media3.common.C;
+
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Episode;
 import com.fongmi.android.tv.bean.Flag;
@@ -8,8 +9,11 @@ import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Vod;
+
 import java.util.Collections;
 import java.util.List;
+
+import com.fongmi.android.tv.model.PlaybackViewModel;
 
 public class VodPlaybackController {
 
@@ -17,6 +21,7 @@ public class VodPlaybackController {
     private final VodFallbackPolicy fallbackPolicy;
     private final VodPlaybackState state;
     private final VodPlaybackHost host;
+    private PlaybackViewModel viewModel;
     private History lastHistory;
 
     public VodPlaybackController(VodPlaybackHost host, VodPlaybackState state) {
@@ -24,6 +29,11 @@ public class VodPlaybackController {
         this.state = state;
         this.host = host;
         this.fallbackPolicy = new VodFallbackPolicy(this, state, host);
+    }
+
+    public void setViewModel(PlaybackViewModel viewModel) {
+        this.viewModel = viewModel;
+        this.fallbackPolicy.setViewModel(viewModel);
     }
 
     public void reset() {
@@ -45,6 +55,8 @@ public class VodPlaybackController {
     }
 
     public void onDetailResult(Result result) {
+        android.util.Log.d("TV_FATAL", "VodPlaybackController.onDetailResult: " + (result != null ? "list size " + result.getList().size() + " Msg: " + result.getMsg() : "null"));
+        if (result == null) return;
         if (result.getList().isEmpty()) detailEmpty(result.hasMsg());
         else detailLoaded(result.getVod());
         host.showDetailMessage(result.getMsg());
@@ -68,11 +80,14 @@ public class VodPlaybackController {
         state.setQuality(result);
         state.setPlayingRequest(request);
         state.setUseParse(result.isUseParse());
-        host.renderUseParse(state.isUseParse());
+        if (viewModel != null) {
+            viewModel.setQuality(result);
+            viewModel.setUseParse(state.isUseParse());
+            viewModel.setQualityVisible(result.getUrl().isMulti());
+            if (result.hasDesc()) viewModel.setDescription(result.getDesc());
+            if (result.hasArtwork()) viewModel.setArtwork(result.getArtwork());
+        }
         result.getUrl().set(state.getQualityPosition());
-        host.renderQuality(result, result.getUrl().isMulti());
-        if (result.hasDesc()) host.renderDescription(result.getDesc());
-        if (result.hasArtwork()) host.renderArtwork(result.getArtwork());
         if (result.hasPosition()) state.getHistory().setPosition(result.getPosition());
         startPlayback(result, startPositionMs());
     }
@@ -94,9 +109,11 @@ public class VodPlaybackController {
         Flag selected = resolveFlag(item);
         if (!force && selected.isSelected()) return;
         for (Flag flag : state.getFlags()) flag.setSelected(selected);
-        host.renderFlagSelection(selected);
-        host.renderEpisodes(selected.getEpisodes());
-        host.renderQualityVisible(false);
+        if (viewModel != null) {
+            viewModel.setFlag(selected);
+            viewModel.setEpisodes(selected.getEpisodes());
+            viewModel.setQualityVisible(false);
+        }
         seamless(selected);
     }
 
@@ -105,7 +122,7 @@ public class VodPlaybackController {
         Flag selected = state.getFlag();
         for (Flag flag : state.getFlags()) flag.toggle(flag == selected, item);
         historyPolicy.updateEpisode(state.getHistory(), state.getFlag(), item);
-        host.renderEpisodeSelection(item);
+        if (viewModel != null) viewModel.setEpisode(item);
         if (host.isFullscreenForPlayback()) host.showEpisodeReady(item);
         refresh();
     }
@@ -114,6 +131,7 @@ public class VodPlaybackController {
         if (!state.hasEpisode()) return;
         state.setQuality(result);
         state.setQualityPosition(result.getUrl().getPosition());
+        if (viewModel != null) viewModel.setQuality(result);
         startPlayback(result, host.getPlayerPosition());
     }
 
@@ -126,12 +144,12 @@ public class VodPlaybackController {
         if (items.isEmpty()) return;
         if (!state.hasFlags()) {
             state.setFlags(items);
-            host.renderFlags(state.getFlags());
+            if (viewModel != null) viewModel.setFlags(state.getFlags());
             return;
         }
         Flag activated = state.getFlag();
         for (Flag item : items) mergeFlag(activated, item);
-        host.renderFlags(state.getFlags());
+        if (viewModel != null) viewModel.setFlags(state.getFlags());
     }
 
     public void selectSource(Vod item) {
@@ -226,6 +244,7 @@ public class VodPlaybackController {
 
     public void onTimeChanged(long time, long position, long duration) {
         History history = currentHistory();
+        if (position < 0 || duration <= 0) return; // 🛡️ 數據不全時不進行邏輯判斷
         historyPolicy.updateTime(history, time, position, duration);
         if (history != null && history.getEnding() > 0 && history.getEnding() + position >= duration) nextEpisode(false);
     }
@@ -270,6 +289,7 @@ public class VodPlaybackController {
     }
 
     private void detailEmpty(boolean finish) {
+        android.util.Log.w("TV_FATAL", "VodPlaybackController.detailEmpty: finish=" + finish + " name=" + host.getVodName());
         if (host.isFromCollect() || finish) {
             host.finishVod();
         } else if (host.getVodName().isEmpty()) {
@@ -282,16 +302,20 @@ public class VodPlaybackController {
     }
 
     private void detailLoaded(Vod item) {
-        item.getVodPic(host.getVodPic());
-        item.getVodName(host.getVodName());
+        android.util.Log.d("TV_FATAL", "VodPlaybackController.detailLoaded: " + item.getVodName() + " Flags: " + item.getFlags().size() + " Content: " + (item.getContent().length() > 20 ? item.getContent().substring(0, 20) : item.getContent()));
+        item.checkPic(host.getVodPic());
+        item.checkName(host.getVodName());
         state.setFlags(item.getFlags());
         state.setHistory(historyPolicy.findOrCreate(host.getHistoryKey(), host.getVodMark(), item));
         lastHistory = state.getHistory();
-        host.renderDetail(item, state.getHistory());
-        host.renderFlags(item.getFlags());
-        host.renderHistory(state.getHistory());
+        if (viewModel != null) {
+            viewModel.setVod(item);
+            viewModel.setHistory(state.getHistory());
+            viewModel.setFlags(item.getFlags());
+        }
         host.onDetailFallbackCancelled();
         if (item.getFlags().isEmpty()) {
+            android.util.Log.w("TV_FATAL", "VodPlaybackController.detailLoaded: flags are empty!");
             fallbackPolicy.emptyFlag();
         } else {
             selectFlag(state.getHistory().getFlag(), true);
@@ -309,7 +333,7 @@ public class VodPlaybackController {
     private void seamless(Flag flag) {
         History history = state.getHistory();
         Episode episode = history == null ? null : flag.find(history.getVodRemarks(), host.getVodMark().isEmpty());
-        host.renderQualityVisible(episode != null && episode.isSelected() && state.getQuality().getUrl().isMulti());
+        if (viewModel != null) viewModel.setQualityVisible(episode != null && episode.isSelected() && state.getQuality().getUrl().isMulti());
         if (episode == null || episode.isSelected()) return;
         history.setVodRemarks(episode.getName());
         selectEpisode(episode);
@@ -320,8 +344,8 @@ public class VodPlaybackController {
         if (target == null) {
             state.getFlags().add(item);
         } else {
-            // target.mergeEpisodes(item.getEpisodes(), state.getHistory() != null && state.getHistory().isRevSort());
-            if (target.equals(activated)) host.renderEpisodes(target.getEpisodes());
+            target.mergeEpisodes(item.getEpisodes(), state.getHistory() != null && state.getHistory().isRevSort());
+            if (target.equals(activated) && viewModel != null) viewModel.setEpisodes(target.getEpisodes());
         }
     }
 
@@ -347,7 +371,7 @@ public class VodPlaybackController {
     private Episode getRelativeEpisode(int offset) {
         List<Episode> episodes = state.getFlag().getEpisodes();
         int current = state.getFlag().getPosition();
-        int position = Math.max(0, Math.min(current + offset, episodes.size() - 1));
+        int position = Math.min(Math.max(current + offset, 0), episodes.size() - 1);
         return episodes.get(position);
     }
 }

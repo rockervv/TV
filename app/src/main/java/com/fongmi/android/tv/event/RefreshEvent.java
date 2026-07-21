@@ -1,23 +1,28 @@
 package com.fongmi.android.tv.event;
 
+import com.fongmi.android.tv.bean.Vod;
+
 import org.greenrobot.eventbus.EventBus;
 
 public class RefreshEvent {
 
     private final Type type;
     private String path;
+    private Vod vod;
 
     public static void config() {
         EventBus.getDefault().post(new RefreshEvent(Type.CONFIG));
     }
 
-    public static void image() {
-        EventBus.getDefault().post(new RefreshEvent(Type.IMAGE));
+    public static void home() {
+        EventBus.getDefault().post(new RefreshEvent(Type.HOME));
     }
 
-    public static void video() {
-        EventBus.getDefault().post(new RefreshEvent(Type.VIDEO));
+
+    public static void category() {
+        EventBus.getDefault().post(new RefreshEvent(Type.CATEGORY));
     }
+
 
     public static void history() {
         EventBus.getDefault().post(new RefreshEvent(Type.HISTORY));
@@ -35,6 +40,14 @@ public class RefreshEvent {
         EventBus.getDefault().post(new RefreshEvent(Type.WALL));
     }
 
+    public static void video() {
+        EventBus.getDefault().post(new RefreshEvent(Type.VIDEO));
+    }
+
+    public static void image() {
+        EventBus.getDefault().post(new RefreshEvent(Type.IMAGE));
+    }
+
     public static void live() {
         EventBus.getDefault().post(new RefreshEvent(Type.LIVE));
     }
@@ -46,9 +59,11 @@ public class RefreshEvent {
     public static void player() {
         EventBus.getDefault().post(new RefreshEvent(Type.PLAYER));
     }
-
     public static void subtitle(String path) {
         EventBus.getDefault().post(new RefreshEvent(Type.SUBTITLE, path));
+    }
+    public static void vod(Vod vod) {
+        EventBus.getDefault().post(new RefreshEvent(Type.VOD, vod));
     }
 
     private RefreshEvent(Type type) {
@@ -60,6 +75,12 @@ public class RefreshEvent {
         this.path = path;
     }
 
+    private RefreshEvent(Type type, Vod vod) {
+        this.type = type;
+        this.vod = vod;
+    }
+
+
     public Type getType() {
         return type;
     }
@@ -68,7 +89,11 @@ public class RefreshEvent {
         return path;
     }
 
+    public Vod getVod() {
+        return vod;
+    }
+
     public enum Type {
-        CONFIG, IMAGE, VIDEO, HISTORY, KEEP, SIZE, WALL, LIVE, DETAIL, PLAYER, SUBTITLE
+        HOME, CATEGORY, HISTORY, KEEP, SIZE, THEME, LIVE, DETAIL, PLAYER, SUBTITLE, VOD, WALL, VIDEO, IMAGE, CONFIG
     }
 }

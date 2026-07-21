@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.api;
 
 import android.util.Base64;
+import android.util.Log;
 
 import androidx.media3.common.MimeTypes;
 
@@ -45,12 +46,23 @@ public class LiveParser {
         return "";
     }
 
-    public static void start(Live live) throws Exception {
-        if (live.getGroups().size() > 0) return;
-        if (live.getType() == 0) text(live, getText(live));
-        if (live.getType() == 1) json(live, getText(live));
-        if (live.getType() == 3) spider(live, getText(live));
+    private static String extract(String line, String... keywords) {
+        String[] splits = line.split(" ");
+        for (String split : splits) for (String keyword : keywords) if (split.contains(keyword)) return split.split("=")[1].replace("\"", "");
+        return "";
     }
+
+    public static void start(Live live) throws Exception {
+        if (!live.getGroups().isEmpty()) return;
+        String text = getText(live);
+        if (Json.isArray(text)) json(live, text);
+        else text(live, text);
+
+        //if (live.getType() == 0) text(live, getText(live));
+        //if (live.getType() == 1) json(live, getText(live));
+        //if (live.getType() == 3) spider(live, getText(live));
+    }
+
 
     public static void text(Live live, String text) {
         int number = 0;
@@ -76,12 +88,6 @@ public class LiveParser {
                 channel.live(live);
             }
         }
-    }
-
-    private static void spider(Live live, String text) throws Exception {
-        if (text.isEmpty()) text = live.spider().liveContent();
-        if (Json.valid(text)) json(live, text);
-        else text(live, text);
     }
 
     private static void m3u(Live live, String text) {
@@ -130,15 +136,25 @@ public class LiveParser {
             if (split.length > 1 && split[1].contains("://")) {
                 Group group = live.getGroups().get(live.getGroups().size() - 1);
                 Channel channel = group.find(Channel.create(split[0]));
-                channel.addUrls(line.substring(index).split("#"));
-                setting.copy(channel);
+                for (String url : split[1].split("#")) {
+                    String[] parts = url.split("\\|", 2);
+                    if (parts.length > 1) setting.headers(parts[1]);
+                    channel.getUrls().add(parts[0]);
+                    setting.copy(channel);
+                }
             }
         }
     }
 
-    private static String getText(Live live) {
-        return getText(live.getUrl(), live.getHeaders());
+
+    private static String getText(Live live) throws Exception {
+        if (!live.getApi().isEmpty()) return live.spider().liveContent(live.getUrl());
+        return OkHttp.string(UrlUtil.convert(live.getUrl()), live.getHeaders());
     }
+
+    //private static String getText(Live live) {
+    //    return getText(live.getUrl(), live.getHeaders());
+    //}
 
     private static String getText(String url, Map<String, String> header) {
         if (url.startsWith("file")) return Path.read(url);
@@ -159,14 +175,24 @@ public class LiveParser {
         private String referer;
         private Integer parse;
         private Integer player;
+        private boolean forceKey;
         private Map<String, String> header;
+        private Map<String, String> drmHeader;
+
+
+
 
         public static Setting create() {
             return new Setting();
         }
+        public Setting() {
+            header = new HashMap<>();
+            drmHeader = new HashMap<>();
+        }
 
-        public boolean find(String line) {
-            return line.startsWith("ua") || line.startsWith("parse") || line.startsWith("click") || line.startsWith("player") || line.startsWith("header") || line.startsWith("format") || line.startsWith("origin") || line.startsWith("referer") || line.startsWith("#EXTHTTP:") || line.startsWith("#EXTVLCOPT:") || line.startsWith("#KODIPROP:");
+
+        private boolean find(String line) {
+            return line.startsWith("ua") || line.startsWith("parse") || line.startsWith("click") || line.startsWith("header") || line.startsWith("format") || line.startsWith("origin") || line.startsWith("referer") || line.startsWith("forceKey") || line.startsWith("#EXTHTTP:") || line.startsWith("#EXTVLCOPT:") || line.startsWith("#KODIPROP:");
         }
 
         public void check(String line) {
@@ -195,9 +221,8 @@ public class LiveParser {
             if (format != null) channel.setFormat(format);
             if (origin != null) channel.setOrigin(origin);
             if (referer != null) channel.setReferer(referer);
-            if (player != null) channel.setPlayerType(player);
-            if (header != null) channel.setHeader(Json.toObject(header));
-            if (key != null && type != null) channel.setDrm(Drm.create(key, type));
+            if (!header.isEmpty()) channel.setHeader(header);
+            if (key != null && type != null) channel.setDrm(Drm.create(key, type, drmHeader, forceKey));
             return this;
         }
 
@@ -206,6 +231,7 @@ public class LiveParser {
                 if (line.contains("user-agent=")) ua = line.split("(?i)user-agent=")[1].trim().replace("\"", "");
                 if (line.contains("ua=")) ua = line.split("ua=")[1].trim().replace("\"", "");
             } catch (Exception e) {
+                e.printStackTrace();
                 ua = null;
             }
         }
@@ -214,6 +240,7 @@ public class LiveParser {
             try {
                 referer = line.split("(?i)referer=")[1].trim().replace("\"", "");
             } catch (Exception e) {
+                e.printStackTrace();
                 referer = null;
             }
         }
@@ -230,6 +257,7 @@ public class LiveParser {
             try {
                 click = line.split("click=")[1].trim();
             } catch (Exception e) {
+                e.printStackTrace();
                 click = null;
             }
         }
@@ -249,6 +277,7 @@ public class LiveParser {
                 if ("mpd".equals(format) || "dash".equals(format)) format = MimeTypes.APPLICATION_MPD;
                 if ("hls".equals(format)) format = MimeTypes.APPLICATION_M3U8;
             } catch (Exception e) {
+                e.printStackTrace();
                 format = null;
             }
         }
@@ -257,15 +286,18 @@ public class LiveParser {
             try {
                 origin = line.split("(?i)origin=")[1].trim();
             } catch (Exception e) {
+                e.printStackTrace();
                 origin = null;
             }
         }
 
         private void key(String line) {
             try {
-                key = line.split("license_key=")[1].trim();
-                if (!key.startsWith("http")) convert();
+                key = line.contains("license_key=") ? line.split("license_key=")[1].trim() : line;
+                if (key.startsWith("http")) httpKey();
+                else localKey();
             } catch (Exception e) {
+                e.printStackTrace();
                 key = null;
             } finally {
                 player = PlayerSetting.ENGINE_EXO;
@@ -274,11 +306,25 @@ public class LiveParser {
 
         private void type(String line) {
             try {
-                type = line.split("license_type=")[1].trim();
+                type = line.contains("license_type=") ? line.split("license_type=")[1].trim() : line;
             } catch (Exception e) {
+                e.printStackTrace();
                 type = null;
             } finally {
                 player = PlayerSetting.ENGINE_EXO;
+            }
+        }
+
+        private void drmLegacy(String line) {
+            try {
+                line = line.split("drm_legacy=")[1].trim();
+                String[] split = line.split("\\|", 2);
+                type(split[0].trim());
+                key(split[1].trim());
+            } catch (Exception e) {
+                e.printStackTrace();
+                type = null;
+                key = null;
             }
         }
 
@@ -287,14 +333,18 @@ public class LiveParser {
                 if (line.contains("#EXTHTTP:")) header = Json.toMap(Json.parse(line.split("#EXTHTTP:")[1].trim()));
                 if (line.contains("header=")) header = Json.toMap(Json.parse(line.split("header=")[1].trim()));
             } catch (Exception e) {
+                Log.e ("LiveParser", "header:", e);
                 header = null;
             }
         }
 
         private void headers(String line) {
             try {
-                headers(line.split("headers=")[1].trim().split("&"));
-            } catch (Exception ignored) {
+                if (line.contains("headers=")) headers(header, line.split("headers=")[1].trim().split("&"));
+                else if (line.contains("|")) for (String text : line.split("\\|")) headers(text);
+                else headers(header, line.trim().split("&"));
+            } catch (Exception e) {
+                Log.e ("LiveParser", "headers:", e);
             }
         }
 
@@ -305,6 +355,46 @@ public class LiveParser {
                 header.put(a[0].trim(), a[1].trim().replace("\"", ""));
             }
         }
+
+        private void drmHeaders(String line) {
+            try {
+                if (line.contains("|")) for (String text : line.split("\\|")) drmHeaders(text);
+                else headers(drmHeader, line.trim().split("&"));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+
+        private void headers(Map<String, String> map, String[] params) {
+            for (String param : params) {
+                if (!param.contains("=")) continue;                                                                                     String[] a = param.split("=", 2);
+                String k = a[0].trim().replace("\"", "");                                                                               String v = a[1].trim().replace("\"", "");
+                if ("drmScheme".equals(k)) type(v);
+                else if ("drmLicense".equals(k)) key(v);
+                else map.put(k, v);
+            }
+        }
+
+        private void forceKey(String line) {
+            try {
+                forceKey = Boolean.parseBoolean(line.split("forceKey=")[1].trim());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void httpKey() {
+            String[] parts = key.split("\\|", 2);
+            if (parts.length > 1) drmHeaders(parts[1]);
+            key = parts[0].trim();
+        }
+
+        private void localKey() {
+            try {
+                ClearKey.objectFrom(key);
+            } catch (Exception e) {                                                                                                     key = ClearKey.get(key.replace("\"", "").replace("{", "").replace("}", "")).toString();
+            }                                                                                                                   }
 
         private void convert() {
             try {
@@ -325,6 +415,9 @@ public class LiveParser {
             format = null;
             origin = null;
             referer = null;
+            forceKey = false;
+            header = new HashMap<>();
+            drmHeader = new HashMap<>();
         }
     }
 }

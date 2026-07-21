@@ -44,7 +44,7 @@ final class ViewModelTaskRunner<T extends Enum<T>> {
     }
 
     void cancelAll() {
-        for (ListenableFuture<?> future : futures.values()) future.cancel(true);
+        futures.values().forEach(future -> future.cancel(true));
         futures.clear();
     }
 }

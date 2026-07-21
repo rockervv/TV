@@ -4,6 +4,7 @@ import android.os.Environment;
 import android.util.Log;
 
 import com.github.catvod.Init;
+import com.orhanobut.logger.Logger;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -26,6 +27,10 @@ public class Path {
 
     public static boolean exists(String path) {
         return new File(path.replace("file://", "")).exists();
+    }
+
+    public static boolean exists(File file) {
+        return file != null && file.exists() && file.length() > 0;
     }
 
     public static File root() {
@@ -268,15 +273,22 @@ public class Path {
         if (dir.delete()) Log.d(TAG, "Deleted:" + dir.getAbsolutePath());
     }
 
-    public static File create(File file) throws Exception {
+
+    public static File create(File file) {
         try {
-            if (!file.canWrite()) file.setWritable(true);
-            if (!file.exists()) file.createNewFile();
+            File parent = file.getParentFile();
+            if (parent != null) mkdir(parent);
+            if (file.exists()) clear(file);
+            if (file.createNewFile()) Logger.t(TAG).d("Create:" + file);
+            file.setReadable(true);
+            file.setWritable(true);
+            file.setExecutable(true);
             Shell.exec("chmod 777 " + file);
             return file;
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
             return file;
         }
     }
+
 }

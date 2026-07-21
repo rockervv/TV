@@ -48,8 +48,7 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
         android:enableOnBackInvokedCallback="true"
-        android:extractNativeLibs="false"
-        tools:replace="android:allowBackup,android:icon,android:label,android:banner,android:supportsRtl,android:extractNativeLibs">
+        tools:replace="android:allowBackup,android:supportsRtl">
 
         <meta-data
             android:name="android.max_aspect"

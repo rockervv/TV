@@ -8,7 +8,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.GridLayoutManager;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.databinding.DialogMenuBinding;
 import com.fongmi.android.tv.impl.MenuKeyCallback;
 import com.fongmi.android.tv.ui.adapter.MenuAdapter;

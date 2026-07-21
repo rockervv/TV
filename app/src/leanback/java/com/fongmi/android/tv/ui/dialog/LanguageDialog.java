@@ -8,7 +8,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.GridLayoutManager;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.databinding.DialogLanguageBinding;
 import com.fongmi.android.tv.impl.LanguageCallback;
 import com.fongmi.android.tv.ui.adapter.LanguageAdapter;

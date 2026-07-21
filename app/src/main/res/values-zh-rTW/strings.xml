@@ -331,4 +331,5 @@
 
     <string name="site_blacklist_confirm">確定要將「%s」加入黑名單嗎？</string>
     <string name="site_blacklist_remove_confirm">確定要將「%s」從黑名單移除嗎？</string>
+    <string name="db_upgrading">正在升級資料庫: %1$d -> %2$d</string>
 </resources>

@@ -28,13 +28,13 @@ public class Cache implements Process {
         String key = params.get("key");
         switch (Objects.requireNonNullElse(params.get("do"), "")) {
             case "get":
-                return Nano.success(Prefers.getString(getKey(rule, key)));
+                return Nano.ok(Prefers.getString(getKey(rule, key)));
             case "set":
                 Prefers.put(getKey(rule, key), params.get("value"));
-                return Nano.success();
+                return Nano.ok();
             case "del":
                 Prefers.remove(getKey(rule, key));
-                return Nano.success();
+                return Nano.ok();
             default:
                 return Nano.error(null);
         }

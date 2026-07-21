@@ -1,31 +1,36 @@
 package com.fongmi.android.tv.api.config;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
+import android.media.MediaMetadataRetriever;
 import android.text.TextUtils;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.event.ConfigEvent;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.Callback;
+import com.fongmi.android.tv.utils.Download;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Asset;
 import com.github.catvod.utils.Path;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 
-public class WallConfig {
+public class WallConfig  extends BaseConfig{
 
-    private Config config;
-    private boolean sync;
+    private static final String TAG = WallConfig.class.getSimpleName();
 
     private static class Loader {
         static volatile WallConfig INSTANCE = new WallConfig();
@@ -44,7 +49,13 @@ public class WallConfig {
     }
 
     public static void load(Config config, Callback callback) {
-        get().clear().config(config).load(callback);
+        get().config(config).load(callback);
+    }
+
+
+    public void load() {
+        if (sync) return;
+        load(new Callback());
     }
 
     public WallConfig init() {
@@ -58,57 +69,74 @@ public class WallConfig {
         return this;
     }
 
-    public WallConfig clear() {
-        this.config = null;
-        return this;
+    @Override
+    protected String getTag() {
+        return TAG;
     }
 
-    public Config getConfig() {
-        return config == null ? Config.wall() : config;
+    @Override
+    protected Config defaultConfig() {
+        return Config.wall();
     }
 
-    public void load(Callback callback) {
-        App.execute(() -> loadConfig(callback));
+    @Override
+    protected void postEvent() {
+        super.postEvent();
+        ConfigEvent.wall();
     }
 
-    private void loadConfig(Callback callback) {
-        try {
-            File file = write(FileUtil.getWall(0));
-            if (file.exists() && file.length() > 0) refresh(0);
-            else config(Config.find(VodConfig.get().getWall(), 2));
-            App.post(callback::success);
-            config.update();
-        } catch (Throwable e) {
-            App.post(() -> callback.error(Notify.getError(R.string.error_config_parse, e)));
-            config(Config.find(VodConfig.get().getWall(), 2));
-            e.printStackTrace();
-        }
+    @Override
+    protected void load(Config config) throws Throwable {
+        File file = FileUtil.getWall(0);
+        checkUrl(config.getUrl(), file);
+        setWallType(file);
+        setSnapshot(file);
     }
 
-    private File write(File file) throws Exception {
-        if (getUrl().startsWith("file")) Path.copy(Path.local(getUrl()), file);
-        else if (getUrl().startsWith("assets")) Path.copy(Asset.open(getUrl()), file);
-        else if (getUrl().startsWith("http")) Path.write(file, OkHttp.newCall(getUrl()).execute().body().bytes());
-        return resize(file);
+    @Override
+    protected boolean isLoaded() {
+        return false;
     }
 
-    private File resize(File file) {
-        try {
-            Bitmap bitmap = Glide.with(App.get()).asBitmap().load(file).centerCrop().override(ResUtil.getScreenWidth(), ResUtil.getScreenHeight()).skipMemoryCache(true).diskCacheStrategy(DiskCacheStrategy.NONE).submit().get();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, new FileOutputStream(file));
+    private void checkUrl(String url, File file) throws Throwable {
+        if (url.startsWith("file")) Path.copy(Path.local(url), file);
+        else Download.create(UrlUtil.convert(url), file).tag(TAG).get();
+        if (!Path.exists(file)) throw new FileNotFoundException();
+    }
+
+    private void setWallType(File file) {
+        Setting.putWallType(0);
+        if (isGif(file)) Setting.putWallType(1);
+        else if (isVideo(file)) Setting.putWallType(2);
+    }
+
+    private void setSnapshot(File file) throws Throwable {
+        Bitmap bitmap = Glide.with(App.get()).asBitmap().frame(0).load(file).override(ResUtil.getScreenWidth(), ResUtil.getScreenHeight()).skipMemoryCache(true).diskCacheStrategy(DiskCacheStrategy.NONE).submit().get();
+        try (FileOutputStream fos = new FileOutputStream(FileUtil.getWallCache())) {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+        } finally {
             bitmap.recycle();
-            return file;
-        } catch (Exception e) {
-            return file;
         }
     }
 
-    public boolean needSync(String url) {
-        return sync || TextUtils.isEmpty(config.getUrl()) || url.equals(config.getUrl());
+    private boolean isVideo(File file) {
+        try (MediaMetadataRetriever retriever = new MediaMetadataRetriever()) {
+            retriever.setDataSource(file.getAbsolutePath());
+            return "yes".equalsIgnoreCase(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
-    public static void refresh(int index) {
-        Setting.putWall(index);
-        RefreshEvent.wall();
+    private boolean isGif(File file) {
+        try {
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+            return "image/gif".equals(options.outMimeType);
+        } catch (Exception e) {
+            return false;
+        }
     }
+
 }

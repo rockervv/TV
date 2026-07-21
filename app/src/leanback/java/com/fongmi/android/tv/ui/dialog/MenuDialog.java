@@ -1,10 +1,10 @@
 package com.fongmi.android.tv.ui.dialog;
 
-import android.app.Activity;
 import android.view.LayoutInflater;
 import android.view.WindowManager;
 
 import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 
 import com.fongmi.android.tv.R;
@@ -26,17 +26,17 @@ import java.util.Arrays;
 import java.util.List;
 
 public class MenuDialog implements MenuAdapter.OnClickListener {
+
     private final DialogMenuBinding binding;
+    private final FragmentActivity activity;
     private final MenuAdapter adapter;
     private final AlertDialog dialog;
 
-    private final Activity activity;
-
-    public static MenuDialog create(Activity activity) {
+    public static MenuDialog create(FragmentActivity activity) {
         return new MenuDialog(activity);
     }
 
-    public MenuDialog(Activity activity) {
+    public MenuDialog(FragmentActivity activity) {
         String[] items = ResUtil.getStringArray(R.array.select_home_menu_key);
         List<String> mItems = new ArrayList<>(Arrays.asList(items));
         mItems.remove(0);
@@ -71,7 +71,6 @@ public class MenuDialog implements MenuAdapter.OnClickListener {
         binding.recycler.addItemDecoration(new SpaceItemDecoration(getCount(), 16));
         binding.recycler.setLayoutManager(new GridLayoutManager(dialog.getContext(), getCount()));
         binding.recycler.post(() -> binding.recycler.scrollToPosition(0));
-
     }
 
     private void setDialog() {
@@ -85,8 +84,8 @@ public class MenuDialog implements MenuAdapter.OnClickListener {
     @Override
     public void onItemClick(int position) {
         if (dialog != null) dialog.dismiss();
-        if (position == 0 && activity instanceof HomeActivity) SiteDialog.create(activity).show();
-        else if (position == 1 && activity instanceof HomeActivity) HistoryDialog.create(activity).type(0).show();
+        if (position == 0 && activity instanceof HomeActivity) SiteDialog.create(activity).show(activity);
+        else if (position == 1 && activity instanceof HomeActivity) HistoryDialog.create().vod().show(activity);
         else if (position == 2) LiveActivity.start(activity);
         else if (position == 3) HistoryActivity.start(activity);
         else if (position == 4) SearchActivity.start(activity);
@@ -94,5 +93,4 @@ public class MenuDialog implements MenuAdapter.OnClickListener {
         else if (position == 6) KeepActivity.start(activity);
         else if (position == 7) SettingActivity.start(activity);
     }
-
 }

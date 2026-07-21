@@ -4,7 +4,6 @@ import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.bean.Result;
 
 import java.util.HashMap;
@@ -51,7 +50,7 @@ public class CastAction implements Parcelable {
     public Result result() {
         Result result = new Result();
         result.setUrl(getCurrentURI());
-        result.setHeader(App.gson().toJsonTree(getHeaders()));
+        result.setHeader(getHeaders());
         return result;
     }
 
@@ -69,7 +68,7 @@ public class CastAction implements Parcelable {
         return 0;
     }
 
-    public static final Creator<CastAction> CREATOR = new Creator<CastAction>() {
+    public static final Creator<CastAction> CREATOR = new Creator<>() {
         @Override
         public CastAction createFromParcel(Parcel in) {
             return new CastAction(in);

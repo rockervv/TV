@@ -24,15 +24,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
-import okhttp3.Headers;
 
 @Entity
 public class Site implements Parcelable {
@@ -72,6 +69,10 @@ public class Site implements Parcelable {
     private Integer type;
 
     @Ignore
+    @SerializedName("hide")
+    private Integer hide;
+
+    @Ignore
     @SerializedName("indexs")
     private Integer indexs;
 
@@ -84,6 +85,12 @@ public class Site implements Parcelable {
 
     @SerializedName("changeable")
     private Integer changeable;
+
+    @SerializedName("blacklist")
+    private boolean blacklist;
+
+    @SerializedName("failures")
+    private int failures;
 
     @Ignore
     @SerializedName("quickSearch")
@@ -103,27 +110,47 @@ public class Site implements Parcelable {
     private Style style;
 
     @Ignore
-    private boolean activated;
-
-    private long blacklist;
-
-    private int failures;
+    private boolean selected;
 
     public Site() {
     }
 
+    protected Site(Parcel in) {
+        this.key = in.readString();
+        this.name = in.readString();
+        this.api = in.readString();
+        this.ext = in.readString();
+        this.jar = in.readString();
+        this.click = in.readString();
+        this.playUrl = in.readString();
+        this.type = (Integer) in.readValue(Integer.class.getClassLoader());
+        this.indexs = (Integer) in.readValue(Integer.class.getClassLoader());
+        this.timeout = (Integer) in.readValue(Integer.class.getClassLoader());
+        this.searchable = (Integer) in.readValue(Integer.class.getClassLoader());
+        this.changeable = (Integer) in.readValue(Integer.class.getClassLoader());
+        this.categories = in.createStringArrayList();
+        this.style = in.readParcelable(Style.class.getClassLoader());
+        this.selected = in.readByte() != 0;
+    }
+
     public static Site objectFrom(JsonElement element) {
+        return objectFrom(element, "");
+    }
+
+    public static Site objectFrom(JsonElement element, String spider) {
         try {
-            return App.gson().fromJson(element, Site.class);
+            Site site = App.gson().fromJson(element, Site.class);
+            if (site.getJar().isEmpty()) site.setJar(spider);
+            site.setApi(UrlUtil.convert(site.getApi()));
+            site.setExt(UrlUtil.convert(site.getExt()));
+            return site.trans();
         } catch (Exception e) {
             return new Site();
         }
     }
 
     public static Site get(String key) {
-        Site site = new Site();
-        site.setKey(key);
-        return site;
+        return get(key, "");
     }
 
     public static Site get(String key, String name) {
@@ -131,6 +158,10 @@ public class Site implements Parcelable {
         site.setKey(key);
         site.setName(name);
         return site;
+    }
+
+    public static List<Site> findAll() {
+        return AppDatabase.get().getSiteDao().findAll();
     }
 
     public static Site find(String key) {
@@ -181,10 +212,6 @@ public class Site implements Parcelable {
         return TextUtils.isEmpty(click) ? "" : click;
     }
 
-    public void setClick(String click) {
-        this.click = click;
-    }
-
     public String getPlayUrl() {
         return TextUtils.isEmpty(playUrl) ? "" : playUrl;
     }
@@ -193,8 +220,12 @@ public class Site implements Parcelable {
         return type == null ? 0 : type;
     }
 
-    public void setType(Integer type) {
-        this.type = type;
+    public Integer getHide() {
+        return hide == null ? 0 : hide;
+    }
+
+    public Integer getIndexs() {
+        return indexs == null ? 0 : indexs;
     }
 
     public long getTimeout() {
@@ -205,20 +236,12 @@ public class Site implements Parcelable {
         return searchable == null ? 1 : searchable;
     }
 
-    public void setSearchable(Integer searchable) {
-        this.searchable = searchable;
-    }
-
     public Integer getChangeable() {
         return changeable == null ? 1 : changeable;
     }
 
-    public void setChangeable(Integer changeable) {
-        this.changeable = changeable;
-    }
-
-    public Integer getIndexs() {
-        return indexs == null ? 0 : indexs;
+    public Integer getQuickSearch() {
+        return quickSearch == null ? 1 : quickSearch;
     }
 
     public List<String> getCategories() {
@@ -233,10 +256,6 @@ public class Site implements Parcelable {
         return header == null ? new HashMap<>() : header;
     }
 
-    public Headers getHeaders() {
-        return Headers.of(getHeader());
-    }
-
     public Style getStyle() {
         return style;
     }
@@ -245,60 +264,40 @@ public class Site implements Parcelable {
         return getStyle() != null ? getStyle() : style != null ? style : Style.rect();
     }
 
+    public void setActivated(boolean activated) {
+        this.selected = activated;
+    }
+
+    public void setActivated(Site item) {
+        this.selected = item.equals(this);
+    }
+
+    public boolean isSelected() {
+        return selected;
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
+    }
+
+    public void setSelected(Site item) {
+        this.selected = item.equals(this);
+    }
+
+    public boolean isHide() {
+        return getHide() == 1;
+    }
+
     public boolean isIndex() {
         return getIndexs() == 1;
     }
 
-    public boolean isActivated() {
-        return activated;
-    }
-
-    public void setActivated(boolean activated) {
-        this.activated = activated;
-    }
-
-    public void setActivated(Site item) {
-        this.activated = item.equals(this);
-    }
-
-    public long getBlacklist() {
-        return blacklist;
-    }
-
-    public void setBlacklist(long blacklist) {
-        this.blacklist = blacklist;
-    }
-
-    public int getFailures() {
-        return failures;
-    }
-
-    public void setFailures(int failures) {
-        this.failures = failures;
-    }
-
-    public void setBlacklist() {
-        failures++;
-        if (failures == 1) {
-            setBlacklist(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(12));
-        } else {
-            setBlacklist(Math.max(blacklist, System.currentTimeMillis()) + TimeUnit.DAYS.toMillis(1));
-        }
-        save();
-    }
-
-    public void resetFailures() {
-        this.failures = 0;
-        this.blacklist = 0;
-        save();
-    }
-
-    public boolean isBlacklist() {
-        return getBlacklist() > System.currentTimeMillis();
-    }
-
     public boolean isSearchable() {
-        return getSearchable() == 1 && !isBlacklist();
+        return getSearchable() == 1;
+    }
+
+    public void setSearchable(Integer searchable) {
+        this.searchable = searchable;
     }
 
     public Site setSearchable(boolean searchable) {
@@ -310,13 +309,45 @@ public class Site implements Parcelable {
         return getChangeable() == 1;
     }
 
+    public void setChangeable(Integer changeable) {
+        this.changeable = changeable;
+    }
+
+    public boolean isBlacklist() {
+        return blacklist;
+    }
+
+    public void setBlacklist(boolean blacklist) {
+        this.blacklist = blacklist;
+    }
+
+    public void setBlacklist() {
+        this.failures++;
+        this.blacklist = failures >= 3;
+        this.save();
+    }
+
+    public void resetFailures() {
+        this.failures = 0;
+        this.blacklist = false;
+        this.save();
+    }
+
+    public int getFailures() {
+        return failures;
+    }
+
+    public void setFailures(int failures) {
+        this.failures = failures;
+    }
+
     public Site setChangeable(boolean changeable) {
         if (getChangeable() != 0) setChangeable(changeable ? 1 : 2);
         return this;
     }
 
     public boolean isQuickSearch() {
-        return quickSearch == null ? getSearchable() == 1 : quickSearch == 1;
+        return getQuickSearch() == 1;
     }
 
     public boolean isEmpty() {
@@ -333,14 +364,12 @@ public class Site implements Parcelable {
     public Site trans() {
         if (Trans.pass()) return this;
         this.name = Trans.s2t(name);
-        List<String> categories = new ArrayList<>();
-        for (String cate : getCategories()) categories.add(Trans.s2t(cate));
-        setCategories(categories);
+        setCategories(getCategories().stream().map(Trans::s2t).toList());
         return this;
     }
 
     public Site sync() {
-        return sync(find(getKey()));
+        return sync(AppDatabase.get().getSiteDao().find(getKey()));
     }
 
     public Site sync(Site item) {
@@ -366,9 +395,13 @@ public class Site implements Parcelable {
     @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof Site)) return false;
-        Site it = (Site) obj;
-        return getKey().equals(it.getKey());
+        if (!(obj instanceof Site it)) return false;
+        return Objects.equals(getKey(), it.getKey());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getKey());
     }
 
     @Override
@@ -390,31 +423,9 @@ public class Site implements Parcelable {
         dest.writeValue(this.timeout);
         dest.writeValue(this.searchable);
         dest.writeValue(this.changeable);
-        dest.writeLong(this.blacklist);
-        dest.writeInt(this.failures);
         dest.writeStringList(this.categories);
         dest.writeParcelable(this.style, flags);
-        dest.writeByte(this.activated ? (byte) 1 : (byte) 0);
-    }
-
-    protected Site(Parcel in) {
-        this.key = Objects.requireNonNull(in.readString());
-        this.name = in.readString();
-        this.api = in.readString();
-        this.ext = in.readString();
-        this.jar = in.readString();
-        this.click = in.readString();
-        this.playUrl = in.readString();
-        this.type = (Integer) in.readValue(Integer.class.getClassLoader());
-        this.indexs = (Integer) in.readValue(Integer.class.getClassLoader());
-        this.timeout = (Integer) in.readValue(Integer.class.getClassLoader());
-        this.searchable = (Integer) in.readValue(Integer.class.getClassLoader());
-        this.changeable = (Integer) in.readValue(Integer.class.getClassLoader());
-        this.blacklist = in.readLong();
-        this.failures = in.readInt();
-        this.categories = in.createStringArrayList();
-        this.style = in.readParcelable(Style.class.getClassLoader());
-        this.activated = in.readByte() != 0;
+        dest.writeByte(this.selected ? (byte) 1 : (byte) 0);
     }
 
     public static final Creator<Site> CREATOR = new Creator<>() {

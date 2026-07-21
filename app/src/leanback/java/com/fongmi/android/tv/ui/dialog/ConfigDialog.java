@@ -1,15 +1,13 @@
 package com.fongmi.android.tv.ui.dialog;
 
 import android.Manifest;
-import android.content.DialogInterface;
 import android.text.TextUtils;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.FragmentActivity;
+import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.LiveConfig;
@@ -31,19 +29,21 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
-public class ConfigDialog implements DialogInterface.OnDismissListener {
+public class ConfigDialog extends BaseAlertDialog {
 
-    private final DialogConfigBinding binding;
-    private final FragmentActivity activity;
-    private final ConfigCallback callback;
-    private final AlertDialog dialog;
+    private DialogConfigBinding binding;
+    private ConfigCallback callback;
     private boolean append;
     private boolean edit;
     private String url;
     private int type;
 
+    public static ConfigDialog create() {
+        return new ConfigDialog();
+    }
+
     public static ConfigDialog create(FragmentActivity activity) {
-        return new ConfigDialog(activity);
+        return new ConfigDialog();
     }
 
     public ConfigDialog type(int type) {
@@ -56,41 +56,35 @@ public class ConfigDialog implements DialogInterface.OnDismissListener {
         return this;
     }
 
-    public ConfigDialog(FragmentActivity activity) {
-        this.activity = activity;
-        this.callback = (ConfigCallback) activity;
-        this.binding = DialogConfigBinding.inflate(LayoutInflater.from(activity));
-        this.dialog = new MaterialAlertDialogBuilder(activity).setView(binding.getRoot()).create();
+    public void show(FragmentActivity activity) {
+        show(activity.getSupportFragmentManager(), null);
+    }
+
+    @Override
+    protected ViewBinding getBinding() {
+        return binding = DialogConfigBinding.inflate(getLayoutInflater());
+    }
+
+    @Override
+    protected MaterialAlertDialogBuilder getBuilder() {
+        return builder().setView(getBinding().getRoot());
+    }
+
+    @Override
+    protected void initView() {
+        this.callback = (ConfigCallback) getActivity();
         this.append = true;
-    }
-
-    public void show() {
-        initDialog();
-        initView();
-        initEvent();
-    }
-
-    private void initDialog() {
-        WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
-        params.width = (int) (ResUtil.getScreenWidth() * 0.55f);
-        dialog.getWindow().setAttributes(params);
-        dialog.getWindow().setDimAmount(0);
-        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
-        dialog.setOnDismissListener(this);
-        dialog.show();
-    }
-
-    private void initView() {
         binding.text.setText(url = getUrl());
         binding.text.setSelection(TextUtils.isEmpty(url) ? 0 : url.length());
         binding.text.requestFocus();
         binding.positive.setText(edit ? R.string.dialog_edit : R.string.dialog_positive);
         binding.code.setImageBitmap(QRCode.getBitmap(Server.get().getAddress(3), 200, 0));
         binding.info.setText(ResUtil.getString(R.string.push_info, Server.get().getAddress()).replace("，", "\n"));
-        binding.storage.setVisibility(PermissionX.isGranted(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) ? View.GONE : View.VISIBLE);
+        binding.storage.setVisibility(PermissionX.isGranted(requireActivity(), Manifest.permission.WRITE_EXTERNAL_STORAGE) ? View.GONE : View.VISIBLE);
     }
 
-    private void initEvent() {
+    @Override
+    protected void initEvent() {
         EventBus.getDefault().register(this);
         binding.storage.setOnClickListener(this::onStorage);
         binding.positive.setOnClickListener(this::onPositive);
@@ -109,19 +103,17 @@ public class ConfigDialog implements DialogInterface.OnDismissListener {
 
     private String getUrl() {
         switch (type) {
-            case 0:
-                return VodConfig.getUrl();
             case 1:
                 return LiveConfig.getUrl();
             case 2:
                 return WallConfig.getUrl();
             default:
-                return "";
+                return VodConfig.getUrl();
         }
     }
 
     private void onStorage(View view) {
-        PermissionX.init(activity).permissions(Manifest.permission.WRITE_EXTERNAL_STORAGE).request((allGranted, grantedList, deniedList) -> binding.storage.setVisibility(allGranted ? View.GONE : View.VISIBLE));
+        PermissionX.init(this).permissions(Manifest.permission.WRITE_EXTERNAL_STORAGE).request((allGranted, grantedList, deniedList) -> binding.storage.setVisibility(allGranted ? View.GONE : View.VISIBLE));
     }
 
     private void detect(String s) {
@@ -148,11 +140,11 @@ public class ConfigDialog implements DialogInterface.OnDismissListener {
         if (text.isEmpty()) Config.delete(url, type);
         if (name.isEmpty()) callback.setConfig(Config.find(text, type));
         else callback.setConfig(Config.find(text, name, type));
-        dialog.dismiss();
+        dismiss();
     }
 
     private void onNegative(View view) {
-        dialog.dismiss();
+        dismiss();
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -164,7 +156,18 @@ public class ConfigDialog implements DialogInterface.OnDismissListener {
     }
 
     @Override
-    public void onDismiss(DialogInterface dialogInterface) {
+    public void onStart() {
+        super.onStart();
+        setWidth(0.55f);
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setDimAmount(0);
+            getDialog().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
         EventBus.getDefault().unregister(this);
     }
 }

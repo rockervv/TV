@@ -35,7 +35,7 @@ public class Episode implements Parcelable {
     }
 
     public Episode(String name, String desc, String url) {
-        this.number = Util.getDigit(name);
+        this.number = Util.getNumber(name);
         this.name = Trans.s2t(name);
         this.desc = Trans.s2t(desc);
         this.url = url;

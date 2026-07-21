@@ -7,26 +7,26 @@ import android.text.TextUtils;
 import androidx.annotation.NonNull;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.utils.Trans;
 import com.google.gson.annotations.SerializedName;
-
-import org.simpleframework.xml.Attribute;
-import org.simpleframework.xml.Text;
+import com.tickaroo.tikxml.annotation.Attribute;
+import com.tickaroo.tikxml.annotation.TextContent;
+import com.tickaroo.tikxml.annotation.Xml;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
+@Xml
 public class Flag implements Parcelable {
 
-    @Attribute(name = "flag", required = false)
+    @Attribute(name = "flag")
     @SerializedName("flag")
     private String flag;
     private String show;
 
-    @Text
+    @TextContent
     private String urls;
 
     @SerializedName("episodes")
@@ -37,6 +37,12 @@ public class Flag implements Parcelable {
 
     public static Flag create(String flag) {
         return new Flag(flag);
+    }
+
+    public static Flag create(String flag, String urls) {
+        Flag item = new Flag(flag);
+        item.setEpisodes(urls);
+        return item;
     }
 
     public Flag() {
@@ -67,8 +73,17 @@ public class Flag implements Parcelable {
         return urls;
     }
 
+    public void setUrls(String urls) {
+        this.urls = urls;
+    }
+
     public List<Episode> getEpisodes() {
         return episodes;
+    }
+
+    public void setEpisodes(String urls) {
+        this.urls = urls;
+        this.createEpisode(urls);
     }
 
     public boolean isActivated() {
@@ -116,8 +131,16 @@ public class Flag implements Parcelable {
         for (int i = 0; i < getEpisodes().size(); i++) getEpisodes().get(i).setActivated(i == getPosition());
     }
 
+    public void mergeEpisodes(List<Episode> items, boolean rev) {
+        for (Episode item : items) {
+            if (getEpisodes().contains(item)) continue;
+            if (rev) getEpisodes().add(0, item);
+            else getEpisodes().add(item);
+        }
+    }
+
     public Episode find(String remarks, boolean strict) {
-        int number = Util.getDigit(remarks);
+        int number = com.fongmi.android.tv.utils.Util.getNumber(remarks);
         if (getEpisodes().size() == 0) return null;
         if (getEpisodes().size() == 1) return getEpisodes().get(0);
         for (Episode item : getEpisodes()) if (item.rule1(remarks)) return item;

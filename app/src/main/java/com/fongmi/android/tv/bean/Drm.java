@@ -26,13 +26,19 @@ public class Drm {
     @JsonAdapter(HeaderAdapter.class)
     private Map<String, String> header;
 
-    public static Drm create(String key, String type) {
-        return new Drm(key, type);
-    }
-
-    private Drm(String key, String type) {
+    private Drm(String key, String type, Map<String, String> header, boolean forceKey) {
         this.key = key;
         this.type = type;
+        this.header = header;
+        this.forceKey = forceKey;
+    }
+
+    public static Drm create(String key, String type) {
+        return new Drm(key, type, null, false);
+    }
+
+    public static Drm create(String key, String type, Map<String, String> header, boolean forceKey) {
+        return new Drm(key, type, header, forceKey);
     }
 
     public String getKey() {

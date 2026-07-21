@@ -4,28 +4,31 @@ import android.text.TextUtils;
 import android.view.View;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.media3.common.C;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.db.AppDatabase;
-import com.fongmi.android.tv.event.RefreshEvent;
+import com.fongmi.android.tv.impl.Diffable;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 @Entity
-public class History {
+public class History implements Diffable<History> {
 
     @NonNull
     @PrimaryKey
@@ -57,36 +60,82 @@ public class History {
     private long duration;
     @SerializedName("speed")
     private float speed;
-    @SerializedName("player")
-    private int player;
     @SerializedName("scale")
     private int scale;
     @SerializedName("cid")
     private int cid;
     @SerializedName("lastUpdated")
-    private long lastUpdated = getCurrentUTCTime();
+    private long lastUpdated;
     @SerializedName("deleted")
-    private boolean deleted = false;
-    private static long Uptime = 0;
+    private boolean deleted;
+
+    private transient long updateTime;
+
+    public History() {
+        this.speed = 1;
+        this.scale = -1;
+        this.ending = C.TIME_UNSET;
+        this.opening = C.TIME_UNSET;
+        this.position = C.TIME_UNSET;
+        this.duration = C.TIME_UNSET;
+        this.lastUpdated = System.currentTimeMillis();
+    }
 
     public static History objectFrom(String str) {
         return App.gson().fromJson(str, History.class);
     }
 
     public static List<History> arrayFrom(String str) {
-        Type listType = new TypeToken<List<History>>() {}.getType();
+        Type listType = TypeToken.getParameterized(List.class, History.class).getType();
         List<History> items = App.gson().fromJson(str, listType);
         return items == null ? Collections.emptyList() : items;
     }
 
-    public History() {
-        this.speed = 1;
-        this.scale = -1;
-        this.player = -1;
+    public static List<History> get() {
+        return get(VodConfig.getCid());
     }
 
-    public static List<History> getAll() {
-        return AppDatabase.get().getHistoryDao().getAll();
+    public static List<History> get(int cid) {
+        return AppDatabase.get().getHistoryDao().find(cid, System.currentTimeMillis() - Constant.HISTORY_TIME);
+    }
+
+    public static History find(String key) {
+        return AppDatabase.get().getHistoryDao().find(VodConfig.getCid(), key);
+    }
+
+    public static List<History> findByName(String name) {
+        try {
+            return AppDatabase.get().getHistoryDao().findByName(VodConfig.getCid(), name);
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
+
+    public static void delete(int cid) {
+        AppDatabase.get().getHistoryDao().delete(cid);
+    }
+
+    public static List<History> syncLists(List<History> local, List<History> remote) {
+        Map<String, History> map = new HashMap<>();
+        for (History item : local) map.put(item.getCid() + item.getKey(), item);
+        for (History item : remote) {
+            History old = map.get(item.getCid() + item.getKey());
+            if (old == null || item.getLastUpdated() > old.getLastUpdated()) {
+                map.put(item.getCid() + item.getKey(), item);
+            }
+        }
+        return new ArrayList<>(map.values());
+    }
+
+    public static void sync(List<History> targets) {
+        targets.forEach(target -> {
+            List<History> items = findByName(target.getVodName());
+            if (items.isEmpty()) target.cid(VodConfig.getCid()).save();
+            else {
+                long latestTime = items.stream().mapToLong(History::getCreateTime).max().orElse(0L);
+                if (target.getCreateTime() > latestTime) target.cid(VodConfig.getCid()).merge(items, true).save();
+            }
+        });
     }
 
     @NonNull
@@ -107,7 +156,7 @@ public class History {
     }
 
     public String getVodName() {
-        return vodName;
+        return vodName == null ? "" : vodName;
     }
 
     public void setVodName(String vodName) {
@@ -162,6 +211,10 @@ public class History {
         this.createTime = createTime;
     }
 
+    public long getUpdateTime() {
+        return updateTime;
+    }
+
     public long getOpening() {
         return opening;
     }
@@ -202,14 +255,6 @@ public class History {
         this.speed = speed;
     }
 
-    public int getPlayer() {
-        return player;
-    }
-
-    public void setPlayer(int player) {
-        this.player = player;
-    }
-
     public int getScale() {
         return scale;
     }
@@ -229,14 +274,22 @@ public class History {
     public long getLastUpdated() {
         return lastUpdated;
     }
+
     public void setLastUpdated(long lastUpdated) {
         this.lastUpdated = lastUpdated;
     }
+
     public boolean isDeleted() {
         return deleted;
     }
+
     public void setDeleted(boolean deleted) {
         this.deleted = deleted;
+    }
+
+    public History cid(int cid) {
+        setCid(cid);
+        return this;
     }
 
     public String getSiteName() {
@@ -271,199 +324,105 @@ public class History {
         return isRevPlay() ? R.string.play_backward_hint : R.string.play_forward_hint;
     }
 
-    public boolean isNew() {
-        return getCreateTime() == 0 && getPosition() == 0;
+    private boolean shouldMerge(History item, boolean force) {
+        if (!force && getKey().equals(item.getKey())) return false;
+        if (getDuration() <= 0 || item.getDuration() <= 0) return true;
+        return Math.abs(getDuration() - item.getDuration()) <= TimeUnit.MINUTES.toMillis(10);
     }
 
-    public boolean canSave() {
-        return getDuration() > 0 || getPosition() > 0;
-    }
-
-    public boolean canSync() {
-        return getDuration() > 30000;
-    }
-
-    public boolean isFinished() {
-        return getDuration() > 0 && (getPosition() >= getDuration() * 0.9 || getPosition() > getDuration() - 30 * 1000);
-    }
-
-    public static List<History> get() {
-        return get(VodConfig.getCid());
-    }
-
-    public static List<History> get(int cid) {
-        return AppDatabase.get().getHistoryDao().find(cid);
-    }
-
-    public static History find(String key) {
-        return AppDatabase.get().getHistoryDao().find(VodConfig.getCid(), key);
-    }
-
-    public static void delete(int cid) {
-        AppDatabase.get().getHistoryDao().delete(cid);
-    }
-
-    public History merge() {
-        merge(find(), false);
+    private History copyTo(History item) {
+        if (getOpening() > 0) item.setOpening(getOpening());
+        if (getEnding() > 0) item.setEnding(getEnding());
+        if (getSpeed() != 1) item.setSpeed(getSpeed());
         return this;
     }
 
-    private void checkParam(History item) {
-        if (getOpening() == 0) setOpening(item.getOpening());
-        if (getEnding() == 0) setEnding(item.getEnding());
-        if (getSpeed() == 1) setSpeed(item.getSpeed());
+    public boolean canSave() {
+        return getPosition() > 0 && getDuration() > 0;
     }
 
-    private void merge(List<History> items, boolean force) {
-        for (History item : items) {
-            if (getDuration() > 0 && item.getDuration() > 0 && Math.abs(getDuration() - item.getDuration()) > 10 * 60 * 1000) continue;
-            if (!force && getKey().equals(item.getKey())) continue;
-            checkParam(item);
-            item.delete();
-        }
+    public boolean canSync() {
+        return System.currentTimeMillis() - getUpdateTime() > 5000;
     }
 
-    public void update() {
-        merge(find(), false);
-        save();
+    public History merge() {
+        merge(false);
+        return this;
     }
 
-    public History update(int cid) {
-        return update(cid, find());
+    private History merge(boolean force) {
+        return merge(findByName(getVodName()), force);
     }
 
-    public History update(int cid, List<History> items) {
-        setCid(cid);
-        merge(items, true);
-        return save();
+    private History merge(List<History> items, boolean force) {
+        for (History item : items) if (item.shouldMerge(this, force)) item.copyTo(this).delete();
+        return this;
+    }
+
+    public void replace(String key) {
+        delete();
+        setKey(key);
+    }
+
+    public History save(int cid) {
+        return cid(cid).merge(true).save();
     }
 
     public History save() {
-        //android.util.Log.d("History", "Saving history: " + getVodName() + ", Pic: " + getVodPic() + ", LastUpdated: " + lastUpdated);
-        if (lastUpdated == 0 || lastUpdated < getCurrentUTCTime()) {
-            setLastUpdated(getCurrentUTCTime());
-        }
+        updateTime = System.currentTimeMillis();
         AppDatabase.get().getHistoryDao().insertOrUpdate(this);
-        if (this.getLastUpdated() > Uptime) Uptime = this.getLastUpdated();
         return this;
     }
 
     public History delete() {
-        setDeleted(true);
-        setLastUpdated(getCurrentUTCTime());
-        AppDatabase.get().getHistoryDao().delete(getCid(), getKey(), getLastUpdated());
-        HistorySyncManager.SyncHistory();
+        AppDatabase.get().getHistoryDao().delete(VodConfig.getCid(), getKey());
+        AppDatabase.get().getTrackDao().delete(getKey());
         return this;
     }
 
-    public List<History> find() {
-        return AppDatabase.get().getHistoryDao().findByName(VodConfig.getCid(), getVodName());
-    }
-
     public void findEpisode(List<Flag> flags) {
-        if (!flags.isEmpty()) {
-            setVodFlag(flags.get(0).getFlag());
-            if (!flags.get(0).getEpisodes().isEmpty()) {
-                setVodRemarks(flags.get(0).getEpisodes().get(0).getName());
-            }
-        }
-        for (History item : find()) {
+        if (flags.isEmpty()) return;
+        setVodFlag(flags.get(0).getFlag());
+        if (!flags.get(0).getEpisodes().isEmpty()) setVodRemarks(flags.get(0).getEpisodes().get(0).getName());
+        for (History item : findByName(getVodName())) {
             if (getPosition() > 0) break;
             for (Flag flag : flags) {
                 Episode episode = flag.find(item.getVodRemarks(), true);
                 if (episode == null) continue;
+                item.copyTo(this);
                 setVodFlag(flag.getFlag());
+                setPosition(item.getPosition());
                 setVodRemarks(episode.getName());
-                checkParam(item);
-                if (item.isFinished()) setPosition(0);
-                else setPosition(item.getPosition());
                 break;
             }
         }
     }
 
-
-    public static void sync(List<History> targets) {
-        App.execute(() -> {
-            AppDatabase.get().getHistoryDao().insertOrUpdateAll(targets);
-            RefreshEvent.history();
-        });
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof History it)) return false;
+        return Objects.equals(getKey(), it.getKey());
     }
 
-    public static long getCurrentUTCTime() {
-        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        return calendar.getTimeInMillis();
-    }
-
-    public static long GetUptime() { return Uptime;}
-
-    public static List<History> syncLists(List<History> localList, List<History> remoteList) {
-        Map<String, History> mergedMap = new HashMap<>();
-        long now = getCurrentUTCTime();
-        long limitDaysInMillis = 86400L * 1000 * 30; // Keep for 30 days
-        int maxHistoryCount = 500;
-
-        // 1. Put local items (including deleted ones) into Map
-        for (History item : localList) {
-            mergedMap.put(item.getKey(), item);
-        }
-
-        // 2. Merge remote items
-        for (History remoteItem : remoteList) {
-            String key = remoteItem.getKey();
-            History localItem = mergedMap.get(key);
-
-            if (localItem == null) {
-                mergedMap.put(key, remoteItem);
-            } else {
-                if (remoteItem.getLastUpdated() > localItem.getLastUpdated()) {
-                    updateAllColumns(localItem, remoteItem);
-                    localItem.setDeleted(remoteItem.isDeleted());
-                } else if (remoteItem.getLastUpdated() == localItem.getLastUpdated()) {
-                    if (remoteItem.isDeleted()) localItem.setDeleted(true);
-                }
-            }
-        }
-
-        // 3. Filter out truly expired tombstones and old records
-        List<History> result = new ArrayList<>();
-        for (History item : mergedMap.values()) {
-            if ((now - item.getLastUpdated()) > limitDaysInMillis) continue;
-            result.add(item);
-        }
-
-        // 4. Sort and limit
-        Collections.sort(result, (o1, o2) -> Long.compare(o2.getLastUpdated(), o1.getLastUpdated()));
-        if (result.size() > maxHistoryCount) return result.subList(0, maxHistoryCount);
-        return result;
-    }
-    public static void insertOrUpdate(List<History> items) {
-        AppDatabase.get().getHistoryDao().insertOrUpdate(items);
-    }
-    private static void updateAllColumns(History existingItem, History newItem) {
-        android.util.Log.d("History", "Updating columns for: " + existingItem.getVodName() + ". Old Pic: " + existingItem.getVodPic() + ", New Pic: " + newItem.getVodPic());
-        if (!TextUtils.isEmpty(newItem.getVodPic())) existingItem.setVodPic(newItem.getVodPic());
-        if (!TextUtils.isEmpty(newItem.getVodName())) existingItem.setVodName(newItem.getVodName());
-        if (!TextUtils.isEmpty(newItem.getVodFlag())) existingItem.setVodFlag(newItem.getVodFlag());
-        if (!TextUtils.isEmpty(newItem.getVodRemarks())) existingItem.setVodRemarks(newItem.getVodRemarks());
-        if (!TextUtils.isEmpty(newItem.getEpisodeUrl())) existingItem.setEpisodeUrl(newItem.getEpisodeUrl());
-        existingItem.setRevSort(newItem.isRevSort());
-        existingItem.setRevPlay(newItem.isRevPlay());
-        existingItem.setCreateTime(newItem.getCreateTime());
-        existingItem.setOpening(newItem.getOpening());
-        existingItem.setEnding(newItem.getEnding());
-        existingItem.setPosition(newItem.getPosition());
-        existingItem.setDuration(newItem.getDuration());
-        existingItem.setSpeed(newItem.getSpeed());
-        existingItem.setPlayer(newItem.getPlayer());
-        existingItem.setScale(newItem.getScale());
-        existingItem.setCid(newItem.getCid());
-        existingItem.setLastUpdated(newItem.getLastUpdated());
+    @Override
+    public int hashCode() {
+        return Objects.hash(getKey());
     }
 
     @NonNull
     @Override
     public String toString() {
         return App.gson().toJson(this);
+    }
+
+    @Override
+    public boolean isSameItem(History other) {
+        return equals(other);
+    }
+
+    @Override
+    public boolean isSameContent(History other) {
+        return getVodName().equals(other.getVodName()) && getVodPic().equals(other.getVodPic()) && getCreateTime() == other.getCreateTime();
     }
 }

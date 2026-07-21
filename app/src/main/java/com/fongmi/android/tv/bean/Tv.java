@@ -2,22 +2,30 @@ package com.fongmi.android.tv.bean;
 
 import android.text.TextUtils;
 
-import org.simpleframework.xml.Attribute;
-import org.simpleframework.xml.Element;
-import org.simpleframework.xml.ElementList;
-import org.simpleframework.xml.Root;
+import com.tickaroo.tikxml.annotation.Attribute;
+import com.tickaroo.tikxml.annotation.Element;
+import com.tickaroo.tikxml.annotation.PropertyElement;
+import com.tickaroo.tikxml.annotation.TextContent;
+import com.tickaroo.tikxml.annotation.Xml;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@Root(name = "tv", strict = false)
+@Xml(name = "tv")
 public class Tv {
+    @Attribute(name = "date")
+    public String date;
 
-    @ElementList(entry = "channel", required = false, inline = true)
-    private List<Channel> channel;
+    @Element(name = "channel")
+    public List<Channel> channel;
 
-    @ElementList(entry = "programme", required = false, inline = true)
-    private List<Programme> programme;
+    @Element(name = "programme")
+    public List<Programme> programme;
+
+    public String getDate() {
+        return TextUtils.isEmpty(date) ? "" : date;
+    }
 
     public List<Channel> getChannel() {
         return channel == null ? Collections.emptyList() : channel;
@@ -27,38 +35,52 @@ public class Tv {
         return programme == null ? Collections.emptyList() : programme;
     }
 
-    @Root(name = "channel")
+    @Xml(name = "channel")
     public static class Channel {
 
-        @Attribute(name = "id", required = false)
-        private String id;
-
-        @Element(name = "display-name", required = false)
-        private String displayName;
+        @Attribute(name = "id")
+        public String id;
+        @Element(name = "icon")
+        public Icon icon;
+        @Element(name = "display-name")
+        public List<DisplayName> displayName;
 
         public String getId() {
             return TextUtils.isEmpty(id) ? "" : id;
         }
 
-        public String getDisplayName() {
-            return TextUtils.isEmpty(displayName) ? "" : displayName;
+        private Icon getIcon() {
+            return icon == null ? new Icon() : icon;
         }
+
+        public List<DisplayName> getDisplayName() {
+            return displayName == null ? new ArrayList<>() : displayName;
+        }
+
+        public String getSrc() {
+            return getIcon().getSrc();
+        }
+
+        public boolean hasSrc() {
+            return !getIcon().getSrc().isEmpty();
+        }
+
     }
 
-    @Root(name = "programme")
+    @Xml(name = "programme")
     public static class Programme {
 
-        @Attribute(name = "start", required = false)
-        private String start;
+        @Attribute(name = "start")
+        public String start;
 
-        @Attribute(name = "stop", required = false)
-        private String stop;
+        @Attribute(name = "stop")
+        public String stop;
 
-        @Attribute(name = "channel", required = false)
-        private String channel;
+        @Attribute(name = "channel")
+        public String channel;
 
-        @Element(name = "title", required = false)
-        private String title;
+        @Element(name = "title")
+        public List<Title> title;
 
         public String getStart() {
             return TextUtils.isEmpty(start) ? "" : start;
@@ -73,7 +95,41 @@ public class Tv {
         }
 
         public String getTitle() {
-            return TextUtils.isEmpty(title) ? "" : title;
+            return title == null ? "" : title.stream().map(Title::getText).filter(text -> !text.isEmpty()).findFirst().orElse("");
         }
     }
+
+    @Xml(name = "title")
+    public static class Title {
+
+        @TextContent
+        public String text;
+
+        public String getText() {
+            return TextUtils.isEmpty(text) ? "" : text;
+        }
+    }
+
+    @Xml(name = "icon")
+    public static class Icon {
+
+        @Attribute(name = "src")
+        public String src;
+
+        public String getSrc() {
+            return TextUtils.isEmpty(src) ? "" : src;
+        }
+    }
+
+    @Xml(name = "display-name")
+    public static class DisplayName {
+
+        @TextContent
+        public String text;
+
+        public String getText() {
+            return TextUtils.isEmpty(text) ? "" : text;
+        }
+    }
+
 }

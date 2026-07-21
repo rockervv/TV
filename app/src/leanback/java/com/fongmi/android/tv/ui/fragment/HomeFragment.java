@@ -14,9 +14,11 @@ import androidx.leanback.widget.OnChildViewHolderSelectedListener;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.utils.Task;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Button;
 import com.fongmi.android.tv.bean.Func;
@@ -50,6 +52,10 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
+
 
 public class HomeFragment extends BaseFragment implements VodPresenter.OnClickListener, FuncPresenter.OnClickListener, HistoryPresenter.OnClickListener {
 
@@ -73,11 +79,26 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
 
     @Override
     protected void initView() {
+        EventBus.getDefault().register(this);
         mBinding.progressLayout.showProgress();
         setRecyclerView();
         setAdapter();
         initEvent();
         inited = true;
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        EventBus.getDefault().unregister(this);
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onRefreshEvent(com.fongmi.android.tv.event.RefreshEvent event) {
+        if (event.getType() == com.fongmi.android.tv.event.RefreshEvent.Type.CONFIG) {
+            showContent();
+            getHistory(true);
+        }
     }
 
     @Override
@@ -122,13 +143,22 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
         if (funcRow != null) setTitleNextFocus(funcRow);
     }
 
+    public void showContent() {
+        if (mBinding != null) mBinding.progressLayout.showContent();
+    }
+
     public void addVideo(Result result) {
         int index = getRecommendIndex();
         if (mAdapter.size() > index) mAdapter.removeItems(index, mAdapter.size() - index);
         Style style = result.getStyle(getHome().getStyle());
-        for (List<Vod> items : Lists.partition(result.getList(), Product.getColumn(style))) {
+        if (style.isList()) mAdapter.addAll(mAdapter.size(), result.getList());
+        else addGrid(result.getList(), style);
+    }
+
+    private void addGrid(List<Vod> items, Style style) {
+        for (List<Vod> part : Lists.partition(items, Product.getColumn(style))) {
             ArrayObjectAdapter adapter = new ArrayObjectAdapter(new VodPresenter(this, style));
-            adapter.setItems(items, null);
+            adapter.setItems(part, null);
             mAdapter.add(new ListRow(adapter));
         }
     }
@@ -175,26 +205,31 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
 
     public void getHistory(boolean renew) {
         if (mAdapter == null) return; // 🛡️ 安全防護：若適配器未初始化則跳過
-        int historyIndex = getHistoryIndex();
-        int recommendIndex = getRecommendIndex();
-        if (historyIndex == -1) {
-            if (!Setting.isHomeHistory()) return;
-            int historyStringIndex = recommendIndex - 1;
-            historyStringIndex = historyStringIndex < 0 ? 0 : historyStringIndex;
-            mAdapter.add(historyStringIndex, R.string.home_history);
-        }
-        if (!Setting.isHomeHistory()) {
-            mAdapter.removeItems(historyIndex - 1, 2);
-            return;
-        }
-        historyIndex = getHistoryIndex();
-        recommendIndex = getRecommendIndex();
-        List<History> items = History.get();
-        boolean exist = recommendIndex - historyIndex == 2;
-        if (renew) mHistoryAdapter = new ArrayObjectAdapter(mPresenter = new HistoryPresenter(this));
-        if ((items.isEmpty() && exist) || (renew && exist)) mAdapter.removeItems(historyIndex, 1);
-        if ((items.size() > 0 && !exist) || (renew && exist)) mAdapter.add(historyIndex, new ListRow(mHistoryAdapter));
-        mHistoryAdapter.setItems(items, null);
+        Task.execute(() -> {
+            List<History> items = History.get();
+            android.util.Log.d("TV_FATAL", "HomeFragment.getHistory: found " + items.size() + " items, renew=" + renew);
+            App.post(() -> {
+                int historyIndex = getHistoryIndex();
+                int recommendIndex = getRecommendIndex();
+                if (historyIndex == -1) {
+                    if (!Setting.isHomeHistory()) return;
+                    int historyStringIndex = recommendIndex - 1;
+                    historyStringIndex = historyStringIndex < 0 ? 0 : historyStringIndex;
+                    mAdapter.add(historyStringIndex, R.string.home_history);
+                }
+                if (!Setting.isHomeHistory()) {
+                    mAdapter.removeItems(historyIndex - 1, 2);
+                    return;
+                }
+                historyIndex = getHistoryIndex();
+                recommendIndex = getRecommendIndex();
+                boolean exist = recommendIndex - historyIndex == 2;
+                if (renew) mHistoryAdapter = new ArrayObjectAdapter(mPresenter = new HistoryPresenter(this));
+                if ((items.isEmpty() && exist) || (renew && exist)) mAdapter.removeItems(historyIndex, 1);
+                if ((items.size() > 0 && !exist) || (renew && exist)) mAdapter.add(historyIndex, new ListRow(mHistoryAdapter));
+                mHistoryAdapter.setItems(items, null);
+            });
+        });
     }
 
     public void setHistoryDelete(boolean delete) {
@@ -266,8 +301,9 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
 
     @Override
     public void onItemClick(Vod item) {
-        if (getHome().isIndex()) CollectActivity.start(getActivity(), item.getVodName());
-        else VideoActivity.start(getActivity(), item.getVodId(), item.getVodName(), item.getVodPic());
+        if (item.isAction()) getHomeActicity().getViewModel().action(getHome().getKey(), item.getAction());
+        else if (getHome().isIndex()) CollectActivity.start(getActivity(), item.getName());
+        else VideoActivity.start(getActivity(), getHome().getKey(), item.getId(), item.getName(), item.getPic());
     }
 
     @Override

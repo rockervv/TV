@@ -43,7 +43,7 @@ public interface PlayerEngine {
     ErrorAction handleError(PlaybackException e);
 
     enum ErrorAction {
-        RECOVERED, DECODE, FATAL
+        NONE, RETRY, FALLBACK, FORMAT, SEEK, FATAL
     }
 
     enum Type {

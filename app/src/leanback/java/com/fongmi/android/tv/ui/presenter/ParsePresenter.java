@@ -31,7 +31,7 @@ public class ParsePresenter extends Presenter {
         Parse item = (Parse) object;
         ViewHolder holder = (ViewHolder) viewHolder;
         holder.binding.text.setText(item.getName());
-        holder.binding.text.setActivated(item.isActivated());
+        holder.binding.text.setActivated(item.isSelected());
         setOnClickListener(holder, view -> mListener.onItemClick(item));
     }
 

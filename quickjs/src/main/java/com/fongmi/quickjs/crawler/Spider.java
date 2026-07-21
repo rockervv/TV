@@ -99,8 +99,8 @@ public class Spider extends com.github.catvod.crawler.Spider {
     }
 
     @Override
-    public String liveContent() throws Exception {
-        return (String) call("live");
+    public String liveContent(String url) throws Exception {
+        return (String) call("live", url);
     }
 
     @Override
@@ -114,7 +114,7 @@ public class Spider extends com.github.catvod.crawler.Spider {
     }
 
     @Override
-    public Object[] proxyLocal(Map<String, String> params) throws Exception {
+    public Object[] proxy(Map<String, String> params) throws Exception {
         return "catvod".equals(params.get("from")) ? proxy2(params) : proxy1(params);
     }
 
@@ -195,10 +195,10 @@ public class Spider extends com.github.catvod.crawler.Spider {
     }
 
     private Object getExt(String ext) {
-        if (!cat) return Json.valid(ext) ? ctx.parse(ext) : ext;
+        if (!cat) return Json.isObj(ext) ? ctx.parse(ext) : ext;
         JSObject obj = ctx.createNewJSObject();
         obj.setProperty("stype", 3);
-        if (!Json.valid(ext)) obj.setProperty("ext", ext);
+        if (!Json.isObj(ext)) obj.setProperty("ext", ext);
         else obj.setProperty("ext", (JSObject) ctx.parse(ext));
         return obj;
     }

@@ -4,20 +4,17 @@ import android.widget.TextView;
 
 import com.fongmi.android.tv.App;
 
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class Clock {
 
-    private SimpleDateFormat format;
+    private DateTimeFormatter format;
     private Callback callback;
-    private final Date date;
-    private List<TextView> views;
+    private TextView view;
     private Timer timer;
 
     public static Clock create() {
@@ -28,27 +25,16 @@ public class Clock {
         return new Clock().view(view).format("HH:mm:ss");
     }
 
-    public static Clock create(List<TextView> views) {
-        return new Clock().view(views).format("HH:mm:ss");
-    }
-
     public Clock() {
-        this.date = new Date();
-        this.views = new ArrayList<>();
     }
 
     public Clock view(TextView view) {
-        this.views.add(view);
-        return this;
-    }
-
-    public Clock view(List<TextView> views) {
-        this.views = views;
+        this.view = view;
         return this;
     }
 
     public Clock format(String format) {
-        this.format = new SimpleDateFormat(format, Locale.getDefault());
+        this.format = DateTimeFormatter.ofPattern(format, Locale.getDefault());
         return this;
     }
 
@@ -68,11 +54,9 @@ public class Clock {
 
     private void doJob() {
         try {
-            date.setTime(System.currentTimeMillis());
-            if (callback != null) callback.onTimeChanged();
-            for(TextView view : views) {
-                if (view != null) view.setText(format.format(date));
-            }
+            long time = System.currentTimeMillis();
+            if (callback != null) callback.onTimeChanged(time);
+            if (view != null) view.setText(format.format(LocalDateTime.now()));
         } catch (Exception ignored) {
         }
     }
@@ -89,6 +73,6 @@ public class Clock {
 
     public interface Callback {
 
-        void onTimeChanged();
+        void onTimeChanged(long time);
     }
 }

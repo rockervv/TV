@@ -52,7 +52,7 @@
             android:layout_marginEnd="12dp"
             android:focusable="true"
             android:focusableInTouchMode="true"
-            android:nextFocusLeft="@id/record"
+            android:nextFocusLeft="@id/recordRecycler"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_search_mic" />
 
@@ -72,7 +72,7 @@
             android:inputType="textCapWords|textAutoCorrect|textAutoComplete"
             android:letterSpacing="0.02"
             android:maxLength="255"
-            android:nextFocusRight="@id/word"
+            android:nextFocusRight="@id/wordRecycler"
             android:singleLine="true"
             android:textColor="@color/white"
             android:textColorHint="@color/white"
@@ -117,7 +117,7 @@
             android:paddingBottom="24dp"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             tools:itemCount="10"
-            tools:listitem="@layout/adapter_search_word" />
+            tools:listitem="@layout/adapter_word" />
 
     </LinearLayout>
 </LinearLayout>

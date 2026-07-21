@@ -27,7 +27,7 @@ public class Proxy implements Process {
             String url = params.get("url");
             Log.d("ProxyJS", "do=" + doType + ", url=" + url);
 
-            Object[] rs = BaseLoader.get().proxyLocal(params);
+            Object[] rs = BaseLoader.get().proxy(params);
 
             // ✅ 若是 JS，嘗試讀取前幾個字元印出
             if ("js".equals(doType) && rs[2] instanceof InputStream) {

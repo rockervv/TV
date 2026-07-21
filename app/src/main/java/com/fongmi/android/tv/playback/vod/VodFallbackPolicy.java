@@ -5,6 +5,7 @@ import com.fongmi.android.tv.bean.Flag;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Vod;
+import com.fongmi.android.tv.model.PlaybackViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,11 +15,16 @@ public class VodFallbackPolicy {
     private final VodPlaybackController controller;
     private final VodPlaybackState state;
     private final VodPlaybackHost host;
+    private PlaybackViewModel viewModel;
 
     public VodFallbackPolicy(VodPlaybackController controller, VodPlaybackState state, VodPlaybackHost host) {
         this.controller = controller;
         this.state = state;
         this.host = host;
+    }
+
+    public void setViewModel(PlaybackViewModel viewModel) {
+        this.viewModel = viewModel;
     }
 
     public void playbackError() {
@@ -49,7 +55,7 @@ public class VodFallbackPolicy {
         List<Vod> items = new ArrayList<>(result.getList());
         items.removeIf(this::mismatch);
         state.setSources(items);
-        host.renderSources(state.getSources());
+        if (viewModel != null) viewModel.setSources(state.getSources());
         if (state.isSelectFirstSource()) nextSource();
         if (items.isEmpty()) return;
         host.onSearchResult();
@@ -78,7 +84,7 @@ public class VodFallbackPolicy {
     private void nextSource() {
         if (!state.hasSources()) return;
         Vod item = state.removeFirstSource();
-        host.renderSources(state.getSources());
+        if (viewModel != null) viewModel.setSources(state.getSources());
         host.showSwitchSource(item);
         state.addFailedId(host.getVodId());
         state.setSelectFirstSource(false);
@@ -99,8 +105,6 @@ public class VodFallbackPolicy {
     private boolean mismatch(Vod item) {
         if (host.getVodId().equals(item.getId())) return true;
         if (state.hasFailedId(item.getId())) return true;
-        Site site = item.getSite() == null ? VodConfig.get().getSite(item.getSiteKey()) : item.getSite();
-        if (site != null && site.isBlacklist()) return true;
         if (state.isAutoFallback()) return !item.getName().equals(state.getSearchKeyword());
         return !item.getName().contains(state.getSearchKeyword());
     }

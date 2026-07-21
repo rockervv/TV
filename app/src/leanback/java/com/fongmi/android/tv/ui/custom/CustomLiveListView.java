@@ -3,14 +3,12 @@ package com.fongmi.android.tv.ui.custom;
 import android.content.Context;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
-import android.view.MotionEvent;
 import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.leanback.widget.VerticalGridView;
 
-import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.utils.KeyUtil;
 
 public class CustomLiveListView extends VerticalGridView {
@@ -35,15 +33,13 @@ public class CustomLiveListView extends VerticalGridView {
 
     private boolean onKeyDown() {
         if (getSelectedPosition() != getAdapter().getItemCount() - 1) return false;
-        if (getId() == R.id.channel) setSelectedPosition(0);
-        else if (listener != null) listener.nextGroup(false);
+        setSelectedPosition(0);
         return true;
     }
 
     private boolean onKeyUp() {
         if (getSelectedPosition() != 0) return false;
-        if (getId() == R.id.channel) setSelectedPosition(getAdapter().getItemCount());
-        else if (listener != null) listener.prevGroup(false);
+        setSelectedPosition(getAdapter().getItemCount() - 1);
         return true;
     }
 
@@ -56,18 +52,8 @@ public class CustomLiveListView extends VerticalGridView {
         return super.dispatchKeyEvent(event);
     }
 
-    @Override
-    public boolean dispatchTouchEvent(@NonNull MotionEvent event) {
-        if (getVisibility() == View.VISIBLE && listener != null) listener.setUITimer();
-        return super.dispatchTouchEvent(event);
-    }
-
     public interface Callback {
 
         void setUITimer();
-
-        boolean nextGroup(boolean skip);
-
-        boolean prevGroup(boolean skip);
     }
 }

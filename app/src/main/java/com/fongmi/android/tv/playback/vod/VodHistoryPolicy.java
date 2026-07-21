@@ -18,11 +18,9 @@ public class VodHistoryPolicy {
     public History findOrCreate(String key, String mark, Vod item) {
         History history = History.find(key);
         history = history == null ? create(key, item) : history;
-        android.util.Log.d("VodHistoryPolicy", "findOrCreate: " + item.getName() + ", Pic: " + item.getPic());
         if (!TextUtils.isEmpty(mark)) history.setVodRemarks(mark);
         if (Setting.isIncognito() && history.getKey().equals(key)) history.delete();
         history.setVodName(item.getName());
-        if (!TextUtils.isEmpty(item.getPic())) history.setVodPic(item.getPic());
         return history;
     }
 
@@ -31,7 +29,6 @@ public class VodHistoryPolicy {
         history.setKey(key);
         history.setCid(VodConfig.getCid());
         history.setVodName(item.getName());
-        history.setVodPic(item.getPic());
         history.findEpisode(item.getFlags());
         return history;
     }

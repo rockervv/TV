@@ -10,7 +10,11 @@ import java.util.List;
 @Dao
 public abstract class FlagScoreDao extends BaseDao<FlagScore> {
 
+    @Query("SELECT * FROM FlagScore")
+    public abstract List<FlagScore> findAll();
+
     @Query("SELECT * FROM FlagScore WHERE siteKey = :siteKey AND flagName = :flagName")
+
     public abstract FlagScore find(String siteKey, String flagName);
 
     @Query("SELECT * FROM FlagScore WHERE siteKey = :siteKey")

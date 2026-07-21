@@ -11,7 +11,9 @@ import com.fongmi.android.tv.databinding.ViewEmptyBinding;
 import com.fongmi.android.tv.databinding.ViewProgressBinding;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ProgressLayout extends RelativeLayout {
 
@@ -22,12 +24,14 @@ public class ProgressLayout extends RelativeLayout {
     }
 
     private List<View> mContentViews;
+    private Map<View, Integer> mVisibilities;
     private View mProgressView;
     private View mEmptyView;
     private State mState;
 
     public ProgressLayout(Context context) {
         super(context);
+        init();
     }
 
     public ProgressLayout(Context context, AttributeSet attrs) {
@@ -43,6 +47,7 @@ public class ProgressLayout extends RelativeLayout {
     private void init() {
         mState = State.CONTENT;
         mContentViews = new ArrayList<>();
+        mVisibilities = new HashMap<>();
         initView();
     }
 
@@ -120,18 +125,14 @@ public class ProgressLayout extends RelativeLayout {
 
     private void setContentVisibility(boolean visible) {
         for (View view : mContentViews) {
-            if (visible) showView(view);
-            else hideView(view);
+            if (visible) {
+                view.setAlpha(1f);
+                Integer original = mVisibilities.get(view);
+                if (original != null && original != GONE) view.setVisibility(VISIBLE);
+            } else {
+                mVisibilities.put(view, view.getVisibility());
+                view.setVisibility(GONE);
+            }
         }
-    }
-
-    private void showView(View view) {
-        view.setAlpha(0f);
-        view.setVisibility(VISIBLE);
-        view.animate().alpha(1f).setDuration(100);
-    }
-
-    private void hideView(View view) {
-        view.setVisibility(GONE);
     }
 }

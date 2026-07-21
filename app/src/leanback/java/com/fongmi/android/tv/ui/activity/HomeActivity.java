@@ -1,11 +1,13 @@
 package com.fongmi.android.tv.ui.activity;
 
 import android.Manifest;
+import android.app.SearchManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.FocusFinder;
@@ -17,6 +19,7 @@ import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentStatePagerAdapter;
@@ -31,6 +34,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewpager.widget.ViewPager;
 
+import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.service.DLNARendererService;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
@@ -39,7 +43,7 @@ import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
@@ -50,9 +54,13 @@ import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Filter;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
+import com.fongmi.android.tv.bean.Vod;
+import com.fongmi.android.tv.bean.Func;
+import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.databinding.ActivityHomeBinding;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.event.CastEvent;
+import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.event.ServerEvent;
 import com.fongmi.android.tv.impl.Callback;
@@ -67,47 +75,61 @@ import com.fongmi.android.tv.ui.dialog.MenuDialog;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.ui.fragment.HomeFragment;
 import com.fongmi.android.tv.ui.fragment.VodFragment;
+import com.fongmi.android.tv.ui.presenter.FuncPresenter;
+import com.fongmi.android.tv.ui.presenter.HistoryPresenter;
 import com.fongmi.android.tv.ui.presenter.TypePresenter;
+import com.fongmi.android.tv.ui.presenter.VodPresenter;
 import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.FileUtil;
+import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.KeyUtil;
+import com.fongmi.android.tv.utils.Monitor;
 import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.PermissionUtil;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.UrlUtil;
+import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Prefers;
 import com.github.catvod.utils.Trans;
 import com.permissionx.guolindev.PermissionX;
-
-
+import com.permissionx.guolindev.callback.RequestCallback;
 
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 
-public class HomeActivity extends BaseActivity implements CustomTitleView.Listener, TypePresenter.OnClickListener, ConfigCallback {
+public class HomeActivity extends BaseActivity implements CustomTitleView.Listener, TypePresenter.OnClickListener, VodPresenter.OnClickListener, FuncPresenter.OnClickListener, HistoryPresenter.OnClickListener {
 
     public ActivityHomeBinding mBinding;
+    private PageAdapter mPageAdapter;
     private ArrayObjectAdapter mAdapter;
-    private HomeActivity.PageAdapter mPageAdapter;
     private SiteViewModel mViewModel;
     public Result mResult;
-    private boolean loading;
-    private boolean coolDown;
     private View mOldView;
-    private boolean confirm;
-    private Clock mClock;
     private View mFocus;
+    private Clock mClock;
+    private int mScrollState;
     private boolean updating;
-    private int mScrollState = ViewPager.SCROLL_STATE_IDLE;
+    private boolean loading;
+    private boolean confirm;
+    private boolean coolDown;
 
     private Site getHome() {
-        return VodConfig.get().getHome();
+        try {
+            Site home = VodConfig.get().getHome();
+            return home == null ? new Site() : home;
+        } catch (Exception e) {
+            return new Site();
+        }
     }
 
     @Override
@@ -122,25 +144,56 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     @Override
-    protected void initView() {
-        if (Setting.isDlna()) DLNARendererService.start(this);
-        mClock = Clock.create(mBinding.clock).format("MM/dd HH:mm:ss");
-        Updater.get().release().start(this);
-        Server.get().start();
-        checkStoragePermission();
-        setTitleView();
-        setRecyclerView();
-        setViewModel();
-        setHomeType();
-        setPager();
-        initConfig();
-        initRemote();
+    protected void onCreate(Bundle savedInstanceState) {
+        Monitor.start("HomeActivity_onCreate");
+        SplashScreen.installSplashScreen(this);
+        super.onCreate(savedInstanceState);
     }
 
-    private void initRemote() {
-        android.util.Log.e("HomeActivity", "initRemote: isTvBox = " + com.fongmi.android.tv.utils.Util.isTvBox());
+    @Override
+    protected void initView() {
+        android.util.Log.d("TV_FATAL", "HomeActivity.initView() START");
+        Monitor.start("HomeActivity_initView");
+        mResult = Result.empty();
+        mClock = Clock.create(mBinding.clock);
+        PermissionUtil.requestFile(this, (allGranted, grantedList, deniedList) -> { });
+        DLNARendererService.start(this);
+        Updater.get().release().start(this);
+        setRecyclerView();
+        setViewModel();
+        initConfig();
 
-        if (com.fongmi.android.tv.utils.Util.isTvBox()) return;
+        App.execute(() -> Server.get().start());
+        checkStoragePermission();
+        setTitleView();
+        setHomeType();
+        setPager();
+        initRemote();
+        android.util.Log.d("TV_FATAL", "HomeActivity.initView() END");
+        Monitor.end("HomeActivity_initView");
+        Monitor.end("HomeActivity_onCreate");
+    }
+
+    private void setTitle(Config config) {
+        if (config == null || mBinding == null) return;
+        String homeName = getHome() != null ? getHome().getName() : "";
+        List<String> items = Arrays.asList(homeName, config.getName(), getString(R.string.app_name));
+        Optional<String> optional = items.stream().filter(s -> !TextUtils.isEmpty(s)).findFirst();
+        optional.ifPresent(s -> mBinding.title.setText(s));
+    }
+
+    private void setLogo(Config config) {
+        if (config == null || mBinding == null) return;
+        ImgUtil.logo(mBinding.logo, config.getLogo());
+    }
+
+    private void setTitle() {
+        if (VodConfig.get() != null) setTitle(VodConfig.get().getConfig());
+    }
+
+
+    private void initRemote() {
+        if (com.fongmi.android.tv.utils.Util.isLeanback()) return;
         View remote = getLayoutInflater().inflate(R.layout.view_virtual_remote, mBinding.root, false);
         mBinding.root.addView(remote);
         Log.e("HomeActivity", "initRemote: remote view added to root");
@@ -168,12 +221,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void sendKey(int keyCode) {
-        android.util.Log.e("HomeActivity", "sendKey: " + keyCode);
-        int direction = -1;
-        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) direction = View.FOCUS_UP;
-        else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) direction = View.FOCUS_DOWN;
-        else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) direction = View.FOCUS_LEFT;
-        else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) direction = View.FOCUS_RIGHT;
+        int dir = -1;
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) dir = View.FOCUS_UP;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) dir = View.FOCUS_DOWN;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) dir = View.FOCUS_LEFT;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) dir = View.FOCUS_RIGHT;
 
         View current = getCurrentFocus();
         if (current == null) {
@@ -181,19 +233,16 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             current = mBinding.recycler;
         }
 
-        if (direction != -1) {
-            // 1. 使用 FocusFinder 尋找下一個邏輯焦點
-            View next = FocusFinder.getInstance().findNextFocus((ViewGroup) mBinding.root, current, direction);
-
-            // 2. 特殊情況處理：從類別列向下進入內容區，或從內容區向上回到類別列
+        if (dir != -1) {
+            View next = FocusFinder.getInstance().findNextFocus((ViewGroup) mBinding.root, current, dir);
             if (next == null || next == current || next == mBinding.recycler || next == mBinding.pager) {
-                if (direction == View.FOCUS_DOWN && viewAncestor(current, mBinding.recycler)) {
+                if (dir == View.FOCUS_DOWN && viewAncestor(current, mBinding.recycler)) {
                     VerticalGridView gridView = getRecyclerView();
                     if (gridView != null) {
                         gridView.requestFocus();
                         return;
                     }
-                } else if (direction == View.FOCUS_UP && viewAncestor(current, mBinding.pager)) {
+                } else if (dir == View.FOCUS_UP && viewAncestor(current, mBinding.pager)) {
                     VerticalGridView gridView = getRecyclerView();
                     if (gridView != null && !gridView.canScrollVertically(-1)) {
                         mBinding.recycler.requestFocus();
@@ -208,7 +257,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             }
         }
 
-        // 3. OK, BACK 或 FocusFinder 失敗時的回退方案
         dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, keyCode));
         dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, keyCode));
     }
@@ -230,25 +278,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     @Override
     protected void initEvent() {
         mBinding.title.setListener(this);
-        mBinding.pager.addOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
-            @Override
-            public void onPageScrollStateChanged(int state) {
-                mScrollState = state;
-            }
-
-            @Override
-            public void onPageSelected(int position) {
-                android.util.Log.e("HomeActivity", "onPageSelected: " + position + ", currentRecycler: " + mBinding.recycler.getSelectedPosition() + ", updating: " + updating);
-                if (updating) return;
-                mBinding.recycler.setSelectedPosition(position);
-            }
-        });
         mBinding.recycler.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
-                if (updating || mScrollState != ViewPager.SCROLL_STATE_IDLE) return;
-                android.util.Log.e("HomeActivity", "onChildViewHolderSelected position: " + position + ", currentPager: " + mBinding.pager.getCurrentItem() + ", updating: " + updating);
-                onChildSelected(child);
+                mBinding.toolbar.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
+                if (getHomeFragment().mPresenter != null && getHomeFragment().mPresenter.isDelete()) getHomeFragment().setHistoryDelete(false);
             }
         });
     }
@@ -257,11 +291,18 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         if (Intent.ACTION_SEND.equals(intent.getAction())) {
             VideoActivity.push(this, intent.getStringExtra(Intent.EXTRA_TEXT));
         } else if (Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
-            if ("text/plain".equals(intent.getType()) || UrlUtil.path(intent.getData()).endsWith(".m3u")) {
-                loadLive("file:/" + FileChooser.getPathFromUri(this, intent.getData()));
-            } else {
-                VideoActivity.push(this, intent.getData().toString());
-            }
+            PermissionUtil.requestFile(this, (allGranted, grantedList, deniedList) -> checkType(intent));
+        } else if (Intent.ACTION_SEARCH.equals(intent.getAction())) {
+            String keyword = intent.getStringExtra(SearchManager.QUERY);
+            if (!TextUtils.isEmpty(keyword)) CollectActivity.start(this, keyword, true);
+        }
+    }
+
+    private void checkType(Intent intent) {
+        if ("text/plain".equals(intent.getType()) || (intent.getData() != null && UrlUtil.path(intent.getData()).endsWith(".m3u"))) {
+            loadLive("file:/" + FileChooser.getPathFromUri(intent.getData()));
+        } else if (intent.getData() != null) {
+            VideoActivity.push(this, intent.getData().toString());
         }
     }
 
@@ -276,19 +317,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         }
     }
 
-
-
     private void setRecyclerView() {
         setHomeUI();
         mBinding.recycler.setHorizontalSpacing(ResUtil.dp2px(16));
         mBinding.recycler.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
-
-        // 不設選中監聽，不用處理高亮
-        mBinding.recycler.setAdapter(new ItemBridgeAdapter(
-                mAdapter = new ArrayObjectAdapter(new TypePresenter(this))
-        ));
-
-
+        mBinding.recycler.setAdapter(new ItemBridgeAdapter(mAdapter = new ArrayObjectAdapter(new TypePresenter(this))));
     }
 
     private void setHomeUI() {
@@ -298,9 +331,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
-        mViewModel.getResult().observe(this, result -> {
-            setTypes(mResult = result);
-        });
+        mViewModel.getResult().observe(this, result -> setTypes(mResult = result));
     }
 
     private List<Class> getTypes(Result result) {
@@ -339,26 +370,19 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     public void setTypes(Result result) {
         int position = mBinding.recycler.getSelectedPosition();
         updating = true;
-        android.util.Log.e("HomeActivity", "setTypes start, current position: " + position);
         result.setTypes(getTypes(result));
         for (Map.Entry<String, List<Filter>> entry : result.getFilters().entrySet()) Prefers.put("filter_" + getKey() + "_" + entry.getKey(), App.gson().toJson(entry.getValue()));
         for (Class item : result.getTypes()) item.setFilters(getFilter(item.getTypeId()));
         if (mAdapter.size() > 1) mAdapter.removeItems(1, mAdapter.size() - 1);
-        if (result.getTypes().size() > 0) mAdapter.addAll(1, result.getTypes());
+        if (!result.getTypes().isEmpty()) mAdapter.addAll(1, result.getTypes());
         setPager();
-        if (mPageAdapter != null) {
-            mPageAdapter.notifyDataSetChanged();
-        }
+        if (mPageAdapter != null) mPageAdapter.notifyDataSetChanged();
         int targetPos = Math.min(position, mAdapter.size() - 1);
-        android.util.Log.e("HomeActivity", "Restoring recycler position to: " + targetPos);
         mBinding.recycler.setSelectedPosition(targetPos);
-        App.post(() -> {
-            android.util.Log.e("HomeActivity", "Updating flag set to false");
-            updating = false;
-        }, 500);
+        App.post(() -> updating = false, 500);
         getHomeFragment().addVideo(result);
         getHomeFragment().mBinding.progressLayout.showContent();
-        App.post(() -> setFocus(), 200);
+        App.post(this::setFocus, 200);
     }
 
     private void setPager() {
@@ -383,19 +407,14 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             if (updating || mScrollState != ViewPager.SCROLL_STATE_IDLE) return;
             int position = mBinding.recycler.getSelectedPosition();
             int currentPagerItem = mBinding.pager.getCurrentItem();
-            android.util.Log.e("HomeActivity", "mRunnable run, recycler pos: " + position + ", pager item: " + currentPagerItem);
-            if (position != -1 && currentPagerItem != position) {
-                android.util.Log.e("HomeActivity", "Setting pager item to: " + position);
-                mBinding.pager.setCurrentItem(position);
-            }
+            if (position != -1 && currentPagerItem != position) mBinding.pager.setCurrentItem(position);
             if (position == 0) showToolBar();
             else hideToolBar();
         }
     };
 
     private void updateFilter(Class item) {
-        if (item.getFilter() == null) return;
-        getFragment().toggleFilter(item.toggleFilter());
+        mViewModel.setFilter(item.toggleFilter());
         mAdapter.notifyArrayItemRangeChanged(1, mAdapter.size() - 1);
     }
 
@@ -430,7 +449,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     @Override
     public void onItemClick(Class item) {
         if (mBinding.pager.getCurrentItem() == 0) {
-            SiteDialog.create(this).show();
+            SiteDialog.create(this).show(this);
         } else {
             updateFilter(item);
         }
@@ -443,6 +462,41 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     @Override
+    public boolean onItemLongClick(Class item) {
+        if (mBinding.pager.getCurrentItem() != 0) return true;
+        onRefresh();
+        return true;
+    }
+
+    @Override
+    public void onItemClick(Vod item) {
+    }
+
+    @Override
+    public boolean onLongClick(Vod item) {
+        return false;
+    }
+
+    @Override
+    public void onItemClick(Func item) {
+        getHomeFragment().onItemClick(item);
+    }
+
+    @Override
+    public void onItemClick(History item) {
+        getHomeFragment().onItemClick(item);
+    }
+
+    @Override
+    public void onItemDelete(History item) {
+        getHomeFragment().onItemDelete(item);
+    }
+
+    @Override
+    public boolean onLongClick() {
+        return getHomeFragment().onLongClick();
+    }
+
     public void setConfig(Config config) {
         setConfig(config, "");
     }
@@ -456,55 +510,100 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     public void initConfig() {
-        if (isLoading()) return;
-        WallConfig.get().init();
-        LiveConfig.get().init().load();
-        VodConfig.get().init().load(getCallback(""), true);
-        setLoading(true);
+        android.util.Log.d("TV_FATAL", "HomeActivity.initConfig() START");
+        App.execute(() -> {
+            try {
+                android.util.Log.d("TV_FATAL", "Background thread started");
+                Config vod = Config.vod();
+                Config live = Config.live();
+                App.post(() -> {
+                    android.util.Log.d("TV_FATAL", "Posting to main thread for load()");
+                    Monitor.start("Config_Load");
+                    if (vod != null && !vod.isEmpty()) {
+                        VodConfig.get().config(vod).load(getCallback());
+                    } else {
+                        android.util.Log.d("TV_FATAL", "Vod config is empty, skip load");
+                        showContent();
+                    }
+                    if (live != null && !live.isEmpty() && (vod == null || !live.getUrl().equals(vod.getUrl()))) {
+                        LiveConfig.get().config(live).load();
+                    }
+                });
+            } catch (Throwable e) {
+                android.util.Log.e("TV_FATAL", "initConfig Error: " + e.getMessage());
+                e.printStackTrace();
+                App.post(this::showContent);
+            }
+        });
+    }
+
+    private Callback getCallback() {
+        return getCallback("");
     }
 
     private Callback getCallback(String success) {
         return new Callback() {
             @Override
-            public void success(String result) {
-                Notify.show(result);
-            }
-
-            @Override
             public void success() {
-                checkAction(getIntent());
-                RefreshEvent.video();
-                setLogo();
+                Config config = VodConfig.get().getConfig();
+                int siteCount = VodConfig.get().getSites() != null ? VodConfig.get().getSites().size() : 0;
+                android.util.Log.d("TV_FATAL", "VodConfig load SUCCESS, Site count: " + siteCount);
+                Monitor.end("Config_Load");
                 if (!TextUtils.isEmpty(success)) Notify.show(success);
+                Task.execute(HistorySyncManager::setup);
+                setTitle(config);
+                setLogo(config);
+                showContent();
+                App.post(() -> {
+                    RefreshEvent.history();
+                    RefreshEvent.home();
+                }, 500);
             }
 
             @Override
             public void error(String msg) {
-                if (getHomeFragment().inited) getHomeFragment().mBinding.progressLayout.showContent();
-                else App.post(() -> getHomeFragment().mBinding.progressLayout.showContent(), 1000);
-                mResult = Result.empty();
+                android.util.Log.e("TV_DEBUG", "HomeActivity Callback ERROR: " + msg);
+                Monitor.end("Config_Load");
                 Notify.show(msg);
-                setLoading(false);
+                showContent();
             }
         };
     }
 
+    private void showContent() {
+        android.util.Log.d("TV_FATAL", "HomeActivity.showContent() START");
+        checkAction(getIntent());
+        setFocus();
+        RefreshEvent.config();
+        Monitor.log("HomeActivity_ContentShown");
+    }
+
     private void load(Config config, String success) {
-        switch (config.getType()) {
-            case 0:
-                getHomeFragment().mBinding.progressLayout.showProgress();
-                VodConfig.load(config, getCallback(success));
-                break;
+        if (config.getType() == 0) {
+            getHomeFragment().mBinding.progressLayout.showProgress();
+            VodConfig.load(config, getCallback(success));
         }
     }
 
     private void loadLive(String url) {
-        LiveConfig.load(Config.find(url, 1), new Callback() {
+        LiveConfig.load(Config.find(url, Config.LIVE), new Callback() {
             @Override
             public void success() {
                 LiveActivity.start(getActivity());
             }
         });
+    }
+
+    private void setFocus() {
+        setLoading(false);
+        mBinding.title.setSelected(true);
+        App.post(() -> mBinding.title.setFocusable(true), 500);
+        if (mFocus != mBinding.title) {
+            if (Setting.getHomeUI() == 0) getHomeFragment().mBinding.recycler.requestFocus();
+            else mBinding.recycler.requestFocus();
+        } else if (!mBinding.title.hasFocus()) {
+            mBinding.recycler.requestFocus();
+        }
     }
 
     private void setConfirm() {
@@ -521,7 +620,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             return;
         }
         if (Setting.isHomeSiteLock()) return;
-        SiteDialog.create(this).show();
+        SiteDialog.create(this).show(this);
     }
 
     @Override
@@ -536,14 +635,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     @Override
-    public boolean onItemLongClick(Class item) {
-        if (mBinding.pager.getCurrentItem() != 0) return true;
-        onRefresh();
-        return true;
-    }
-
-
-    @Override
     public void setSite(Site item) {
         VodConfig.get().setHome(item);
         homeContent();
@@ -554,18 +645,26 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onRefreshEvent(RefreshEvent event) {
-        super.onRefreshEvent(event);
-        if (mBinding == null || mAdapter == null) return; // 🛡️ 安全防護
-        switch (event.getType()) {
-            case CONFIG:
+    public void onConfigEvent(ConfigEvent event) {
+        switch (event.type()) {
+            case VOD:
+                RefreshEvent.history();
+                RefreshEvent.home();
                 setLogo();
                 break;
-            case VIDEO:
-                homeContent();
+            case BOOT:
+                LiveActivity.start(this);
                 break;
-            case IMAGE:
-                getHomeFragment().refreshRecommond();
+        }
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onRefreshEvent(RefreshEvent event) {
+        super.onRefreshEvent(event);
+        if (mBinding == null || mAdapter == null) return;
+        switch (event.getType()) {
+            case HOME:
+                homeContent();
                 break;
             case HISTORY:
                 HomeFragment fragment = getHomeFragment();
@@ -573,6 +672,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 break;
             case SIZE:
                 homeContent();
+                break;
+            default:
                 break;
         }
     }
@@ -592,7 +693,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onCastEvent(CastEvent event) {
         if (VodConfig.get().getConfig().equals(event.getConfig())) {
-            VideoActivity.cast(this, event.getHistory().update(VodConfig.getCid()));
+            VideoActivity.cast(this, event.getHistory().cid(VodConfig.getCid()));
         } else {
             VodConfig.load(event.getConfig(), getCallback(event));
         }
@@ -603,8 +704,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             @Override
             public void success() {
                 RefreshEvent.history();
-                RefreshEvent.config();
-                RefreshEvent.video();
+                RefreshEvent.home();
                 onCastEvent(event);
             }
 
@@ -615,8 +715,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         };
     }
 
-    public boolean isLoading() {
-        return loading;
+    public SiteViewModel getViewModel() {
+        return mViewModel;
     }
 
     public void setLoading(boolean loading) {
@@ -624,7 +724,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void setLogo() {
-        //Glide.with(App.get()).load(UrlUtil.convert(VodConfig.get().getConfig().getLogo())).circleCrop().override(Target.SIZE_ORIGINAL, Target.SIZE_ORIGINAL).listener(getListener()).into(mBinding.logo);
+        ImgUtil.logo(mBinding.logo);
     }
 
     private RequestListener<Drawable> getListener() {
@@ -643,22 +743,13 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         };
     }
 
-    private void setFocus() {
-        setLoading(false);
-        if (!mBinding.title.isFocusable()) App.post(() -> mBinding.title.setFocusable(true), 500);
-        if (mFocus != mBinding.title) {
-            if (Setting.getHomeUI() == 0) getHomeFragment().mBinding.recycler.requestFocus();
-            else mBinding.recycler.requestFocus();
-        }
-    }
-
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         boolean isHomeFragment = mBinding.pager.getCurrentItem() == 0;
         if (isHomeFragment && KeyUtil.isMenuKey(event)) {
             if (Setting.getHomeMenuKey() == 0) MenuDialog.create(this).show();
-            else if (Setting.getHomeMenuKey() == 1) SiteDialog.create(this).show();
-            else if (Setting.getHomeMenuKey() == 2) HistoryDialog.create(this).type(0).show();
+            else if (Setting.getHomeMenuKey() == 1) SiteDialog.create(this).show(this);
+            else if (Setting.getHomeMenuKey() == 2) HistoryDialog.create().vod().show(this);
             else if (Setting.getHomeMenuKey() == 3) LiveActivity.start(this);
             else if (Setting.getHomeMenuKey() == 4) HistoryActivity.start(this);
             else if (Setting.getHomeMenuKey() == 5) SearchActivity.start(this);
@@ -677,6 +768,13 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mClock.start();
         setTitleView();
         setHomeUI();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && isTV()) com.fongmi.android.tv.utils.Util.hideSystemUI(this);
+        if (hasFocus) Monitor.log("HomeActivity_WindowFocused");
     }
 
     @Override
@@ -715,7 +813,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             return;
         }
         Class item = (Class) mAdapter.get(mBinding.pager.getCurrentItem());
-        if (item.getFilter() != null && item.getFilter()) updateFilter(item);
+        if (item.getFilter()) updateFilter(item);
         else if (getFragment().canBack()) getFragment().goBack();
         else if (!coolDown) super.onBackPressed();
     }
@@ -747,10 +845,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        WallConfig.get().clear();
         LiveConfig.get().clear();
         VodConfig.get().clear();
         AppDatabase.backup();
+        OkHttp.get().clear();
         Server.get().stop();
         Source.get().exit();
     }
@@ -765,7 +863,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         public Fragment getItem(int position) {
             if (position == 0) return new HomeFragment();
             Class type = (Class) mAdapter.get(position);
-            return VodFragment.newInstance(getHome().getKey(), type.getTypeId(), type.getStyle(), type.getExtend(false), "1".equals(type.getTypeFlag()));
+            return VodFragment.newInstance(getHome().getKey(), type.getTypeId(), type.getStyle(), new HashMap<>(), "1".equals(type.getTypeFlag()));
         }
 
         @Override

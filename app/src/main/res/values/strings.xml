@@ -9,6 +9,7 @@
 
     <!-- Live -->
     <string name="live_pass">Pass</string>
+    <string name="live_refresh">Refresh</string>
     <string name="live_line">Line <xliff:g name="name">%s</xliff:g></string>
 
     <!-- Detail -->
@@ -29,6 +30,7 @@
 
     <!-- Play -->
     <string name="play">Play</string>
+    <string name="pause">Pause</string>
     <string name="play_op">OP</string>
     <string name="play_ed">ED</string>
     <string name="play_exo">EXO</string>
@@ -39,6 +41,7 @@
     <string name="play_stop">Stop</string>
     <string name="play_repeat">Repeat</string>
     <string name="play_reset">Replay</string>
+    <string name="play_scale">Default</string>
     <string name="play_episodes">Episodes</string>
     <string name="play_loop">Loop</string>
     <string name="play_timer">Timer</string>
@@ -61,6 +64,12 @@
     <string name="play_track_text">Text</string>
     <string name="play_track_audio">Audio</string>
     <string name="play_track_video">Video</string>
+    <string name="play_config">Config</string>
+    <string name="play_decode">Hard</string>
+    <string name="offset_text">Text offset</string>
+    <string name="offset_audio">Audio offset</string>
+    <string name="offset_setting">Offset settings</string>
+    <string name="danmaku_reset">Reset</string>
     <string name="play_forward_hint">Normal play switched</string>
     <string name="play_backward_hint">Reverse play switched</string>
     <string name="play_now">Playing: <xliff:g name="name">%s</xliff:g></string>
@@ -350,4 +359,5 @@
 
     <string name="site_blacklist_confirm">Are you sure to add \"%s\" to the blacklist?</string>
     <string name="site_blacklist_remove_confirm">Are you sure to remove \"%s\" from the blacklist?</string>
+    <string name="db_upgrading">Upgrading Database: %1$d -> %2$d</string>
 </resources>

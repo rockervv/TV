@@ -76,7 +76,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
     }
 
     private String getTypeId() {
-        return mPages.isEmpty() ? getArguments().getString("typeId") : getLastPage().getVodId();
+        return mPages.isEmpty() ? getArguments().getString("typeId") : getLastPage().getId();
     }
 
     private List<Filter> getFilter() {
@@ -141,7 +141,8 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
     }
 
     private void setViewModel() {
-        mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
+        mViewModel = new ViewModelProvider(getActivity()).get(SiteViewModel.class);
+        mViewModel.getFilter().observe(getViewLifecycleOwner(), this::toggleFilter);
         mViewModel.getResult().observe(getViewLifecycleOwner(), result -> {
             boolean first = mScroller.first();
             int size = result.getList().size();
@@ -156,15 +157,15 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
     private void setFilters() {
         for (Filter filter : mFilters) {
             if (mExtends.containsKey(filter.getKey())) {
-                filter.setActivated(mExtends.get(filter.getKey()));
+                filter.setSelected(mExtends.get(filter.getKey()));
             }
         }
     }
 
     private void setClick(ArrayObjectAdapter adapter, String key, Value item) {
-        for (int i = 0; i < adapter.size(); i++) ((Value) adapter.get(i)).setActivated(item);
+        for (int i = 0; i < adapter.size(); i++) ((Value) adapter.get(i)).setSelected(item);
         adapter.notifyArrayItemRangeChanged(0, adapter.size());
-        if (item.isActivated()) mExtends.put(key, item.getV());
+        if (item.isSelected()) mExtends.put(key, item.getV());
         else mExtends.remove(key);
         onRefresh();
     }
@@ -286,17 +287,17 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         } else if (item.isFolder()) {
             mPages.add(Page.get(item, mBinding.recycler.getSelectedPosition()));
             mBinding.recycler.setMoveTop(false);
-            getVideo(item.getVodId(), "1");
+            getVideo(item.getId(), "1");
         } else {
-            if (isIndexs()) CollectActivity.start(getActivity(), item.getVodName());
-            else if (!isFolder()) VideoActivity.start(getActivity(), getKey(), item.getVodId(), item.getVodName(), item.getVodPic());
-            else VideoActivity.start(getActivity(), getKey(), item.getVodId(), item.getVodName(), item.getVodPic(), item.getVodName());
+            if (isIndexs()) CollectActivity.start(getActivity(), item.getName());
+            else if (!isFolder()) VideoActivity.start(getActivity(), getKey(), item.getId(), item.getName(), item.getPic());
+            else VideoActivity.start(getActivity(), getKey(), item.getId(), item.getName(), item.getPic(), item.getName());
         }
     }
 
     @Override
     public boolean onLongClick(Vod item) {
-        CollectActivity.start(getActivity(), item.getVodName());
+        CollectActivity.start(getActivity(), item.getName());
         return true;
     }
 

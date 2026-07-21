@@ -5,73 +5,62 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.graphics.drawable.Drawable;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.view.KeyEvent;
 import android.view.View;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.media3.common.C;
-import androidx.media3.common.PlaybackException;
+import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
+import androidx.media3.common.VideoSize;
 import androidx.media3.ui.PlayerView;
-import androidx.media3.ui.SubtitleView;
 import androidx.viewbinding.ViewBinding;
 
-import com.fongmi.android.tv.dlna.CastAction;
-import com.fongmi.android.tv.dlna.RenderState;
-import com.fongmi.android.tv.service.DLNARendererService;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.bean.Sub;
-import com.fongmi.android.tv.bean.Track;
 import com.fongmi.android.tv.databinding.ActivityCastBinding;
+import com.fongmi.android.tv.dlna.CastAction;
 import com.fongmi.android.tv.event.ActionEvent;
-import com.fongmi.android.tv.event.ErrorEvent;
 import com.fongmi.android.tv.event.PlayerEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
-import com.fongmi.android.tv.player.exo.ExoUtil;
 import com.fongmi.android.tv.player.PlayerManager;
-import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.service.DLNARendererService;
+import com.fongmi.android.tv.service.PlaybackService;
+import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.custom.CustomKeyDownCast;
-import com.fongmi.android.tv.ui.dialog.PlayerDialog;
-import com.fongmi.android.tv.ui.dialog.SubtitleDialog;
+import com.fongmi.android.tv.ui.custom.PlayerSeekView;
+import com.fongmi.android.tv.ui.dialog.PlayerEngineDialog;
+
+import com.fongmi.android.tv.ui.dialog.SubTitleView;
 import com.fongmi.android.tv.ui.dialog.TrackDialog;
 import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Traffic;
 
-import org.jupnp.support.contentdirectory.DIDLParser;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
+import org.jupnp.support.contentdirectory.DIDLParser;
 
-
-public class CastActivity extends BaseActivity implements CustomKeyDownCast.Listener, TrackDialog.Listener, PlayerDialog.Listener, ServiceConnection, Clock.Callback, PlayerManager.Callback {
+public class CastActivity extends PlaybackActivity implements CustomKeyDownCast.Listener, TrackDialog.Listener {
 
     private ActivityCastBinding mBinding;
-    private DLNARendererService mService;
+    private DLNARendererService mRenderer;
     private CustomKeyDownCast mKeyDown;
-    private RenderState mState;
+    private String mPlaybackKey;
     private CastAction mAction;
-    private DIDLParser mParser;
-    private PlayerManager mPlayers;
     private Runnable mR1;
     private Runnable mR2;
     private Clock mClock;
-    private long position;
-    private long duration;
+    private boolean bound;
     private int scale;
 
-    private PlayerView getExo() {
-        return mBinding.exo;
-    }
-
-    private Drawable getDefaultArtwork() {
-        return getExo().getDefaultArtwork();
+    @Override
+    protected boolean customWall() {
+        return false;
     }
 
     @Override
@@ -80,29 +69,55 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
     }
 
     @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        getIntent().putExtras(intent);
-        checkAction();
+    protected PlaybackService.NavigationCallback getNavigationCallback() {
+        return mNavigationCallback;
     }
 
     @Override
-    protected void initView() {
-        bindService(new Intent(this, DLNARendererService.class), this, Context.BIND_AUTO_CREATE);
+    protected String getPlaybackKey() {
+        return mPlaybackKey;
+    }
+
+    @Override
+    protected PlayerView getPlayerView() {
+        return mBinding.player;
+    }
+
+    @Override
+    protected PlayerSeekView getSeekView() {
+        return mBinding.control.seek;
+    }
+
+    @Override
+    protected void onServiceConnected() {
+        mBinding.control.decode.setText(player().getDecodeText());
+        mBinding.control.speed.setText(player().getSpeedText());
+        setAction(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (mRenderer != null) mRenderer.setDlnaActive(true);
+        if (intent.hasExtra(CastAction.KEY_EXTRA)) setAction(intent);
+        else finish();
+    }
+
+    @Override
+    protected void initView(Bundle savedInstanceState) {
+        super.initView(savedInstanceState);
+        bound = bindService(new Intent(this, DLNARendererService.class), mRendererConnection, Context.BIND_AUTO_CREATE);
         mClock = Clock.create(mBinding.widget.clock);
         mKeyDown = CustomKeyDownCast.create(this);
-        mPlayers = PlayerManager.create(this);
-        mParser = new DIDLParser();
         mR1 = this::hideControl;
         mR2 = this::setTraffic;
         setVideoView();
-        checkAction();
     }
 
     @Override
     @SuppressLint("ClickableViewAccessibility")
     protected void initEvent() {
-        mBinding.control.seek.setListener(mPlayers);
         mBinding.control.speed.setUpListener(this::onSpeedAdd);
         mBinding.control.speed.setDownListener(this::onSpeedSub);
         mBinding.control.text.setUpListener(this::onSubtitleClick);
@@ -113,59 +128,55 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
         mBinding.control.scale.setOnClickListener(view -> onScale());
         mBinding.control.speed.setOnClickListener(view -> onSpeed());
         mBinding.control.reset.setOnClickListener(view -> onReset());
-        mBinding.control.player.setOnClickListener(view -> onPlayer());
+        mBinding.control.player.setOnClickListener(view -> onChoose());
         mBinding.control.decode.setOnClickListener(view -> onDecode());
         mBinding.control.speed.setOnLongClickListener(view -> onSpeedLong());
         mBinding.video.setOnTouchListener((view, event) -> mKeyDown.onTouchEvent(event));
     }
 
+    private void setVideoView() {
+        setSeekNextFocusDown(R.id.reset);
+        setScale(scale = PlayerSetting.getScale());
+        setActionFocusBoundary(mBinding.control.getRoot());
+        PlayerEngineDialog.setText(mBinding.control.player);
+    }
+
     private String getName() {
         try {
-            return mParser.parse(mAction.getCurrentURIMetaData()).getItems().get(0).getTitle();
+            return new DIDLParser().parse(mAction.getCurrentURIMetaData()).getItems().get(0).getTitle();
         } catch (Exception e) {
             return mAction.getCurrentURI();
         }
     }
 
-    private void checkAction() {
-        mAction = getIntent().getParcelableExtra(CastAction.KEY_EXTRA);
+    private void setAction(Intent intent) {
+        mAction = intent.getParcelableExtra(CastAction.KEY_EXTRA);
+        if (mAction == null) return;
         mBinding.widget.title.setText(getName());
-        position = duration = 0;
+        mBinding.widget.title.setSelected(true);
+        resetMedia();
         start();
     }
 
+    private void resetMedia() {
+        hideError();
+        hideControl();
+        player().setSpeed(1.0f);
+        player().setRepeatOne(false);
+    }
+
     private void start() {
-        mPlayers.setMediaSource(mAction.getCurrentURI());
-        showProgress();
-        setMetadata();
-        hideCenter();
+        mPlaybackKey = mAction.getCurrentURI();
+        startPlayer(mPlaybackKey, mAction.result(), false, Constant.TIMEOUT_PLAY, buildMetadata());
     }
 
-    private void setVideoView() {
-        mPlayers.init(getExo());
-        mPlayers.setPlayer(Setting.getPlayer());
-        findViewById(R.id.timeBar).setNextFocusUpId(R.id.reset);
-        mBinding.control.reset.setText(ResUtil.getStringArray(R.array.select_reset)[0]);
-        setScale(scale = Setting.getScale());
-        ExoUtil.setSubtitleView(mBinding.exo);
-        setPlayerView();
-        setDecodeView();
-    }
-
-    private void setPlayerView() {
-        mBinding.control.speed.setText(mPlayers.getSpeedText());
-        mBinding.control.player.setText(mPlayers.getPlayerText());
-        mBinding.control.speed.setEnabled(mPlayers.canAdjustSpeed());
-        getExo().setVisibility(View.VISIBLE);
-        mBinding.control.decode.setVisibility(mPlayers.isExo() ? View.VISIBLE : View.GONE);
-    }
-
-    private void setDecodeView() {
-        mBinding.control.decode.setText(mPlayers.getDecodeText());
+    private void setPlaybackMode() {
+        PlayerEngineDialog.setText(mBinding.control.player, player());
+        mBinding.control.decode.setText(player().getDecodeText());
     }
 
     private void setScale(int scale) {
-        getExo().setResizeMode(scale);
+        mBinding.player.setResizeMode(scale);
         mBinding.control.scale.setText(ResUtil.getStringArray(R.array.select_scale)[scale]);
     }
 
@@ -176,44 +187,39 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
     }
 
     private void onSpeed() {
-        mBinding.control.speed.setText(mPlayers.addSpeed());
+        mBinding.control.speed.setText(player().addSpeed());
     }
 
     private void onSpeedAdd() {
-        mBinding.control.speed.setText(mPlayers.addSpeed(0.25f));
+        mBinding.control.speed.setText(player().addSpeed(0.25f));
     }
 
     private void onSpeedSub() {
-        mBinding.control.speed.setText(mPlayers.subSpeed(0.25f));
+        mBinding.control.speed.setText(player().subSpeed(0.25f));
     }
 
     private boolean onSpeedLong() {
-        mBinding.control.speed.setText(mPlayers.toggleSpeed());
+        mBinding.control.speed.setText(player().toggleSpeed());
         return true;
     }
 
     private void onReset() {
+        if (player().isEmpty()) return;
         start();
     }
 
-    private void onPlayer() {
-        PlayerDialog.create().select(mPlayers.getEngine()).title(mBinding.widget.title.getText().toString()).show(this);
+    private void onChoose() {
+        PlayerEngineDialog.show(this, mBinding.control.player, player(), mBinding.widget.title.getText());
         hideControl();
     }
 
     private void onDecode() {
-        onDecode(true);
-    }
-
-    private void onDecode(boolean save) {
-        mPlayers.toggleDecode(save);
-        mPlayers.init(getExo());
-        mPlayers.setMediaSource();
-        setDecodeView();
+        if (player().isEmpty()) return;
+        player().toggleDecode();
     }
 
     private void onTrack(View view) {
-        TrackDialog.create().player(mPlayers).vod(true).type(Integer.parseInt(view.getTag().toString())).show(this);
+        TrackDialog.create().type(Integer.parseInt(view.getTag().toString())).player(player()).show(this);
         hideControl();
     }
 
@@ -223,13 +229,14 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
     }
 
     private void showProgress() {
-        mBinding.widget.progress.setVisibility(View.VISIBLE);
+        mBinding.progress.getRoot().setVisibility(View.VISIBLE);
         App.post(mR2, 0);
+        hideCenter();
         hideError();
     }
 
     private void hideProgress() {
-        mBinding.widget.progress.setVisibility(View.GONE);
+        mBinding.progress.getRoot().setVisibility(View.GONE);
         App.removeCallbacks(mR2);
         Traffic.reset();
     }
@@ -247,12 +254,12 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
 
     private void showInfo() {
         mBinding.widget.center.setVisibility(View.VISIBLE);
-        mBinding.widget.info.setVisibility(View.VISIBLE);
+        mBinding.widget.exoDuration.setText(player().getDurationTime());
+        mBinding.widget.exoPosition.setText(player().getPositionTime(0));
     }
 
     private void hideInfo() {
         mBinding.widget.center.setVisibility(View.GONE);
-        mBinding.widget.info.setVisibility(View.GONE);
     }
 
     private void showControl() {
@@ -262,7 +269,6 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
     }
 
     private void hideControl() {
-        mBinding.control.text.setText(R.string.play_track_text);
         mBinding.control.getRoot().setVisibility(View.GONE);
         App.removeCallbacks(mR1);
     }
@@ -273,7 +279,7 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
     }
 
     private void setTraffic() {
-        Traffic.setSpeed(mBinding.widget.traffic);
+        Traffic.setSpeed(mBinding.progress.traffic);
         App.post(mR2, Constant.INTERVAL_TRAFFIC);
     }
 
@@ -292,210 +298,164 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onRefreshEvent(RefreshEvent event) {
-        if (event.getType() == RefreshEvent.Type.SUBTITLE) mPlayers.setSub(Sub.from(event.getPath()));
+        if (event.getType() == RefreshEvent.Type.PLAYER) onReset();
+        else if (event.getType() == RefreshEvent.Type.SUBTITLE) player().setSub(Sub.from(event.getPath()));
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onPlayerEvent(PlayerEvent event) {
-        switch (event.getState()) {
-            case 0:
-                setTrackVisible(false);
-                mClock.setCallback(this);
-                setState(RenderState.PREPARING);
-                break;
-            case Player.STATE_IDLE:
-                setState(RenderState.IDLE);
-                break;
-            case Player.STATE_BUFFERING:
-                showProgress();
-                setState(RenderState.PREPARING);
-                break;
-            case Player.STATE_READY:
-                setMetadata();
-                hideProgress();
-                mPlayers.reset();
-                setTrackVisible(true);
-                setState(RenderState.PLAYING);
-                mBinding.widget.size.setText(mPlayers.getSizeText());
-                break;
-            case Player.STATE_ENDED:
-                showControl();
-                setState(RenderState.STOPPED);
-                break;
+        if (event.getState() == Player.STATE_READY) {
+            mBinding.widget.size.setText(player().getSizeText());
+            setTrackVisible();
         }
     }
 
-    private void setTrackVisible(boolean visible) {
-        mBinding.control.text.setVisibility(visible && mPlayers.haveTrack(C.TRACK_TYPE_TEXT) ? View.VISIBLE : View.GONE);
-        mBinding.control.audio.setVisibility(visible && mPlayers.haveTrack(C.TRACK_TYPE_AUDIO) ? View.VISIBLE : View.GONE);
-        mBinding.control.video.setVisibility(visible && mPlayers.haveTrack(C.TRACK_TYPE_VIDEO) ? View.VISIBLE : View.GONE);
+    private void setTrackVisible() {
+        mBinding.control.text.setVisibility(player().haveTrack(C.TRACK_TYPE_TEXT) || player().isVod() ? View.VISIBLE : View.GONE);
+        mBinding.control.audio.setVisibility(player().haveTrack(C.TRACK_TYPE_AUDIO) ? View.VISIBLE : View.GONE);
+        mBinding.control.video.setVisibility(player().haveTrack(C.TRACK_TYPE_VIDEO) ? View.VISIBLE : View.GONE);
     }
 
-    private void setMetadata() {
-        mPlayers.setMetadata(mBinding.widget.title.getText().toString(), "", "", getDefaultArtwork());
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onErrorEvent(ErrorEvent event) {
-        if (mPlayers.addRetry() > event.getRetry()) onError(event);
-        else if (event.isDecode() && mPlayers.canToggleDecode()) onDecode(false);
-        else if (event.isExo() && mPlayers.isExo()) onExoCheck(event);
-        else onReset();
-    }
-
-    private void onExoCheck(ErrorEvent event) {
-        if (event.getCode() == PlaybackException.ERROR_CODE_IO_UNSPECIFIED || event.getCode() >= PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED && event.getCode() <= PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED) mPlayers.setFormat(ExoUtil.getMimeType(event.getCode()));
-        mPlayers.setMediaSource();
-    }
-
-    private void onError(ErrorEvent event) {
-        showError(event.getMsg());
-        onStopped();
+    private MediaMetadata buildMetadata() {
+        return PlayerManager.buildMetadata(mBinding.widget.title.getText().toString(), "", "");
     }
 
     private void onPaused() {
-        mBinding.widget.exoDuration.setText(mPlayers.getDurationTime());
-        mBinding.widget.exoPosition.setText(mPlayers.getPositionTime(0));
-        setState(RenderState.PAUSED);
-        mPlayers.pause();
-        showInfo();
+        controller().pause();
     }
 
     private void onPlay() {
-        setState(RenderState.PLAYING);
-        mPlayers.play();
-        hideCenter();
+        if (isEnded()) controller().seekTo(0);
+        if (!player().isEmpty() && isIdle()) controller().prepare();
+        controller().play();
     }
 
-    private void onStopped() {
-        setState(RenderState.STOPPED);
-        mPlayers.reset();
-        mPlayers.stop();
+    private void consumePendingSeek() {
+        if (service() == null || player().isEmpty() || mRenderer == null) return;
+        long seekMs = mRenderer.consumePendingSeekMs();
+        if (seekMs >= 0) player().seekTo(seekMs);
     }
 
-    private void setState(RenderState state) {
-        this.mState = state;
-    }
+    private final ServiceConnection mRendererConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder binder) {
+            if (!bound) return;
+            mRenderer = ((DLNARendererService.LocalBinder) binder).getService();
+            mRenderer.setDlnaActive(true);
+            consumePendingSeek();
+        }
 
-    public RenderState getState() {
-        return mState;
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mRenderer = null;
+        }
+    };
+
+    private final PlaybackService.NavigationCallback mNavigationCallback = new PlaybackService.NavigationCallback() {
+        @Override
+        public void onStop() {
+            finish();
+        }
+    };
+
+    @Override
+    protected void onPrepare() {
+        setPlaybackMode();
+        consumePendingSeek();
     }
 
     @Override
-    public void onTrackClick(Track item) {
+    protected void onDecodeChanged() {
+        setPlaybackMode();
     }
 
     @Override
-    public void onSubtitleClick() {
-        App.post(this::hideControl, 200);
-        SubtitleView subtitleView = getExo().getSubtitleView();
-        App.post(() -> SubtitleDialog.create().view(subtitleView).full(true).show(this), 200);
+    protected void onTracksChanged() {
+        setTrackVisible();
     }
 
     @Override
-    public void onPrepare() {
-    }
-
-    @Override
-    public void onTracksChanged() {
-    }
-
-    @Override
-    public void onDecodeChanged() {
-    }
-
-    @Override
-    public void onMediaOptionsChanged() {
-    }
-
-    @Override
-    public void onError(String msg) {
+    protected void onError(String msg) {
+        player().resetTrack();
+        player().reset();
+        player().stop();
         showError(msg);
     }
 
     @Override
-    public void onPlayerRebuild(Player newPlayer) {
-        setPlayerView();
+    protected void onStateChanged(int state) {
+        if (mRenderer != null) mRenderer.notifyState(player());
+        switch (state) {
+            case Player.STATE_BUFFERING:
+                showProgress();
+                break;
+            case Player.STATE_READY:
+                hideProgress();
+                break;
+            case Player.STATE_ENDED:
+                showControl();
+                break;
+        }
     }
 
     @Override
-    public void onTimeChanged() {
-        position = mPlayers.getPosition();
-        duration = mPlayers.getDuration();
+    protected void onSizeChanged(VideoSize size) {
+        mBinding.widget.size.setText(player().getSizeText());
     }
 
     @Override
-    public void onServiceConnected(ComponentName name, IBinder service) {
-        mService = ((DLNARendererService.LocalBinder) service).getService();
-        mService.setDlnaActive(true);
+    protected void onPlayingChanged(boolean isPlaying) {
+        if (isPlaying) {
+            hideCenter();
+        } else if (isPaused()) {
+            showInfo();
+        }
     }
 
     @Override
-    public void onServiceDisconnected(ComponentName name) {
-    }
-
-    public long getCurrentPosition() {
-        return position;
-    }
-
-    public long getDuration() {
-        return duration;
-    }
-
-    public void seek(long time) {
-        App.post(() -> mPlayers.seekTo(time));
-    }
-
-    public void pause() {
-        App.post(this::onPaused);
-    }
-
-    public void play(@Nullable Double speed) {
-        App.post(this::onPlay);
-    }
-
-    public void stop() {
-        App.post(this::finish);
+    public void onSubtitleClick() {
+        SubTitleView.create().view(getPlayerView().getSubtitleView()).player(player()).show(this);
+        App.post(this::hideControl, 100);
     }
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (KeyUtil.isMenuKey(event)) onToggle();
         if (isVisible(mBinding.control.getRoot())) setR1Callback();
-        if (isGone(mBinding.control.getRoot()) && mKeyDown.hasEvent(event)) return mKeyDown.onKeyDown(event);
+        if (isGone(mBinding.control.getRoot()) && mKeyDown.hasEvent(event) && service() != null) return mKeyDown.onKeyDown(event);
         return super.dispatchKeyEvent(event);
     }
 
     @Override
     public void onSeeking(int time) {
-        mBinding.widget.exoDuration.setText(mPlayers.getDurationTime());
-        mBinding.widget.exoPosition.setText(mPlayers.getPositionTime(time));
-        mBinding.widget.action.setImageResource(time > 0 ? R.drawable.ic_widget_forward : R.drawable.ic_widget_rewind);
+        if (player().isEmpty()) return;
         mBinding.widget.center.setVisibility(View.VISIBLE);
+        mBinding.widget.exoDuration.setText(player().getDurationTime());
+        mBinding.widget.exoPosition.setText(player().getPositionTime(time));
+        mBinding.widget.action.setImageResource(time > 0 ? R.drawable.ic_widget_forward : R.drawable.ic_widget_rewind);
         hideProgress();
     }
 
     @Override
     public void onSeekTo(int time) {
+        if (player().isEmpty()) return;
         mKeyDown.resetTime();
-        mPlayers.seekTo(time);
-        showProgress();
-        onPlay();
+        seekTo(time);
     }
 
     @Override
     public void onSpeedUp() {
-        if (!mPlayers.isPlaying() || !mPlayers.canAdjustSpeed()) return;
-        mBinding.control.speed.setText(mPlayers.setSpeed(mPlayers.getSpeed() < 3 ? 3 : 5));
-        mBinding.widget.speed.startAnimation(ResUtil.getAnim(R.anim.forward));
+        if (!player().isPlaying()) return;
         mBinding.widget.speed.setVisibility(View.VISIBLE);
+        mBinding.widget.speed.startAnimation(ResUtil.getAnim(R.anim.forward));
+        mBinding.control.speed.setText(player().setSpeed(PlayerSetting.getSpeed()));
     }
 
     @Override
     public void onSpeedEnd() {
-        mBinding.control.speed.setText(mPlayers.setSpeed(1.0f));
-        mBinding.widget.speed.setVisibility(View.GONE);
         mBinding.widget.speed.clearAnimation();
+        mBinding.widget.speed.setVisibility(View.GONE);
+        mBinding.control.speed.setText(player().setSpeed(1.0f));
     }
 
     @Override
@@ -510,7 +470,7 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
 
     @Override
     public void onKeyCenter() {
-        if (mPlayers.isPlaying()) onPaused();
+        if (player().isPlaying()) onPaused();
         else onPlay();
         hideControl();
     }
@@ -526,50 +486,34 @@ public class CastActivity extends BaseActivity implements CustomKeyDownCast.List
     }
 
     @Override
-    public void onPlayerClick(Integer item) {
-        mPlayers.setPlayer(item);
-        setPlayerView();
-        onReset();
-    }
-
-    @Override
-    public void onPlayerShare(String title) {
-        if (mPlayers.isEmpty()) return;
-        mPlayers.choose(this, mBinding.widget.title.getText());
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
+    protected void onStart() {
+        super.onStart();
         mClock.start();
-        onPlay();
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        mPlayers.pause();
+    protected void onStop() {
+        super.onStop();
         mClock.stop();
     }
 
     @Override
-    public void onBackPressed() {
+    protected void onBackPress() {
         if (isVisible(mBinding.control.getRoot())) {
             hideControl();
         } else if (isVisible(mBinding.widget.center)) {
             hideCenter();
         } else {
-            super.onBackPressed();
+            finish();
         }
     }
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         mClock.release();
-        mPlayers.release();
-        unbindService(this);
-        if (mService != null) mService.setDlnaActive(false);
+        if (mRenderer != null) mRenderer.setDlnaActive(false);
+        if (bound) unbindService(mRendererConnection);
         App.removeCallbacks(mR1, mR2);
+        super.onDestroy();
     }
 }

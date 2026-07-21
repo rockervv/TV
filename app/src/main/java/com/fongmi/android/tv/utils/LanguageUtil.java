@@ -2,7 +2,7 @@ package com.fongmi.android.tv.utils;
 
 import android.app.Application;
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.yariksoffice.lingver.Lingver;
 
 import java.util.Locale;

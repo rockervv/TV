@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.textview.MaterialTextView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/text"
     android:layout_width="match_parent"
@@ -7,6 +7,6 @@
     android:background="@drawable/shape_accent"
     android:ellipsize="marquee"
     android:singleLine="true"
-    android:textColor="@color/control"
+    android:textColor="@color/selector_control"
     android:textSize="14sp"
     tools:text="中文、哥斯拉.srt" />

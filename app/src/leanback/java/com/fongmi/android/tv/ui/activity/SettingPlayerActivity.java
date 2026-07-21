@@ -9,7 +9,7 @@ import android.view.View;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.databinding.ActivitySettingPlayerBinding;
 import com.fongmi.android.tv.impl.SpeedListener;
 import com.fongmi.android.tv.impl.UaCallback;
@@ -179,7 +179,7 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
     }
 
     private void onUa(View view) {
-        UaDialog.create(this).show();
+        UaDialog.create(this).show(this);
     }
 
     @Override

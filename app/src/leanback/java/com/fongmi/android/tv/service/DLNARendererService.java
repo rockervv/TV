@@ -41,9 +41,14 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
     private boolean dlnaActive;
 
     public static void start(Context context) {
-        Intent intent = new Intent(context, DLNARendererService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
-        else context.startService(intent);
+        if (!com.fongmi.android.tv.setting.Setting.isDlna()) return;
+        try {
+            Intent intent = new Intent(context, DLNARendererService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
+            else context.startService(intent);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public class LocalBinder extends android.os.Binder {
@@ -60,7 +65,11 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
     @Override
     public void onCreate() {
         super.onCreate();
-        startForeground(NOTIFICATION_ID, getNotification());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION_ID, getNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+        } else {
+            startForeground(NOTIFICATION_ID, getNotification());
+        }
         avTransportImpl = new DLNAAvTransportImpl(this);
         renderingControlImpl = new DLNARenderingControlImpl(this);
         positionUpdater = this::updatePosition;
@@ -132,7 +141,7 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
         App.post(positionUpdater, 1000);
     }
 
-    private void notifyState(PlayerManager player) {
+    public void notifyState(PlayerManager player) {
         RenderState state = RenderState.IDLE;
         if (player.isReleased()) {
             state = RenderState.IDLE;

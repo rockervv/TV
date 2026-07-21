@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.function.LongConsumer;
 
 public class PlayerHelper {
 
@@ -39,11 +40,7 @@ public class PlayerHelper {
 
     public static Bundle toBundle(Map<String, String> headers) {
         Bundle bundle = new Bundle();
-        if (headers != null) {
-            for (Map.Entry<String, String> entry : headers.entrySet()) {
-                bundle.putString(entry.getKey(), entry.getValue());
-            }
-        }
+        if (headers != null) headers.forEach(bundle::putString);
         return bundle;
     }
 
@@ -82,25 +79,23 @@ public class PlayerHelper {
         try {
             if (url == null || url.isEmpty()) return;
             List<String> list = new ArrayList<>();
-            if (headers != null) {
-                for (Map.Entry<String, String> entry : headers.entrySet()) {
-                    list.add(entry.getKey());
-                    list.add(entry.getValue());
-                }
-            }
+            headers.forEach((key, value) -> {
+                list.add(key);
+                list.add(value);
+            });
             Uri data = url.startsWith("file://") || url.startsWith("/") ? FileUtil.getShareUri(url) : Uri.parse(url);
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
             intent.setDataAndType(data, "video/*");
             intent.putExtra("title", title).putExtra("return_result", isVod);
-            intent.putExtra("headers", list.toArray(new String[0]));
+            intent.putExtra("headers", list.toArray(String[]::new));
             if (isVod) intent.putExtra("position", (int) position);
             activity.startActivityForResult(getChooser(intent), 1001);
         } catch (Exception ignored) {
         }
     }
 
-    public static void onExternalResult(Intent data, Runnable onNext, java.util.function.LongConsumer seekTo) {
+    public static void onExternalResult(Intent data, Runnable onNext, LongConsumer seekTo) {
         try {
             if (data == null || data.getExtras() == null) return;
             long position = data.getExtras().getInt("position", 0);

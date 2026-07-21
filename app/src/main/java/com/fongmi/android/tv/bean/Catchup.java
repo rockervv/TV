@@ -1,15 +1,21 @@
 package com.fongmi.android.tv.bean;
 
-//import android.net.Uri;
 import android.text.TextUtils;
 
 import com.google.gson.annotations.SerializedName;
 
 import java.net.URI;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Catchup {
+
+    private static final Pattern TOKEN_PATTERN = Pattern.compile("(\\$?\\{[^}]*\\})");
+    private static final Pattern TAG_PATTERN = Pattern.compile("\\{([^}]+)\\}");
 
     @SerializedName("type")
     private String type;
@@ -21,6 +27,7 @@ public class Catchup {
     private String source;
     @SerializedName("replace")
     private String replace;
+
     public static Catchup PLTV() {
         Catchup item = new Catchup();
         item.setDays("7");
@@ -73,7 +80,6 @@ public class Catchup {
         this.replace = replace;
     }
 
-
     public String getSource() {
         return TextUtils.isEmpty(source) ? "" : source;
     }
@@ -90,23 +96,12 @@ public class Catchup {
         return getSource().isEmpty();
     }
 
-    private boolean isAppend() {
-        return getType().equals("append");
-    }
-
     private boolean isDefault() {
         return getType().equals("default");
     }
 
-    // private String format(String url, String result) {
-    //     if (!TextUtils.isEmpty(Uri.parse(url).getQuery())) result = result.replace("?", "&");
-    //     if (url.contains("/PLTV/")) url = url.replace("/PLTV/", "/TVOD/");
-    //     return url + result;
-    // }
-    //
-
     private String append(String url, String result) {
-        String[] splits = getReplace().split(",");
+        String[] splits = getReplace().split(",", 2);
         if (splits.length == 2) url = url.replaceAll(splits[0], splits[1]);
         if (!TextUtils.isEmpty(URI.create(url).getQuery())) result = result.replace("?", "&");
         return url + result;
@@ -114,10 +109,25 @@ public class Catchup {
 
     public String format(String url, EpgData data) {
         String result = getSource();
-        if (data.isInRange()) return url;
-        Matcher matcher = Pattern.compile("(\\$\\{[^}]*\\})").matcher(result);
-        while (matcher.find()) result = result.replace(matcher.group(1), data.format(matcher.group(1)));
-        //return isDefault() ? result : format(url, result);
+        Matcher matcher = TOKEN_PATTERN.matcher(result);
+        while (matcher.find()) result = result.replace(matcher.group(1), format(matcher.group(1), data.getStartTime(), data.getEndTime()));
         return isDefault() ? result : append(url, result);
+    }
+
+    private String formatTime(long millis, String fmt) {
+        if (fmt.equals("timestamp")) return String.valueOf(millis / 1000);
+        return DateTimeFormatter.ofPattern(fmt, Locale.getDefault()).format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()));
+    }
+
+    private String format(String group, long start, long end) {
+        Matcher matcher = TAG_PATTERN.matcher(group);
+        if (!matcher.find()) return "";
+        String tag = matcher.group(1);
+        int paren = tag.indexOf(')');
+        if (tag.startsWith("(b") && paren >= 0) return formatTime(start, tag.substring(paren + 1));
+        if (tag.startsWith("(e") && paren >= 0) return formatTime(end, tag.substring(paren + 1));
+        if (tag.startsWith("utcend:")) return String.valueOf(end / 1000);
+        if (tag.startsWith("utc:")) return String.valueOf(start / 1000);
+        return "";
     }
 }

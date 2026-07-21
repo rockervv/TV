@@ -17,6 +17,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationChannelCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.databinding.ViewProgressBinding;
@@ -64,6 +65,12 @@ public class Notify {
         get().makeText(text, Gravity.TOP | Gravity.END, 12, Color.parseColor("#80000000"));
     }
 
+    public static void showAd(String text) {
+        get().makeText(text, Gravity.TOP | Gravity.END, 10, Color.parseColor("#66000000"));
+    }
+
+
+
     public static void progress(Context context) {
         dismiss();
         get().create(context);
@@ -83,6 +90,7 @@ public class Notify {
         mDialog.show();
     }
 
+
     private void makeText(String message, int gravity) {
         makeText(message, gravity, 16, Color.parseColor("#CC000000"));
     }
@@ -93,8 +101,7 @@ public class Notify {
         mToast = new Toast(App.get());
         mToast.setDuration(Toast.LENGTH_LONG);
         mToast.setView(createView(message, size, color));
-        if (gravity == (Gravity.TOP | Gravity.END)) mToast.setGravity(gravity, ResUtil.dp2px(16), 2);
-        else if (gravity != Gravity.BOTTOM) mToast.setGravity(gravity, ResUtil.dp2px(16), ResUtil.dp2px(16));
+        if (gravity != Gravity.BOTTOM) mToast.setGravity(gravity, ResUtil.dp2px(16), ResUtil.dp2px(16));
         mToast.show();
     }
 
@@ -114,4 +121,5 @@ public class Notify {
         shape.setColor(color);
         return shape;
     }
+
 }

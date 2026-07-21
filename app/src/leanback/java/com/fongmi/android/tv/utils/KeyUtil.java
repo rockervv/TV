@@ -4,6 +4,14 @@ import android.view.KeyEvent;
 
 public class KeyUtil {
 
+    public static boolean isActionDown(KeyEvent event) {
+        return event.getAction() == KeyEvent.ACTION_DOWN;
+    }
+
+    public static boolean isActionUp(KeyEvent event) {
+        return event.getAction() == KeyEvent.ACTION_UP;
+    }
+
     public static boolean isEnterKey(KeyEvent event) {
         return event.getKeyCode() == KeyEvent.KEYCODE_DPAD_CENTER || event.getKeyCode() == KeyEvent.KEYCODE_ENTER || event.getKeyCode() == KeyEvent.KEYCODE_SPACE || event.getKeyCode() == KeyEvent.KEYCODE_NUMPAD_ENTER;
     }

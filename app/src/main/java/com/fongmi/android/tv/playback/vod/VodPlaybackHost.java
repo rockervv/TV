@@ -53,35 +53,11 @@ public interface VodPlaybackHost {
 
     void startPlayback(Result result, boolean useParse, long startPositionMs, History history, Episode episode);
 
-    void renderDetail(Vod item, History history);
-
     void renderEmptyDetail();
 
     void renderFallbackName(String name);
 
-    void renderFlags(List<Flag> items);
-
-    void renderEpisodes(List<Episode> items);
-
-    void renderFlagSelection(Flag item);
-
-    void renderEpisodeSelection(Episode item);
-
     void renderReverseEpisodes(List<Episode> items, boolean scroll);
-
-    void renderQuality(Result result, boolean visible);
-
-    void renderQualityVisible(boolean visible);
-
-    void renderSources(List<Vod> items);
-
-    void renderHistory(History history);
-
-    void renderUseParse(boolean useParse);
-
-    void renderArtwork(String url);
-
-    void renderDescription(String desc);
 
     void onDetailFallbackScheduled();
 

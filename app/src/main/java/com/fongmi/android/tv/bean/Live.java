@@ -3,6 +3,7 @@ package com.fongmi.android.tv.bean;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
@@ -13,22 +14,28 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.gson.ExtAdapter;
+import com.fongmi.android.tv.gson.HeaderAdapter;
+import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.crawler.Spider;
-import com.github.catvod.utils.Json;
+import com.github.catvod.utils.Trans;
 import com.google.common.net.HttpHeaders;
 import com.google.gson.JsonElement;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
-import com.google.gson.reflect.TypeToken;
 
-import java.lang.reflect.Type;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Entity
 public class Live {
+
+    @Ignore
+    @SerializedName("type")
+    private int type;
 
     @NonNull
     @PrimaryKey
@@ -44,8 +51,8 @@ public class Live {
     private String api;
 
     @Ignore
-    @JsonAdapter(ExtAdapter.class)
     @SerializedName("ext")
+    @JsonAdapter(ExtAdapter.class)
     private String ext;
 
     @Ignore
@@ -77,8 +84,11 @@ public class Live {
     private String referer;
 
     @Ignore
-    @SerializedName("type")
-    private Integer type;
+    @SerializedName("timeZone")
+    private String timeZone;
+
+    @SerializedName("keep")
+    private String keep;
 
     @Ignore
     @SerializedName("timeout")
@@ -86,11 +96,8 @@ public class Live {
 
     @Ignore
     @SerializedName("header")
-    private JsonElement header;
-
-    @Ignore
-    @SerializedName("playerType")
-    private Integer playerType;
+    @JsonAdapter(HeaderAdapter.class)
+    private Map<String, String> header;
 
     @Ignore
     @SerializedName("catchup")
@@ -111,26 +118,10 @@ public class Live {
     private boolean pass;
 
     @Ignore
-    private boolean activated;
+    private boolean selected;
 
     @Ignore
     private int width;
-
-    public static Live objectFrom(JsonElement element) {
-        return App.gson().fromJson(element, Live.class);
-    }
-
-    public static List<Live> arrayFrom(String str) {
-        Type listType = new TypeToken<List<Live>>() {}.getType();
-        List<Live> items = App.gson().fromJson(str, listType);
-        return items == null ? Collections.emptyList() : items;
-    }
-
-    public static Live get(String name) {
-        Live live = new Live();
-        live.setName(name);
-        return live;
-    }
 
     public Live() {
     }
@@ -140,8 +131,32 @@ public class Live {
         this.url = url;
     }
 
-    public String getKeep() {
-        return ""; // Not implemented
+    public static Live objectFrom(JsonElement element, String spider) {
+        try {
+            Live live = App.gson().fromJson(element, Live.class);
+            if (live.getJar().isEmpty()) live.setJar(spider);
+            live.setApi(UrlUtil.convert(live.getApi()));
+            live.setExt(UrlUtil.convert(live.getExt()));
+            return live.trans();
+        } catch (Exception e) {
+            return new Live();
+        }
+    }
+
+    public static List<Live> findAll() {
+        return AppDatabase.get().getLiveDao().findAll();
+    }
+
+    public static Live find(String name) {
+        return AppDatabase.get().getLiveDao().find(name);
+    }
+
+    public int getType() {
+        return type;
+    }
+
+    public void setType(int type) {
+        this.type = type;
     }
 
     public String getName() {
@@ -154,6 +169,10 @@ public class Live {
 
     public String getUrl() {
         return TextUtils.isEmpty(url) ? "" : url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     public String getApi() {
@@ -208,20 +227,32 @@ public class Live {
         return TextUtils.isEmpty(referer) ? "" : referer;
     }
 
-    public Integer getType() {
-        return type == null ? 0 : type;
+    public String getTimeZone() {
+        return TextUtils.isEmpty(timeZone) ? "" : timeZone;
     }
 
-    public Integer getTimeout() {
-        return timeout == null ? Constant.TIMEOUT_PLAY : Math.max(timeout, 1) * 1000;
+    public ZoneId getZoneId() {
+        try {
+            return getTimeZone().isEmpty() ? ZoneId.systemDefault() : ZoneId.of(getTimeZone());
+        } catch (Exception ignored) {
+            return ZoneId.systemDefault();
+        }
     }
 
-    public JsonElement getHeader() {
-        return header;
+    public String getKeep() {
+        return TextUtils.isEmpty(keep) ? "" : keep;
     }
 
-    public int getPlayerType() {
-        return playerType == null ? -1 : Math.min(playerType, 2);
+    public void setKeep(String keep) {
+        this.keep = keep;
+    }
+
+    public long getTimeout() {
+        return timeout == null ? Constant.TIMEOUT_PLAY : TimeUnit.SECONDS.toMillis(Math.max(timeout, 1));
+    }
+
+    public Map<String, String> getHeader() {
+        return header == null ? new HashMap<>() : header;
     }
 
     public Catchup getCatchup() {
@@ -252,16 +283,16 @@ public class Live {
         this.pass = pass;
     }
 
-    public boolean isActivated() {
-        return activated;
+    public boolean isSelected() {
+        return selected;
     }
 
-    public void setActivated(boolean activated) {
-        this.activated = activated;
+    public void setSelected(boolean selected) {
+        this.selected = selected;
     }
 
-    public void setActivated(Live item) {
-        this.activated = item.equals(this);
+    public void setSelected(Live item) {
+        this.selected = item.equals(this);
     }
 
     public int getWidth() {
@@ -270,6 +301,17 @@ public class Live {
 
     public void setWidth(int width) {
         this.width = width;
+    }
+
+    public String getEpgApi() {
+        for (String url : getEpg().split(",")) if (url.contains("{")) return url;
+        return getEpg();
+    }
+
+    public List<String> getEpgXml() {
+        List<String> items = new ArrayList<>();
+        for (String epg : getEpg().split(",")) if (!epg.contains("{") && (epg.contains("xml") || epg.contains("gz"))) items.add(epg);
+        return items;
     }
 
     public boolean isEmpty() {
@@ -301,11 +343,27 @@ public class Live {
         return this;
     }
 
+    public Live keep(Channel channel) {
+        setKeep(channel.getGroup().getName() + AppDatabase.SYMBOL + channel.getName() + AppDatabase.SYMBOL + channel.getCurrent());
+        return this;
+    }
+
+    public Live trans() {
+        if (Trans.pass()) return this;
+        this.name = Trans.s2t(name);
+        return this;
+    }
+
     public Live sync() {
-        Live item = find(getName());
+        sync(find(getName()));
+        return this;
+    }
+
+    public Live sync(Live item) {
         if (item == null) return this;
         setBoot(item.isBoot());
         setPass(item.isPass());
+        setKeep(item.getKeep());
         return this;
     }
 
@@ -319,15 +377,11 @@ public class Live {
     }
 
     public Map<String, String> getHeaders() {
-        Map<String, String> headers = Json.toMap(getHeader());
+        Map<String, String> headers = new HashMap<>(getHeader());
         if (!getUa().isEmpty()) headers.put(HttpHeaders.USER_AGENT, getUa());
         if (!getOrigin().isEmpty()) headers.put(HttpHeaders.ORIGIN, getOrigin());
         if (!getReferer().isEmpty()) headers.put(HttpHeaders.REFERER, getReferer());
         return headers;
-    }
-
-    public static Live find(String name) {
-        return AppDatabase.get().getLiveDao().find(name);
     }
 
     public void save() {
@@ -335,10 +389,9 @@ public class Live {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof Live)) return false;
-        Live it = (Live) obj;
+        if (!(obj instanceof Live it)) return false;
         return getName().equals(it.getName());
     }
 }

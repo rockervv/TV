@@ -4,12 +4,14 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.exception.ExtractException;
+import com.fongmi.android.tv.utils.Monitor;
 import com.github.catvod.utils.Trans;
 
 import java.util.HashMap;
@@ -18,10 +20,11 @@ import java.util.concurrent.Callable;
 
 public class SiteViewModel extends ViewModel {
 
-    private final MutableLiveData<Result> result;
-    private final MutableLiveData<Result> player;
-    private final MutableLiveData<Result> search;
-    private final MutableLiveData<Result> action;
+    protected final MutableLiveData<Result> result;
+    protected final MutableLiveData<Result> player;
+    protected final MutableLiveData<Result> search;
+    protected final MutableLiveData<Result> action;
+    protected final MutableLiveData<Boolean> filter;
     private final ViewModelTaskRunner<TaskType> tasks;
     private final ViewModelSearchRunner searches;
 
@@ -30,6 +33,7 @@ public class SiteViewModel extends ViewModel {
         player = new MutableLiveData<>();
         search = new MutableLiveData<>();
         action = new MutableLiveData<>();
+        filter = new MutableLiveData<>();
         tasks = new ViewModelTaskRunner<>(TaskType.class);
         searches = new ViewModelSearchRunner();
     }
@@ -48,6 +52,14 @@ public class SiteViewModel extends ViewModel {
 
     public LiveData<Result> getAction() {
         return action;
+    }
+
+    public LiveData<Boolean> getFilter() {
+        return filter;
+    }
+
+    public void setFilter(boolean open) {
+        filter.setValue(open);
     }
 
     public SiteViewModel init() {
@@ -78,16 +90,26 @@ public class SiteViewModel extends ViewModel {
         execute(TaskType.PLAYER, player, () -> SiteApi.playerContent(key, flag, id));
     }
 
+    public void searchContent(Site site, String keyword, boolean quick) {
+        searchContent(site, keyword, quick, "1");
+    }
+
     public void searchContent(Site site, String keyword, boolean quick, String page) {
         execute(TaskType.RESULT, result, SearchTask.create(site, keyword, quick, page));
     }
 
     public void searchContent(List<Site> sites, String keyword, boolean quick) {
-        searches.start(sites, site -> SearchTask.create(site, keyword, quick), search::postValue);
+        searches.start(sites, site -> SearchTask.create(site, keyword, quick), result -> App.post(() -> search.setValue(result)));
     }
 
-    private void execute(TaskType type, MutableLiveData<Result> liveData, Callable<Result> callable) {
-        tasks.execute(type, Constant.TIMEOUT_VOD, callable, liveData::postValue, error -> {
+    protected void execute(TaskType type, MutableLiveData<Result> liveData, Callable<Result> callable) {
+        String monitorKey = "Task_" + type.name();
+        Monitor.start(monitorKey);
+        tasks.execute(type, Constant.TIMEOUT_VOD, callable, result -> {
+            Monitor.end(monitorKey);
+            liveData.postValue(result);
+        }, error -> {
+            Monitor.end(monitorKey);
             if (error instanceof ExtractException) liveData.postValue(Result.error(error.getMessage()));
             else liveData.postValue(Result.empty());
             error.printStackTrace();
@@ -104,16 +126,16 @@ public class SiteViewModel extends ViewModel {
         tasks.cancelAll();
     }
 
-    private record SearchTask(Site site, String keyword, boolean quick, String page) implements Callable<Result> {
+    protected record SearchTask(Site site, String keyword, boolean quick, String page) implements Callable<Result> {
 
         private static final String FIRST_PAGE = "1";
 
-        private static SearchTask create(Site site, String keyword, boolean quick) {
+        protected static SearchTask create(Site site, String keyword, boolean quick) {
             return create(site, keyword, quick, FIRST_PAGE);
         }
 
-        private static SearchTask create(Site site, String keyword, boolean quick, String page) {
-            return new SearchTask(site, Trans.t2s(keyword), quick, page);
+        protected static SearchTask create(Site site, String keyword, boolean quick, String page) {
+            return new SearchTask(site, Trans.z2p(keyword), quick, page);
         }
 
         @Override
@@ -123,5 +145,5 @@ public class SiteViewModel extends ViewModel {
         }
     }
 
-    private enum TaskType {RESULT, PLAYER, ACTION}
+    protected enum TaskType {RESULT, PLAYER, ACTION}
 }

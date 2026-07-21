@@ -4,6 +4,7 @@ import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.utils.Task;
+import com.github.catvod.crawler.SpiderDebug;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -52,6 +53,9 @@ final class ViewModelSearchRunner {
         future.addCallback(Task.callback(
                 result -> {
                     if (epoch.get() == current) onResult.accept(result);
+                },
+                error -> {
+                    if (epoch.get() == current) SpiderDebug.log(error);
                 }
         ), MoreExecutors.directExecutor());
     }

@@ -4,7 +4,6 @@ import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
 
-import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.fongmi.hook.Hook;
@@ -100,6 +99,7 @@ public class Core {
     }
 
     public static class Option {
+
         @SerializedName("key")
         private String key;
         @SerializedName("values")

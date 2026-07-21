@@ -10,7 +10,9 @@ import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.bean.Backup;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Device;
 import com.fongmi.android.tv.bean.Download;
@@ -30,21 +32,28 @@ import com.fongmi.android.tv.db.dao.LiveDao;
 import com.fongmi.android.tv.db.dao.SiteDao;
 import com.fongmi.android.tv.db.dao.TrackDao;
 import com.fongmi.android.tv.utils.FileUtil;
+import com.fongmi.android.tv.utils.Formatters;
+import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Prefers;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 @Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class}, version = AppDatabase.VERSION)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public static final int VERSION = 34;
+    public static final int VERSION = 35;
     public static final String NAME = "tv";
     public static final String SYMBOL = "@@@";
-    public static final String BACKUP_SUFFIX = "tv.backup";
+    public static final String BACKUP_SUFFIX = "bk.gz";
 
     private static volatile AppDatabase instance;
 
@@ -58,70 +67,90 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
     public static void backup() {
-        if (Setting.getBackupMode() == 0) backup(new com.fongmi.android.tv.impl.Callback());
+        backup(new com.fongmi.android.tv.impl.Callback());
     }
 
     public static void backup(com.fongmi.android.tv.impl.Callback callback) {
-        App.execute(() -> {
-            File restore = Path.restore();
-            if (!restore.exists()) return;
-            File db = App.get().getDatabasePath(NAME).getAbsoluteFile();
-            File wal = App.get().getDatabasePath(NAME + "-wal").getAbsoluteFile();
-            File shm = App.get().getDatabasePath(NAME + "-shm").getAbsoluteFile();
-            if (db.exists()) Path.copy(db, new File(restore, db.getName()));
-            if (wal.exists()) Path.copy(wal, new File(restore, wal.getName()));
-            if (shm.exists()) Path.copy(shm, new File(restore, shm.getName()));
-            Prefers.backup(new File(restore, NAME + "-pref"));
-            String time = Util.format(new SimpleDateFormat("yyyyMMddHHmm", Locale.getDefault()), (new File(restore, db.getName())).lastModified());
-            File file = new File(Path.tv(), time + "." + BACKUP_SUFFIX);
-            FileUtil.zipFolder(restore, file);
-            App.post(() -> callback.success(file.getAbsolutePath()));
+        Task.execute(() -> {
+            File file = new File(Path.tv(), "tv-" + LocalDate.now().format(Formatters.DATE) + ".bk");
+            Backup backup = Backup.create();
+            if (backup.getConfig().isEmpty()) {
+                App.post(callback::error);
+            } else {
+                Path.write(file, backup.toString().getBytes());
+                FileUtil.gzipCompress(file);
+                App.post(callback::success);
+                cleanOld();
+            }
         });
     }
 
     public static void restore(File file, com.fongmi.android.tv.impl.Callback callback) {
-        App.execute(() -> {
-            File restore = Path.restore();
-            if (!restore.exists()) return;
-            FileUtil.extractZip(file, restore);
-            File db = new File(restore, NAME);
-            File wal = new File(restore, NAME + "-wal");
-            File shm = new File(restore, NAME + "-shm");
-            File pref = new File(restore, NAME + "-pref");
-            if (db.exists()) Path.copy(db, App.get().getDatabasePath(db.getName()).getAbsoluteFile());
-            if (wal.exists()) Path.copy(wal, App.get().getDatabasePath(wal.getName()).getAbsoluteFile());
-            if (shm.exists()) Path.copy(shm, App.get().getDatabasePath(shm.getName()).getAbsoluteFile());
-            if (pref.exists()) Prefers.restore(pref);
-            App.post(callback::success);
+        Task.execute(() -> {
+            String content;
+            if (file.getName().endsWith(".gz")) {
+                File restore = Path.cache("restore");
+                FileUtil.gzipDecompress(file, restore);
+                content = Path.read(restore);
+                Path.clear(restore);
+            } else {
+                content = Path.read(file);
+            }
+            Backup backup = Backup.objectFrom(content);
+            if (backup.getConfig().isEmpty()) {
+                App.post(callback::error);
+            } else {
+                backup.restore();
+                App.post(callback::success);
+            }
         });
     }
 
+    private static void cleanOld() {
+        List<File> items = new ArrayList<>();
+        File[] files = Path.tv().listFiles();
+        if (files == null) files = new File[0];
+        for (File file : files) if (file.getName().startsWith("tv") && file.getName().endsWith(".bk.gz")) items.add(file);
+        if (!items.isEmpty()) items.sort((f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
+        if (items.size() > 7) for (int i = 7; i < items.size(); i++) Path.clear(items.get(i));
+    }
     private static AppDatabase create(Context context) {
         return Room.databaseBuilder(context, AppDatabase.class, NAME)
-                .addMigrations(MIGRATION_11_12)
-                .addMigrations(MIGRATION_12_13)
-                .addMigrations(MIGRATION_13_14)
-                .addMigrations(MIGRATION_14_15)
-                .addMigrations(MIGRATION_15_16)
-                .addMigrations(MIGRATION_16_17)
-                .addMigrations(MIGRATION_17_18)
-                .addMigrations(MIGRATION_18_19)
-                .addMigrations(MIGRATION_19_20)
-                .addMigrations(MIGRATION_20_21)
-                .addMigrations(MIGRATION_21_22)
-                .addMigrations(MIGRATION_22_23)
-                .addMigrations(MIGRATION_23_24)
-                .addMigrations(MIGRATION_24_25)
-                .addMigrations(MIGRATION_25_26)
-                .addMigrations(MIGRATION_26_27)
-                .addMigrations(MIGRATION_27_28)
-                .addMigrations(MIGRATION_28_29)
-                .addMigrations(MIGRATION_29_30)
-                .addMigrations(MIGRATION_30_31)
-                .addMigrations(MIGRATION_31_32)
-                .addMigrations(MIGRATION_32_33)
-                .addMigrations(MIGRATION_33_34)
+                .addMigrations(wrap(MIGRATION_11_12))
+                .addMigrations(wrap(MIGRATION_12_13))
+                .addMigrations(wrap(MIGRATION_13_14))
+                .addMigrations(wrap(MIGRATION_14_15))
+                .addMigrations(wrap(MIGRATION_15_16))
+                .addMigrations(wrap(MIGRATION_16_17))
+                .addMigrations(wrap(MIGRATION_17_18))
+                .addMigrations(wrap(MIGRATION_18_19))
+                .addMigrations(wrap(MIGRATION_19_20))
+                .addMigrations(wrap(MIGRATION_20_21))
+                .addMigrations(wrap(MIGRATION_21_22))
+                .addMigrations(wrap(MIGRATION_22_23))
+                .addMigrations(wrap(MIGRATION_23_24))
+                .addMigrations(wrap(MIGRATION_24_25))
+                .addMigrations(wrap(MIGRATION_25_26))
+                .addMigrations(wrap(MIGRATION_26_27))
+                .addMigrations(wrap(MIGRATION_27_28))
+                .addMigrations(wrap(MIGRATION_28_29))
+                .addMigrations(wrap(MIGRATION_29_30))
+                .addMigrations(wrap(MIGRATION_30_31))
+                .addMigrations(wrap(MIGRATION_31_32))
+                .addMigrations(wrap(MIGRATION_32_33))
+                .addMigrations(wrap(MIGRATION_33_34))
+                .addMigrations(wrap(MIGRATION_34_35))
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
+    }
+
+    private static Migration wrap(Migration migration) {
+        return new Migration(migration.startVersion, migration.endVersion) {
+            @Override
+            public void migrate(@NonNull SupportSQLiteDatabase database) {
+                App.post(() -> Notify.show(ResUtil.getString(R.string.db_upgrading, startVersion, endVersion)));
+                migration.migrate(database);
+            }
+        };
     }
 
     public abstract KeepDao getKeepDao();
@@ -318,6 +347,20 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("INSERT INTO Site_New (`key`, searchable, changeable, blacklist, failures) SELECT `key`, searchable, changeable, 0, 0 FROM Site");
             database.execSQL("DROP TABLE Site");
             database.execSQL("ALTER TABLE Site_New RENAME to Site");
+        }
+    };
+
+    static final Migration MIGRATION_34_35 = new Migration(34, 35) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE Live ADD COLUMN keep TEXT DEFAULT NULL");
+            database.execSQL("DROP TABLE IF EXISTS Track");
+            database.execSQL("CREATE TABLE Track (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` INTEGER NOT NULL, `key` TEXT, `name` TEXT, `format` TEXT, `selected` INTEGER NOT NULL)");
+            database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_Track_key_type` ON `Track` (`key`, `type`)");
+            database.execSQL("CREATE TABLE IF NOT EXISTS `History_New` (`key` TEXT NOT NULL, `vodPic` TEXT, `vodName` TEXT, `vodFlag` TEXT, `vodRemarks` TEXT, `episodeUrl` TEXT, `revSort` INTEGER NOT NULL, `revPlay` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `opening` INTEGER NOT NULL, `ending` INTEGER NOT NULL, `position` INTEGER NOT NULL, `duration` INTEGER NOT NULL, `speed` REAL NOT NULL, `scale` INTEGER NOT NULL, `cid` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL, `deleted` INTEGER NOT NULL, PRIMARY KEY(`key`))");
+            database.execSQL("INSERT INTO `History_New` (`key`, `vodPic`, `vodName`, `vodFlag`, `vodRemarks`, `episodeUrl`, `revSort`, `revPlay`, `createTime`, `opening`, `ending`, `position`, `duration`, `speed`, `scale`, `cid`, `lastUpdated`, `deleted`) SELECT `key`, `vodPic`, `vodName`, `vodFlag`, `vodRemarks`, `episodeUrl`, `revSort`, `revPlay`, `createTime`, `opening`, `ending`, `position`, `duration`, `speed`, `scale`, `cid`, `lastUpdated`, `deleted` FROM `History` ");
+            database.execSQL("DROP TABLE `History` ");
+            database.execSQL("ALTER TABLE `History_New` RENAME TO `History` ");
         }
     };
 }

@@ -134,11 +134,7 @@ public class M3U8 implements Process {
                 String finalM3u8 = result.toString();
 
                 // 🚀 核心偵錯 Hook：在回傳前，把過濾後的內容前 200 個字列印出來看
-                if (finalM3u8.length() > 200) {
-                    Log.e("M3U8Proxy_DEBUG", "📥 吐給播放器的開頭內容是: \n" + finalM3u8.substring(0, 200));
-                } else {
-                    Log.e("M3U8Proxy_DEBUG", "📥 吐給播放器的內容（過短）: \n" + finalM3u8);
-                }
+                Log.e("M3U8Proxy_DEBUG", "📥 吐給播放器的開頭內容是: \n------------------------\n" + (finalM3u8.length() > 2000 ? finalM3u8.substring(0, 2000) : finalM3u8) + "....\n-----------------------\n");
 
                 urlCache.put(targetUrl, new CacheItem(finalM3u8));
                 //return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", finalM3u8);

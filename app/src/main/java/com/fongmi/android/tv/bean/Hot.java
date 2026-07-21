@@ -1,7 +1,7 @@
 package com.fongmi.android.tv.bean;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.google.gson.annotations.SerializedName;
 
 import java.util.ArrayList;

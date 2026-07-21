@@ -80,8 +80,8 @@ public class Spider extends com.github.catvod.crawler.Spider {
     }
 
     @Override
-    public String liveContent() {
-        return app.callAttr("liveContent", obj).toString();
+    public String liveContent(String url) {
+        return app.callAttr("liveContent", obj, url).toString();
     }
 
     @Override
@@ -95,7 +95,7 @@ public class Spider extends com.github.catvod.crawler.Spider {
     }
 
     @Override
-    public Object[] proxyLocal(Map<String, String> params) {
+    public Object[] proxy(Map<String, String> params) {
         List<PyObject> list = app.callAttr("localProxy", obj, gson.toJson(params)).asList();
         Map<PyObject, PyObject> headers = list.size() > 3 ? list.get(3).asMap() : null;
         boolean base64 = list.size() > 4 && list.get(4).toInt() == 1;

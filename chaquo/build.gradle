@@ -1,0 +1,47 @@
+plugins {
+    alias libs.plugins.android.library
+    alias libs.plugins.chaquo.python
+}
+
+android {
+    namespace = 'com.fongmi.chaquo'
+    compileSdk libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdk libs.versions.minSdk.get().toInteger()
+        targetSdk libs.versions.targetSdk.get().toInteger()
+
+        python {
+            version = "3.10"
+            pip {
+                install "lxml"
+                install "pyquery"
+                install "requests"
+                install "cachetools"
+                install 'pycryptodome'
+                install 'beautifulsoup4'
+            }
+        }
+
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a", "x86", "x86_64"
+        }
+    }
+
+    sourceSets {
+        main {
+            python.srcDirs = ["src/main/python"]
+        }
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled = true
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation project(':catvod')
+    coreLibraryDesugaring libs.desugar
+}

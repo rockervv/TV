@@ -26,6 +26,10 @@ public class Rule {
     @SerializedName("exclude")
     private List<String> exclude;
 
+    public Rule(String name) {
+        this.name = name;
+    }
+
     public static Rule create(String name) {
         return new Rule(name);
     }
@@ -34,12 +38,14 @@ public class Rule {
         return new Rule("");
     }
 
-    public Rule(String name) {
-        this.name = name;
+    public static List<Rule> arrayFrom(String str) {
+        Type listType = TypeToken.getParameterized(List.class, Rule.class).getType();
+        List<Rule> items = App.gson().fromJson(str, listType);
+        return items == null ? Collections.emptyList() : items;
     }
 
     public static List<Rule> arrayFrom(JsonElement element) {
-        Type listType = new TypeToken<List<Rule>>() {}.getType();
+        Type listType = TypeToken.getParameterized(List.class, Rule.class).getType();
         List<Rule> items = App.gson().fromJson(element, listType);
         return items == null ? Collections.emptyList() : items;
     }
@@ -67,8 +73,7 @@ public class Rule {
     @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof Rule)) return false;
-        Rule it = (Rule) obj;
+        if (!(obj instanceof Rule it)) return false;
         return getName().equals(it.getName());
     }
 }

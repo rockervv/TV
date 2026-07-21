@@ -2,56 +2,68 @@ package com.fongmi.android.tv.ui.dialog;
 
 import android.content.DialogInterface;
 import android.text.TextUtils;
-import android.view.LayoutInflater;
 import android.view.inputmethod.EditorInfo;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.databinding.DialogUaBinding;
 import com.fongmi.android.tv.impl.UaCallback;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
 import com.github.catvod.utils.Util;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-public class UaDialog {
+public class UaDialog extends BaseAlertDialog {
 
-    private final DialogUaBinding binding;
-    private final UaCallback callback;
-    private AlertDialog dialog;
+    private DialogUaBinding binding;
+    private UaCallback callback;
     private boolean append;
 
+    public static UaDialog create() {
+        return new UaDialog();
+    }
+
     public static UaDialog create(Fragment fragment) {
-        return new UaDialog(fragment);
+        return new UaDialog();
     }
 
-    public UaDialog(Fragment fragment) {
-        this.callback = (UaCallback) fragment;
-        this.binding = DialogUaBinding.inflate(LayoutInflater.from(fragment.getContext()));
+    public void show(FragmentActivity activity) {
+        show(activity.getSupportFragmentManager(), null);
+    }
+
+    public void show(Fragment fragment) {
+        show(fragment.getChildFragmentManager(), null);
+    }
+
+    @Override
+    protected ViewBinding getBinding() {
+        return binding = DialogUaBinding.inflate(getLayoutInflater());
+    }
+
+    @Override
+    protected MaterialAlertDialogBuilder getBuilder() {
+        return builder()
+                .setTitle(R.string.player_ua)
+                .setView(binding.getRoot())
+                .setPositiveButton(R.string.dialog_positive, this::onPositive)
+                .setNegativeButton(R.string.dialog_negative, this::onNegative);
+    }
+
+    @Override
+    protected void initView() {
+        this.callback = (UaCallback) (getParentFragment() != null ? getParentFragment() : getActivity());
         this.append = true;
-    }
-
-    public void show() {
-        initDialog();
-        initView();
-        initEvent();
-    }
-
-    private void initDialog() {
-        dialog = new MaterialAlertDialogBuilder(binding.getRoot().getContext()).setTitle(R.string.player_ua).setView(binding.getRoot()).setPositiveButton(R.string.dialog_positive, this::onPositive).setNegativeButton(R.string.dialog_negative, this::onNegative).create();
-        dialog.getWindow().setDimAmount(0);
-        dialog.show();
-    }
-
-    private void initView() {
         String text = Setting.getUa();
         binding.text.setText(text);
         binding.text.setSelection(TextUtils.isEmpty(text) ? 0 : text.length());
     }
 
-    private void initEvent() {
+    @Override
+    protected void initEvent() {
         binding.text.addTextChangedListener(new CustomTextListener() {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -59,7 +71,7 @@ public class UaDialog {
             }
         });
         binding.text.setOnEditorActionListener((textView, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE) dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
+            if (actionId == EditorInfo.IME_ACTION_DONE) ((AlertDialog) getDialog()).getButton(DialogInterface.BUTTON_POSITIVE).performClick();
             return true;
         });
     }
@@ -73,17 +85,25 @@ public class UaDialog {
             binding.text.setText(Util.OKHTTP);
         } else if (s.length() > 1) {
             append = false;
-        } else if (s.length() == 0) {
+        } else if (s.isEmpty()) {
             append = true;
         }
     }
 
     private void onPositive(DialogInterface dialog, int which) {
         callback.setUa(binding.text.getText().toString().trim());
-        dialog.dismiss();
+        dismiss();
     }
 
     private void onNegative(DialogInterface dialog, int which) {
-        dialog.dismiss();
+        dismiss();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setDimAmount(0);
+        }
     }
 }

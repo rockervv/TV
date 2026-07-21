@@ -44,7 +44,7 @@ public class PlaySpec {
     }
 
     public static PlaySpec from(Result result, String key, MediaMetadata metadata) {
-        return new PlaySpec(key, result.getRealUrl(), result.getHeaders(), result.getFormat(), result.getDrm(), result.getSubs(), metadata);
+        return new PlaySpec(key, result.getRealUrl(), result.getHeader(), result.getFormat(), result.getDrm(), result.getSubs(), metadata);
     }
 
     public static PlaySpec fromParse(Result result, String key, MediaMetadata metadata) {
@@ -115,6 +115,7 @@ public class PlaySpec {
             if (!url.startsWith(proxyurl)) {
                 try {
                     this.url = proxyurl + URLEncoder.encode(url, "UTF-8") + "&.m3u8";
+                    this.format = androidx.media3.common.MimeTypes.APPLICATION_M3U8; // 強制指定為 M3U8
                 } catch (UnsupportedEncodingException e) {
                     // ignore
                 }

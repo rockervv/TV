@@ -30,7 +30,7 @@ import androidx.media3.ui.PlayerView;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.BuildConfig;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.player.engine.PlayerEngine;
 import com.fongmi.android.tv.player.track.LangUtil;
 import com.fongmi.android.tv.setting.PlayerSetting;
@@ -148,6 +148,8 @@ public class ExoUtil {
         playerView.getSubtitleView().setStyle(getCaptionStyle());
         playerView.getSubtitleView().setApplyEmbeddedStyles(true);
         playerView.getSubtitleView().setApplyEmbeddedFontSizes(false);
+        if (PlayerSetting.getSubtitlePosition() != 0) playerView.getSubtitleView().setBottomPaddingFraction(PlayerSetting.getSubtitlePosition());
+        if (PlayerSetting.getSubtitleTextSize() != 0) playerView.getSubtitleView().setFractionalTextSize(PlayerSetting.getSubtitleTextSize());
     }
 
     private static CaptionStyleCompat getCaptionStyle() {

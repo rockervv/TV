@@ -2,52 +2,11 @@ plugins {
     alias libs.plugins.android.application
 }
 
-import com.android.build.api.artifact.SingleArtifact
+// 將需要 AGP 類別路徑的常數定義在主腳本，避開外部腳本的類別解析問題
+ext.apkArtifact = com.android.build.api.artifact.SingleArtifact.APK.INSTANCE
 
-
-// 函數：獲取最後一次 Git commit 說明
-static def getLastCommitMessage() {
-    try {
-        def process = ['git', 'log', '-1', '--pretty=%B'].execute()
-        process.waitFor()
-        return process.text.trim()
-    } catch (Exception ignored) {
-        return "No commit message available"
-    }
-}
-
-
-def versionPropsFile = file('version.properties')
-def versionProps = new Properties()
-
-if (versionPropsFile.exists()) {
-    versionProps.load(new FileInputStream(versionPropsFile))
-} else {
-    versionProps['VERSION_CODE'] = "1"
-    versionProps['VERSION_NAME'] = "1.0.0"
-}
-
-def autoVersionCode = versionProps['VERSION_CODE'].toInteger() + 1
-def autoVersionName = versionProps['VERSION_NAME']
-
-// 1. 將進版邏輯移到最外層，確保每次 build 只執行一次
-def versionParts = autoVersionName.split('\\.')
-if (versionParts.size() > 0) {
-    try {
-        def lastNumber = (versionParts.last() as Integer) + 1
-        versionParts[-1] = lastNumber.toString()
-        autoVersionName = versionParts.join('.')
-    } catch (Exception ignored) {
-    }
-}
-
-// 2. 立即更新 Properties 對象
-versionProps['VERSION_CODE'] = autoVersionCode.toString()
-versionProps['VERSION_NAME'] = autoVersionName
-versionProps.store(new FileOutputStream(versionPropsFile), null)
-
-// 在 Release build 時動態更新 versionName
-// (Moved inside android block)
+// 應用外部腳本處理版本號與發布邏輯
+apply from: '../gradle/scripts/versioning.gradle'
 
 android {
     namespace = 'com.fongmi.android.tv'
@@ -59,18 +18,15 @@ android {
         applicationId "com.fongmi.android.tv"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode = autoVersionCode
-        versionName = autoVersionName
+        versionCode autoVersionCode
+        versionName autoVersionName
 
         ndk {
             abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         }
 
-        //versionCode 262
-        //versionName "Rocker-2.6.2"
         javaCompileOptions {
             annotationProcessorOptions {
-                //arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
                 arguments = ["room.schemaLocation": "$projectDir/schemas".toString(), "eventBusIndex": "com.fongmi.android.tv.event.EventIndex"]
             }
         }
@@ -88,12 +44,10 @@ android {
         }
         arm64_v8a {
             dimension "abi"
-            //noinspection ChromeOsAbiSupport
             ndk { abiFilters "arm64-v8a" }
         }
         armeabi_v7a {
             dimension "abi"
-            //noinspection ChromeOsAbiSupport
             ndk { abiFilters "armeabi-v7a" }
         }
         leanback {
@@ -101,13 +55,10 @@ android {
         }
         x86 {
             dimension 'abi'
-            //noinspection ChromeOsAbiSupport
             ndk { abiFilters "x86" }
         }
         x86_64 {
             dimension 'abi'
-            //noinspection ChromeOsAbiSupport
-            //ndk { abiFilters "x86_64", "armeabi-v7a", "arm64-v8a" }
         }
     }
 
@@ -158,11 +109,6 @@ android {
         }
         resources {
             excludes += ['META-INF/beans.xml']
-
-            // Exclude META-INF/NOTICE.markdown from the APK/AAR
-            //exclude 'META-INF/NOTICE.markdown'
-            // Optionally, you can also exclude other common conflicting files
-
             excludes += ['META-INF/NOTICE.md']
             excludes += ['META-INF/NOTICE.txt']
             excludes += ['META-INF/NOTICE.markdown']
@@ -171,11 +117,9 @@ android {
         }
     }
 
-
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
-
         coreLibraryDesugaringEnabled = true
     }
 
@@ -185,92 +129,19 @@ android {
         }
     }
 
-    tasks.withType(JavaCompile).configureEach {
-        //options.compilerArgs << "-Xlint:deprecation"
-        // 如果您也想看未檢查的轉換警告，可以順便加上這行（選填）：
-        // options.compilerArgs << "-Xlint:unchecked"
-    }
-
     lint {
         baseline = file("lint-baseline.xml")
         checkReleaseBuilds false
         abortOnError false
         disable 'UnsafeOptInUsageError'
     }
-
-    // 確保所有資源處理與 Lint 任務都依賴於預構建
-    tasks.configureEach { task ->
-        def taskName = task.name.toLowerCase()
-        if (taskName.contains("assets") || taskName.contains("lint") || taskName == "prebuild") {
-            // removed copyNetflixBridge dependency
-        }
-    }
 }
 
-androidComponents {
-    onVariants(selector().all()) { variant ->
-        def buildType = variant.buildType
-        def variantName = variant.name
-
-        // 1. 處理基本 Outputs 檔名與版本號設定（這一區維持原樣）
-        variant.outputs.each { output ->
-            def flavorNames = variant.productFlavors.collect { it.second }
-            def flavorFileName = flavorNames.join("-")
-
-            output.outputFileName.set("${flavorFileName}-${buildType}.apk")
-            if (buildType == 'release') {
-                output.versionName.set(autoVersionName)
-            }
-        }
-
-        // 2. 僅在 Release 模式時執行複製與生成 JSON 的邏輯
-        if (buildType == 'release') {
-            def flavorNames = variant.productFlavors.collect { it.second }
-            def flavorDirName = flavorNames.join("")
-            def targetOutputDir = file("${project.projectDir}/release_output/${flavorDirName}")
-            def jsonFile = new File(targetOutputDir, "leanback.json")
-
-            // 動態計算目標 Task 的名字
-            def targetTaskName = "assemble${variantName.substring(0, 1).toUpperCase()}${variantName.substring(1)}"
-
-            // 使用 whenTaskAdded 安全監聽器
-            tasks.configureEach { task ->
-                if (task.name == targetTaskName) {
-                    task.doLast {
-                        // 動態寫入 JSON 內容
-                        def commitMessage = getLastCommitMessage()
-                        def jsonContent = """{
-    "name": "${autoVersionName}",
-    "desc": "${commitMessage}",
-    "code": "${autoVersionCode}"
-}"""
-                        targetOutputDir.mkdirs()
-                        jsonFile.text = jsonContent
-
-                        println "DEBUG: json:\n-------------\n ${jsonContent} \n--------------\n"
-
-                        // 在 assemble 任務完成後複製 leanback.json 到 variant 輸出目錄
-                        def apkDir = variant.artifacts.get(SingleArtifact.APK.INSTANCE).get().asFile
-                        project.copy {
-                            from jsonFile
-                            into apkDir
-                        }
-                        // 2. 新增：將編譯好的 APK 複製到指定的 release_output 目錄下
-                        variant.outputs.each { output ->
-                            project.copy {
-                                from new File(apkDir, output.outputFileName.get())
-                                into targetOutputDir
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+// 應用外部發布邏輯（必須在 android 區塊之後）
+apply from: '../gradle/scripts/publishing.gradle'
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.aar'])
+    implementation fileTree(dir: 'libs', include: ['*.aar'], exclude: ['hook-release.aar'])
     implementation project(':catvod')
     implementation project(':chaquo')
     implementation project(':quickjs')
@@ -280,7 +151,7 @@ dependencies {
     implementation libs.appcompat
     implementation libs.biometric
     implementation libs.room.runtime
-    implementation libs.media
+    implementation libs.splashscreen
     implementation libs.customactivityoncrash
     implementation libs.materialdesigncolors
     implementation libs.bundles.glide
@@ -299,9 +170,9 @@ dependencies {
     implementation libs.eventbus
     implementation libs.nanohttpd
     implementation libs.gson
+    implementation libs.tikxml.core
+    implementation libs.tikxml.annotation
     implementation libs.viewpager2
-    implementation libs.simple.xml
-    implementation libs.media
     implementation libs.media3.datasource.okhttp
     implementation libs.media3.datasource.rtmp
     implementation libs.media3.datasource
@@ -326,6 +197,7 @@ dependencies {
     annotationProcessor libs.room.compiler
     annotationProcessor libs.glide.compiler
     annotationProcessor libs.eventbus.annotation.processor
+    annotationProcessor libs.tikxml.processor
 
     coreLibraryDesugaring libs.desugar
 }

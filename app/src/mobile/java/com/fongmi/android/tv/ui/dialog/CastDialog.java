@@ -1,77 +1,68 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import android.app.Activity;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
 
-import com.android.cast.dlna.dmc.DLNACastManager;
-import com.android.cast.dlna.dmc.OnDeviceRegistryListener;
-import com.android.cast.dlna.dmc.control.DeviceControl;
-import com.android.cast.dlna.dmc.control.OnDeviceControlListener;
-import com.android.cast.dlna.dmc.control.ServiceActionCallback;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.bean.CastVideo;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Device;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.databinding.DialogDeviceBinding;
-import com.fongmi.android.tv.event.ScanEvent;
+import com.fongmi.android.tv.dlna.DLNACast;
+import com.fongmi.android.tv.dlna.DLNACastManager;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.ui.activity.ScanActivity;
 import com.fongmi.android.tv.ui.adapter.DeviceAdapter;
-import com.fongmi.android.tv.utils.DLNADevice;
+import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ScanTask;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Util;
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
-
-import org.jupnp.support.lastchange.EventedValue;
-import org.jupnp.support.model.TransportState;
-import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.greenrobot.eventbus.ThreadMode;
 
 import java.io.IOException;
-import java.util.List;
 
-import kotlin.Unit;
 import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.FormBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
 
-public class CastDialog extends BaseDialog implements DeviceAdapter.OnClickListener, ScanTask.Listener, OnDeviceRegistryListener, OnDeviceControlListener, ServiceActionCallback<Unit>, okhttp3.Callback {
+public class CastDialog extends BaseBottomSheetDialog implements DeviceAdapter.OnClickListener, ScanTask.Listener, DLNACastManager.DeviceListener, Callback {
 
     private final FormBody.Builder body;
     private final OkHttpClient client;
 
     private DialogDeviceBinding binding;
     private DeviceAdapter adapter;
-    private DeviceControl control;
-    private Listener listener;
+    private ScanTask scanTask;
     private CastVideo video;
     private boolean fm;
 
-    public static CastDialog create() {
-        return new CastDialog();
-    }
-
     public CastDialog() {
+        scanTask = new ScanTask(this);
         body = new FormBody.Builder();
         body.add("device", Device.get().toString());
         body.add("config", Config.vod().toString());
         client = OkHttp.client(Constant.TIMEOUT_SYNC);
+    }
+
+    public static CastDialog create() {
+        return new CastDialog();
     }
 
     public CastDialog history(History history) {
@@ -95,9 +86,8 @@ public class CastDialog extends BaseDialog implements DeviceAdapter.OnClickListe
     }
 
     public void show(FragmentActivity activity) {
-        for (Fragment f : activity.getSupportFragmentManager().getFragments()) if (f instanceof BottomSheetDialogFragment) return;
+        for (Fragment f : activity.getSupportFragmentManager().getFragments()) if (f instanceof CastDialog) return;
         show(activity.getSupportFragmentManager(), null);
-        this.listener = (Listener) activity;
     }
 
     @Override
@@ -108,10 +98,10 @@ public class CastDialog extends BaseDialog implements DeviceAdapter.OnClickListe
     @Override
     protected void initView() {
         binding.scan.setVisibility(fm ? View.VISIBLE : View.GONE);
-        EventBus.getDefault().register(this);
+        DLNACastManager.get().init(requireActivity());
+        DLNACastManager.get().setDeviceListener(this);
         setRecyclerView();
         getDevice();
-        initDLNA();
     }
 
     @Override
@@ -121,75 +111,56 @@ public class CastDialog extends BaseDialog implements DeviceAdapter.OnClickListe
     }
 
     private void setRecyclerView() {
-        binding.recycler.setHasFixedSize(true);
+        binding.recycler.setHasFixedSize(false);
         binding.recycler.setAdapter(adapter = new DeviceAdapter(this));
+        binding.recycler.addItemDecoration(new SpaceItemDecoration(1, 16));
+    }
+
+    private void setRecyclerVisible() {
+        binding.recycler.setVisibility(adapter.getItemCount() > 0 ? View.VISIBLE : View.GONE);
     }
 
     private void getDevice() {
-        if (fm) adapter.addAll(Device.getAll());
-        if (Setting.isDlna()) adapter.addAll(DLNADevice.get().getAll());
-    }
-
-    private void initDLNA() {
-        if (!Setting.isDlna()) return;
-        DLNACastManager.INSTANCE.bindCastService(App.get());
-        DLNACastManager.INSTANCE.registerDeviceListener(this);
+        adapter.setItems(Device.getAll(), () -> {
+            adapter.sort(DLNACastManager.get().getRegistered(), this::setRecyclerVisible);
+            if (adapter.getItemCount() == 0) onRefresh();
+            else DLNACastManager.get().search();
+        });
     }
 
     private void onScan() {
-        ScanActivity.start(getActivity());
+        launcher.launch(new Intent(requireActivity(), ScanActivity.class));
     }
 
     private void onRefresh() {
-        if (fm) ScanTask.create(this).start(adapter.getIps());
-        if (Setting.isDlna()) DLNACastManager.INSTANCE.search(null);
-        adapter.clear();
+        adapter.clear(() -> {
+            Device.delete();
+            if (fm) scanTask.start();
+            DLNACastManager.get().search();
+            adapter.sort(DLNACastManager.get().getRegistered(), this::setRecyclerVisible);
+        });
     }
 
     private void onCasted() {
-        listener.onCasted();
+        ((CastDialog.Listener) requireActivity()).onCasted();
         dismiss();
     }
 
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onScanEvent(ScanEvent event) {
-        ScanTask.create(this).start(event.getAddress());
+    @Override
+    public void onDeviceAdded(Device device) {
+        binding.recycler.setVisibility(View.VISIBLE);
+        adapter.sort(device);
     }
 
     @Override
-    public void onFind(List<Device> devices) {
-        if (devices.size() > 0) adapter.addAll(devices);
+    public void onDeviceRemoved(Device device) {
+        adapter.remove(device);
     }
 
     @Override
-    public void onDeviceAdded(@NonNull org.jupnp.model.meta.Device<?, ?, ?> device) {
-        adapter.addAll(DLNADevice.get().add(device));
-    }
-
-    @Override
-    public void onDeviceRemoved(@NonNull org.jupnp.model.meta.Device<?, ?, ?> device) {
-        adapter.remove(DLNADevice.get().remove(device));
-    }
-
-    @Override
-    public void onConnected(@NonNull org.jupnp.model.meta.Device<?, ?, ?> device) {
-        control.setAVTransportURI(video.getUrl(), video.getName(), this);
-    }
-
-    @Override
-    public void onDisconnected(@NonNull org.jupnp.model.meta.Device<?, ?, ?> device) {
-        Notify.show(R.string.device_offline);
-    }
-
-    @Override
-    public void onSuccess(Unit unit) {
-        control.play("1", null);
-        onCasted();
-    }
-
-    @Override
-    public void onFailure(@NonNull String s) {
-        Notify.show(s);
+    public void onFind(Device device) {
+        binding.recycler.setVisibility(View.VISIBLE);
+        adapter.sort(device);
     }
 
     @Override
@@ -199,47 +170,34 @@ public class CastDialog extends BaseDialog implements DeviceAdapter.OnClickListe
 
     @Override
     public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-        if (response.body().string().equals("OK")) App.post(this::onCasted);
-        else App.post(() -> Notify.show(R.string.device_offline));
+        try (Response res = response) {
+            if (res.body().string().equals("OK")) App.post(this::onCasted);
+            else App.post(() -> Notify.show(R.string.device_offline));
+        }
     }
 
     @Override
     public void onItemClick(Device item) {
-        if (item.isDLNA()) control = DLNACastManager.INSTANCE.connectDevice(DLNADevice.get().find(item), this);
+        if (item.isDLNA()) new DLNACast(video, this::onCasted).cast(item);
         else OkHttp.newCall(client, item.getIp().concat("/action?do=cast"), body.build()).enqueue(this);
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        if (Setting.isDlna()) {
-            DLNADevice.get().disconnect();
-            DLNACastManager.INSTANCE.unregisterListener(this);
-            DLNACastManager.INSTANCE.unbindCastService(App.get());
-        }
-        EventBus.getDefault().unregister(this);
-    }
-
-    @Override
-    public void onAvTransportStateChanged(@NonNull TransportState state) {
-    }
-
-    @Override
-    public void onEventChanged(@NonNull EventedValue<?> event) {
-    }
-
-    @Override
-    public void onRendererVolumeChanged(int volume) {
-    }
-
-    @Override
-    public void onRendererVolumeMuteChanged(boolean mute) {
     }
 
     @Override
     public boolean onLongClick(Device item) {
         return false;
     }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        DLNACastManager.get().setDeviceListener(null);
+        DLNACastManager.get().release(requireActivity());
+        scanTask.stop();
+    }
+
+    private final ActivityResultLauncher<Intent> launcher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) scanTask.start(result.getData().getStringExtra("address"));
+    });
 
     public interface Listener {
 

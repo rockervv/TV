@@ -1,9 +1,8 @@
 package com.fongmi.android.tv.ui.activity;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
-//import android.util.Log;
+import android.os.Bundle;
 import android.view.View;
 
 import androidx.viewbinding.ViewBinding;
@@ -11,16 +10,17 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.BuildConfig;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.bean.Config;
+import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.bean.Live;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.ActivitySettingBinding;
 import com.fongmi.android.tv.db.AppDatabase;
+import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.BackupCallback;
 import com.fongmi.android.tv.impl.Callback;
@@ -29,8 +29,8 @@ import com.fongmi.android.tv.impl.DohCallback;
 import com.fongmi.android.tv.impl.LiveCallback;
 import com.fongmi.android.tv.impl.ProxyCallback;
 import com.fongmi.android.tv.impl.SiteCallback;
-//import com.fongmi.android.tv.impl.SyncCallback;
 import com.fongmi.android.tv.player.extractor.Source;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.BackupDialog;
 import com.fongmi.android.tv.ui.dialog.ConfigDialog;
@@ -41,13 +41,12 @@ import com.fongmi.android.tv.ui.dialog.ProxyDialog;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.ui.dialog.SyncDialog;
 import com.fongmi.android.tv.utils.FileUtil;
-import com.fongmi.android.tv.bean.HistorySyncManager;
 import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.PermissionUtil;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.bean.Doh;
 import com.github.catvod.net.OkHttp;
-import com.permissionx.guolindev.PermissionX;
 
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
@@ -60,7 +59,6 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
 
     private ActivitySettingBinding mBinding;
     private String[] backup;
-    private int type;
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, SettingActivity.class));
@@ -82,17 +80,21 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     }
 
     @Override
-    protected void initView() {
+    protected void initView(Bundle savedInstanceState) {
         mBinding.vod.requestFocus();
         mBinding.vodUrl.setText(VodConfig.getDesc());
         mBinding.liveUrl.setText(LiveConfig.getDesc());
         mBinding.wallUrl.setText(WallConfig.getDesc());
-        mBinding.dohText.setText(getDohList()[getDohIndex()]);
         mBinding.versionText.setText(BuildConfig.VERSION_NAME);
+        setCacheText();
+        setOtherText();
+    }
+
+    private void setOtherText() {
+        mBinding.dohText.setText(getDohList()[getDohIndex()]);
         mBinding.proxyText.setText(UrlUtil.scheme(Setting.getProxy()));
         mBinding.backupText.setText((backup = ResUtil.getStringArray(R.array.select_backup))[Setting.getBackupMode()]);
         mBinding.aboutText.setText(BuildConfig.FLAVOR_mode + "-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi);
-        setCacheText();
     }
 
     private void setCacheText() {
@@ -136,8 +138,8 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
 
     @Override
     public void setConfig(Config config) {
-        if (config.getUrl().startsWith("file") && !PermissionX.isGranted(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-            PermissionX.init(this).permissions(Manifest.permission.WRITE_EXTERNAL_STORAGE).request((allGranted, grantedList, deniedList) -> load(config));
+        if (config.getUrl().startsWith("file")) {
+            PermissionUtil.requestFile(this, (allGranted, grantedList, deniedList) -> load(config));
         } else {
             load(config);
         }
@@ -146,17 +148,14 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     private void load(Config config) {
         switch (config.getType()) {
             case 0:
-                Notify.progress(this);
                 VodConfig.load(config, getCallback());
                 mBinding.vodUrl.setText(config.getDesc());
                 break;
             case 1:
-                Notify.progress(this);
                 LiveConfig.load(config, getCallback());
                 mBinding.liveUrl.setText(config.getDesc());
                 break;
             case 2:
-                Notify.progress(this);
                 WallConfig.load(config, getCallback());
                 mBinding.wallUrl.setText(config.getDesc());
                 break;
@@ -166,47 +165,27 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     private Callback getCallback() {
         return new Callback() {
             @Override
-            public void success(String result) {
-                Notify.show(result);
+            public void start() {
+                Notify.progress(getActivity());
             }
 
             @Override
             public void success() {
-                setConfig();
+                Notify.dismiss();
             }
 
             @Override
             public void error(String msg) {
+                Notify.dismiss();
                 Notify.show(msg);
-                setConfig();
             }
         };
-    }
-
-    private void setConfig() {
-        switch (type) {
-            case 0:
-                Notify.dismiss();
-                RefreshEvent.history();
-                RefreshEvent.config();
-                RefreshEvent.video();
-                break;
-            case 1:
-            case 2:
-                Notify.dismiss();
-                RefreshEvent.config();
-                break;
-            //case 2:
-            //    Notify.dismiss();
-            //    RefreshEvent.config();
-            //    break;
-        }
     }
 
     @Override
     public void setSite(Site item) {
         VodConfig.get().setHome(item);
-        RefreshEvent.video();
+        RefreshEvent.home();
     }
 
     @Override
@@ -219,46 +198,46 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     }
 
     private void onVod(View view) {
-        ConfigDialog.create(this).type(type = 0).show();
+        ConfigDialog.create(this).type(0).show(this);
     }
 
     private void onLive(View view) {
-        ConfigDialog.create(this).type(type = 1).show();
+        ConfigDialog.create(this).type(1).show(this);
     }
 
     private void onWall(View view) {
-        ConfigDialog.create(this).type(type = 2).show();
+        ConfigDialog.create(this).type(2).show(this);
     }
 
     private boolean onVodEdit(View view) {
-        ConfigDialog.create(this).type(type = 0).edit().show();
+        ConfigDialog.create(this).type(0).edit().show(this  );
         return true;
     }
 
     private boolean onLiveEdit(View view) {
-        ConfigDialog.create(this).type(type = 1).edit().show();
+        ConfigDialog.create(this).type(1).edit().show(this);
         return true;
     }
 
     private boolean onWallEdit(View view) {
-        ConfigDialog.create(this).type(type = 2).edit().show();
+        ConfigDialog.create(this).type(2).edit().show(this);
         return true;
     }
 
     private void onVodHome(View view) {
-        SiteDialog.create(this).action().show();
+        SiteDialog.create(this).action().show(this);
     }
 
     private void onLiveHome(View view) {
-        LiveDialog.create(this).action().show();
+        LiveDialog.create().action().show(this);
     }
 
     private void onVodHistory(View view) {
-        HistoryDialog.create(this).type(type = 0).show();
+        HistoryDialog.create().vod().show(this);
     }
 
     private void onLiveHistory(View view) {
-        HistoryDialog.create(this).type(type = 1).show();
+        HistoryDialog.create().live().show(this);
     }
 
     private void onPlayer(View view) {
@@ -275,27 +254,21 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     }
 
     private void onSyncSetting(View view) {
-        //SettingSyncActivity.create(this).type(type = 0).show();
-        SyncDialog.create(this).show();
+        SyncDialog.create(this).show(this);
     }
+
     private void onSync(View view) {
-        //HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword());
         HistorySyncManager.SyncAll();
     }
 
     private void setWallDefault(View view) {
-        WallConfig.refresh(Setting.getWall() == 4 ? 1 : Setting.getWall() + 1);
+        Setting.putWall(Setting.getWall() == 4 ? 1 : Setting.getWall() + 1);
+        Setting.putWallType(0);
+        ConfigEvent.wall();
     }
 
     private void setWallRefresh(View view) {
-        Notify.progress(this);
-        WallConfig.get().load(new Callback() {
-            @Override
-            public void success() {
-                Notify.dismiss();
-                setCacheText();
-            }
-        });
+        WallConfig.get().load(getCallback());
     }
 
     private void onCustom(View view) {
@@ -307,21 +280,20 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     }
 
     private void setDoh(View view) {
-        DohDialog.create(this).index(getDohIndex()).show();
+        DohDialog.create(this).index(getDohIndex()).show(this);
     }
 
     @Override
     public void setDoh(Doh doh) {
         Source.get().stop();
-        OkHttp.get().setDoh(doh);
-        Notify.progress(getActivity());
+        OkHttp.dns().setDoh(doh);
         Setting.putDoh(doh.toString());
         mBinding.dohText.setText(doh.getName());
         VodConfig.load(Config.vod(), getCallback());
     }
 
     private void onProxy(View view) {
-        ProxyDialog.create(this).show();
+        ProxyDialog.create(this).show(this);
     }
 
     @Override
@@ -330,7 +302,6 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         Setting.putProxy(proxy);
         OkHttp.selector().clear();
         OkHttp.get().setProxy(proxy);
-        Notify.progress(getActivity());
         VodConfig.load(Config.vod(), getCallback());
         mBinding.proxyText.setText(UrlUtil.scheme(proxy));
     }
@@ -359,23 +330,21 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
 
     @Override
     public void restore(File file) {
-        PermissionX.init(this).permissions(Manifest.permission.WRITE_EXTERNAL_STORAGE).request((allGranted, grantedList, deniedList) -> AppDatabase.restore(file, new Callback() {
+        AppDatabase.restore(file, new Callback() {
             @Override
             public void success() {
-                if (allGranted) {
-                    Notify.progress(getActivity());
-                    App.post(() -> {
-                        AppDatabase.reset();
-                        initConfig();
-                    }, 3000);
-                }
+                Notify.progress(getActivity());
+                App.post(() -> {
+                    AppDatabase.reset();
+                    initConfig();
+                }, 3000);
             }
-        }));
+        });
     }
 
     private void onRestore(View view) {
-        PermissionX.init(this).permissions(Manifest.permission.WRITE_EXTERNAL_STORAGE).request((allGranted, grantedList, deniedList) -> {
-            if (allGranted) BackupDialog.create(this).show();
+        PermissionUtil.requestFile(this, (allGranted, grantedList, deniedList) -> {
+            if (allGranted) BackupDialog.create(this).show(this);
         });
     }
 
@@ -386,7 +355,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     }
 
     private void onBackup(View view) {
-        PermissionX.init(this).permissions(Manifest.permission.WRITE_EXTERNAL_STORAGE).request((allGranted, grantedList, deniedList) -> AppDatabase.backup(new Callback() {
+        PermissionUtil.requestFile(this, (allGranted, grantedList, deniedList) -> AppDatabase.backup(new Callback() {
             @Override
             public void success(String path) {
                 Notify.show(R.string.backed);
@@ -395,23 +364,19 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     }
 
     private boolean onBackupMode(View view) {
-        int index = Setting.getBackupMode();
-        Setting.putBackupMode(index = index == backup.length - 1 ? 0 : ++index);
+        int index = Setting.getBackupMode() == backup.length - 1 ? 0 : Setting.getBackupMode() + 1;
+        Setting.putBackupMode(index);
         mBinding.backupText.setText(backup[index]);
         return true;
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onRefreshEvent(RefreshEvent event) {
-        super.onRefreshEvent(event);
-        switch (event.getType()) {
-            case CONFIG:
-                setCacheText();
-                mBinding.vodUrl.setText(VodConfig.getDesc());
-                mBinding.liveUrl.setText(LiveConfig.getDesc());
-                mBinding.wallUrl.setText(WallConfig.getDesc());
-                break;
-        }
+    public void onConfigEvent(ConfigEvent event) {
+        if (event.type() != ConfigEvent.Type.COMMON) return;
+        setCacheText();
+        mBinding.vodUrl.setText(VodConfig.getDesc());
+        mBinding.liveUrl.setText(LiveConfig.getDesc());
+        mBinding.wallUrl.setText(WallConfig.getDesc());
     }
 
     @Override

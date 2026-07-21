@@ -28,6 +28,8 @@ import fi.iki.elonen.NanoHTTPD;
 
 public class Nano extends NanoHTTPD {
 
+    private static final String INDEX = "index.html";
+
     private List<Process> process;
 
     public Nano(int port) {
@@ -36,23 +38,22 @@ public class Nano extends NanoHTTPD {
     }
 
     private void addProcess() {
-        process = new ArrayList<Process>();
+        process = new ArrayList<>();
         process.add(new Action());
         process.add(new Cache());
         process.add(new M3U8());
         process.add(new TS());
-        process.add(new Cache());
         process.add(new Local());
         process.add(new Media());
         process.add(new Parse());
         process.add(new Proxy());
     }
 
-    public static Response success() {
-        return success("OK");
+    public static Response ok() {
+        return ok("OK");
     }
 
-    public static Response success(String text) {
+    public static Response ok(String text) {
         return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, text);
     }
 
@@ -77,9 +78,10 @@ public class Nano extends NanoHTTPD {
         Map<String, String> files = new HashMap<>();
         if (session.getMethod() == Method.POST) parse(session, files);
         if (url.contains("?")) url = url.substring(0, url.indexOf('?'));
-        if (url.startsWith("/go")) return go();
-        if (url.startsWith("/tvbus")) return success(LiveConfig.getResp());
-        if (url.startsWith("/device")) return success(Device.get().toString());
+
+        if (url.startsWith("/tvbus")) return ok(LiveConfig.getResp());
+        if (url.startsWith("/device")) return ok(Device.get().toString());
+
         for (Process process : process) if (process.isRequest(session, url)) return process.doResponse(session, url, files);
         if (url.startsWith("/index.html"))
             return getAssets(url.substring(1));
@@ -122,15 +124,9 @@ public class Nano extends NanoHTTPD {
         }
     }
 
-
-    private Response go() {
-        Go.start();
-        return success();
-    }
-
     private Response getAssets(String path) {
         try {
-            if (path.isEmpty()) path = "index.html";
+            if (path.isEmpty()) path = INDEX;
             InputStream is = Asset.open(path);
             return newFixedLengthResponse(Response.Status.OK, getMimeTypeForFile(path), is, is.available());
         } catch (Exception e) {
@@ -138,15 +134,4 @@ public class Nano extends NanoHTTPD {
         }
     }
 
-    @Override
-    public void start() throws IOException {
-        super.start();
-        Go.start();
-    }
-
-    @Override
-    public void stop() {
-        super.stop();
-        Go.stop();
-    }
 }

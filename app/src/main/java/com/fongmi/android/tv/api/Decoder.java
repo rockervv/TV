@@ -19,16 +19,35 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import okhttp3.HttpUrl;
+import okhttp3.Response;
+
 public class Decoder {
 
     private static final Pattern JS_URI = Pattern.compile("\"(\\.|\\.\\.)/(.?|.+?)\\.js\\?(.?|.+?)\"");
 
+    public static String getJson(String url, String tag) throws Exception {
+        try (Response res = OkHttp.newCall(url, tag).execute()) {
+            HttpUrl httpUrl = res.request().url();
+            int size = HttpUrl.parse(url).querySize();
+            if (httpUrl.querySize() == size) url = httpUrl.toString();
+            return verify(url, res.body().string());
+        }
+    }
+
+    private static String verify(String url, String data) throws Exception {
+        if (data.isEmpty()) throw new Exception();
+        if (Json.isObj(data)) return fix(url, data);
+        if (data.contains("**")) data = base64(data);
+        if (data.startsWith("2423")) data = cbc(data.replaceAll("\\s+", ""));
+        return fix(url, data);
+    }
     public static String getJson(String url) throws Exception {
         String key = url.contains(";") ? url.split(";")[2] : "";
         url = url.contains(";") ? url.split(";")[0] : url;
         String data = getData(url);
         if (data.isEmpty()) throw new Exception();
-        if (Json.valid(data)) return fix(url, data);
+        if (Json.isObj(data)) return fix(url, data);
         if (data.contains("**")) data = base64(data);
         if (data.startsWith("2423")) data = cbc(data);
         if (key.length() > 0) data = ecb(data, key);

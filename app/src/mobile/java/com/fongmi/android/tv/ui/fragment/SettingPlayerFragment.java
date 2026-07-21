@@ -11,7 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.databinding.FragmentSettingPlayerBinding;
 import com.fongmi.android.tv.impl.BufferCallback;
 import com.fongmi.android.tv.impl.UaCallback;
@@ -94,7 +94,7 @@ public class SettingPlayerFragment extends BaseFragment implements UaCallback, B
     }
 
     private void onUa(View view) {
-        UaDialog.create(this).show();
+        UaDialog.create(this).show(this);
     }
 
     @Override
@@ -130,7 +130,7 @@ public class SettingPlayerFragment extends BaseFragment implements UaCallback, B
     }
 
     private void onBuffer(View view) {
-        BufferDialog.create(this).show();
+        BufferDialog.create(this).show(this);
     }
 
     @Override

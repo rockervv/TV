@@ -12,17 +12,6 @@
     <string name="home_history">History</string>
     <string name="home_recommend">Recommend</string>
 
-                 android:text="@string/sync_use_ftp"
-        android:text="@string/sync_ftp_server" />
-        android:hint="@string/sync_ftp_server_hint"
-            android:text="@string/sync_ftp_username" />
-            android:text="@string/sync_ftp_Password" />
-                    android:text="@string/sync_use_gist"
-            android:text="@string/sync_gist_url" />
-            android:text="@string/sync_gist_token" />
-            android:text="@string/dialog_positive"
-    android:text="@string/dialog_negative"
-
     <!-- Sync -->
     <string name="sync_setting">Sync Setting</string>
     <string name="sync_now">Sync</string>

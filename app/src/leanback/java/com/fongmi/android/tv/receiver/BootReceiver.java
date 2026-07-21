@@ -45,7 +45,7 @@ public class BootReceiver extends BroadcastReceiver {
 
         private void doJob() {
             LiveConfig.get().init().load();
-            if (com.fongmi.android.tv.Setting.isDlna()) DLNARendererService.start(App.get());
+            if (com.fongmi.android.tv.setting.Setting.isDlna()) DLNARendererService.start(App.get());
             ((ConnectivityManager) App.get().getSystemService(Context.CONNECTIVITY_SERVICE)).unregisterNetworkCallback(this);
         }
     }

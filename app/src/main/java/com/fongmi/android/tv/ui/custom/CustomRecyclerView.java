@@ -39,6 +39,10 @@ public class CustomRecyclerView extends RecyclerView {
         a.recycle();
     }
 
+    public void setMaxHeight(int maxHeight) {
+        this.maxHeight = maxHeight;
+    }
+
     private void focus(int position) {
         ViewHolder holder = findViewHolderForLayoutPosition(position);
         if (holder != null) holder.itemView.requestFocus();

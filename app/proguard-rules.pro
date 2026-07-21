@@ -14,18 +14,12 @@
 -keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
 -keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
 
-# SimpleXML
--keep interface org.simpleframework.xml.core.Label { public *; }
--keep class * implements org.simpleframework.xml.core.Label { public *; }
--keep interface org.simpleframework.xml.core.Parameter { public *; }
--keep class * implements org.simpleframework.xml.core.Parameter { public *; }
--keep interface org.simpleframework.xml.core.Extractor { public *; }
--keep class * implements org.simpleframework.xml.core.Extractor { public *; }
--keepclassmembers,allowobfuscation class * { @org.simpleframework.xml.Text <fields>; }
--keepclassmembers,allowobfuscation class * { @org.simpleframework.xml.Path <fields>; }
--keepclassmembers,allowobfuscation class * { @org.simpleframework.xml.ElementList <fields>; }
--keepclassmembers,allowobfuscation class * { @org.simpleframework.xml.Root <fields>; }
--keepclassmembers,allowobfuscation class * { @org.simpleframework.xml.Attribute <fields>; }
+# TikXml
+-keep class com.tickaroo.tikxml.** { *; }
+-keepattributes *Annotation*
+-keepclassmembers class * {
+    @com.tickaroo.tikxml.annotation.* <fields>;
+}
 
 
 # 🚀 核心：強行保留 Room 自動生成的資料表實作類別及其建構子，防止反射閃退

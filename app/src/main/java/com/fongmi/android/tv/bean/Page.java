@@ -4,7 +4,7 @@ import androidx.annotation.Nullable;
 
 public class Page {
 
-    private final String vodId;
+    private final String id;
     private final Style style;
     private final int position;
 
@@ -13,13 +13,13 @@ public class Page {
     }
 
     private Page(Vod vod, int position) {
-        this.vodId = vod.getVodId();
+        this.id = vod.getId();
         this.style = vod.getCate() != null ? vod.getCate().getStyle() : null;
         this.position = position;
     }
 
-    public String getVodId() {
-        return vodId;
+    public String getId() {
+        return id;
     }
 
     public Style getStyle() {
@@ -33,8 +33,7 @@ public class Page {
     @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof Page)) return false;
-        Page it = (Page) obj;
-        return getVodId().equals(it.getVodId()) && getPosition() == it.getPosition();
+        if (!(obj instanceof Page it)) return false;
+        return getId().equals(it.getId());
     }
 }

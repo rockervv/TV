@@ -25,7 +25,7 @@ import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Class;
 import com.fongmi.android.tv.bean.Config;
@@ -228,12 +228,12 @@ public class VodFragment extends BaseFragment implements SiteCallback, FilterCal
     }
 
     private void onLogo(View view) {
-        if (Setting.isHomeDisplayName()) HistoryDialog.create(this).type(0).show();
-        else SiteDialog.create(this).change().show();
+        if (Setting.isHomeDisplayName()) HistoryDialog.create(this).type(0).show(this);
+        else SiteDialog.create(this).change().show(this);
     }
 
     private void onSite(View view) {
-        SiteDialog.create(this).change().show();
+        SiteDialog.create(this).change().show(this);
     }
 
     private boolean onRefresh(View view) {

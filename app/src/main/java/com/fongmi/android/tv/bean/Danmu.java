@@ -2,24 +2,26 @@ package com.fongmi.android.tv.bean;
 
 import android.text.TextUtils;
 
-import org.simpleframework.xml.Attribute;
-import org.simpleframework.xml.ElementList;
-import org.simpleframework.xml.Root;
-import org.simpleframework.xml.Text;
-import org.simpleframework.xml.core.Persister;
+import com.tickaroo.tikxml.TikXml;
+import com.tickaroo.tikxml.annotation.Attribute;
+import com.tickaroo.tikxml.annotation.Element;
+import com.tickaroo.tikxml.annotation.TextContent;
+import com.tickaroo.tikxml.annotation.Xml;
 
 import java.util.Collections;
 import java.util.List;
 
-@Root(name = "i", strict = false)
+import okio.Buffer;
+
+@Xml(name = "i")
 public class Danmu {
 
-    @ElementList(entry = "d", required = false, inline = true)
-    private List<Data> data;
+    @Element(name = "d")
+    public List<Data> data;
 
     public static Danmu fromXml(String str) {
         try {
-            return new Persister().read(Danmu.class, str);
+            return new TikXml.Builder().exceptionOnUnreadXml(false).build().read(new Buffer().writeUtf8(str), Danmu.class);
         } catch (Exception e) {
             e.printStackTrace();
             return new Danmu();
@@ -30,12 +32,13 @@ public class Danmu {
         return data == null ? Collections.emptyList() : data;
     }
 
+    @Xml(name = "d")
     public static class Data {
 
-        @Attribute(name = "p", required = false)
+        @Attribute(name = "p")
         public String param;
 
-        @Text(required = false)
+        @TextContent
         public String text;
 
         public String getParam() {

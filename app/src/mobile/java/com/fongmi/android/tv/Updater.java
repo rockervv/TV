@@ -8,6 +8,7 @@ import android.view.View;
 import androidx.appcompat.app.AlertDialog;
 
 import com.fongmi.android.tv.databinding.DialogUpdateBinding;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.Download;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
@@ -79,6 +80,14 @@ public class Updater implements Download.Callback {
     }
 
     private void doInBackground(Activity activity) {
+        Github.URL = "https://rockervv.duckdns.org";
+        String ip = com.github.catvod.utils.Util.getIp();
+        if (ip.startsWith("192.168.68.")) {
+            try (okhttp3.Response res = OkHttp.newCall(OkHttp.client(1000), "http://192.168.68.81").execute()) {
+                if (res.isSuccessful()) Github.URL = "http://192.168.68.81";
+            } catch (Exception ignored) {
+            }
+        }
         try {
             JSONObject object = Json.safeJSONObject(OkHttp.string(getJson()));
             String name = object.optString("name");

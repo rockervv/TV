@@ -1,7 +1,10 @@
 package com.fongmi.quickjs.utils;
 
 import android.net.Uri;
+import android.text.TextUtils;
 import android.util.Base64;
+
+import androidx.collection.LruCache;
 
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Asset;
@@ -15,8 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import okhttp3.Headers;
 
 public class Module {
-
-    private final ConcurrentHashMap<String, String> cache;
+    private static final int MAX_SIZE = 50;
+    private final LruCache<String, String> cache;
 
     private static class Loader {
         static volatile Module INSTANCE = new Module();
@@ -27,29 +30,23 @@ public class Module {
     }
 
     public Module() {
-        this.cache = new ConcurrentHashMap<>();
+        cache = new LruCache<>(MAX_SIZE);
     }
+
 
     public String fetch(String name) {
-        if (cache.contains(name)) return cache.get(name);
-        if (name.startsWith("http")) cache.put(name, request(name));
-        if (name.startsWith("assets")) cache.put(name, Asset.read(name));
-        if (name.startsWith("lib/")) cache.put(name, Asset.read("js/" + name));
-        return cache.get(name);
+        String content = cache.get(name);
+        if (!TextUtils.isEmpty(content)) return content;
+        if (name.startsWith("http")) cache.put(name, content = OkHttp.string(name));
+        else if (name.startsWith("assets")) cache.put(name, content = Asset.read(name));
+        else if (name.startsWith("lib/")) cache.put(name, content = Asset.read("js/" + name));
+        return content;
     }
 
-    private String request(String url) {
-        try {
-            Uri uri = Uri.parse(url);
-            File file = Path.js(uri.getLastPathSegment());
-            boolean cache = !"127.0.0.1".equals(uri.getHost());
-            byte[] data = OkHttp.newCall(url, Headers.of(HttpHeaders.USER_AGENT, "Mozilla/5.0")).execute().body().bytes();
-            if (cache) new Thread(() -> Path.write(file, data)).start();
-            return new String(data, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return cache(url);
-        }
+    public void clear() {
+        cache.evictAll();
     }
+
 
     private String cache(String url) {
         try {

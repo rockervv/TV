@@ -1,11 +1,11 @@
 package com.fongmi.android.tv.bean;
 
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.db.AppDatabase;
+import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.Task;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
@@ -42,6 +42,12 @@ public class HistorySyncManager {
         useGist = isGist;
     }
 
+    public static void setup() {
+        init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword(), Setting.isUseFtp());
+        initGist(Setting.getGistUrl(), Setting.getGistToken(), Setting.isUseGist());
+        SyncAll();
+    }
+
     private static void syncKeep() {
         if (!useFTP && !useGist) return;
         if (!isKeepSyncing.compareAndSet(false, true)) return;
@@ -56,7 +62,11 @@ public class HistorySyncManager {
                 }
             }
             if (useGist && jsonData == null) {
-                jsonData = ftpManagerk.downloadGistJsonFileAsString("keep.json");
+                try {
+                    jsonData = ftpManagerk.downloadGistJsonFileAsString("keep.json");
+                } catch (Exception e) {
+                    Log.e("KeepSync", "Gist download failed", e);
+                }
             }
 
             List<Keep> sqliteItems = Keep.getAll();
@@ -159,13 +169,13 @@ public class HistorySyncManager {
 
     public static void SyncHistory() {
         if (useFTP || useGist) {
-            App.execute(HistorySyncManager::syncHistory);
+            Task.execute(HistorySyncManager::syncHistory);
         }
     }
 
     public static void SyncKeep() {
         if (useFTP || useGist) {
-            App.execute(HistorySyncManager::syncKeep);
+            Task.execute(HistorySyncManager::syncKeep);
         }
     }
 

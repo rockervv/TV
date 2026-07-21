@@ -105,7 +105,7 @@ public class Thunder implements Source.Extractor {
             boolean torrent = isTorrent(url);
             GetTaskId taskId = XLTaskHelper.get().parse(url, Path.thunder(Util.md5(url)));
             if (!torrent && !taskId.getRealUrl().startsWith("magnet")) return Arrays.asList(create(taskId));
-            if (torrent && url.startsWith("http")) Download.create(url, taskId.getSaveFile()).start();
+            if (torrent && url.startsWith("http")) Download.create(url, taskId.getSaveFile()).get();
             if (!torrent) waitDone(taskId);
             try {
                 List<Episode> items = new ArrayList<>();

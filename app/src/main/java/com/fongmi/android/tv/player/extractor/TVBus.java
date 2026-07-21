@@ -36,16 +36,19 @@ public class TVBus implements Source.Extractor, Listener {
 
     private void init(Core core) {
         try {
+            App.get().setHook(core.getHook());
             tvcore = new TVCore(getPath(core.getSo())).listener(this).auth(core.getAuth()).name(core.getName()).pass(core.getPass()).domain(core.getDomain()).broker(core.getBroker());
             for (Core.Option option : core.getOption()) tvcore.option(option.getKey(), option.getValues());
             tvcore.serv(0).play(8902).mode(1).init();
         } catch (Exception ignored) {
+        } finally {
+            App.get().setHook(null);
         }
     }
 
     private String getPath(String url) {
         File so = new File(Path.so(), UrlUtil.path(url));
-        if (!so.exists()) Download.create(url, so).start();
+        if (!so.exists()) Download.create(url, so).get();
         return so.getAbsolutePath();
     }
 

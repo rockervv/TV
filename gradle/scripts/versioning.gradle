@@ -1,0 +1,43 @@
+// 函數：獲取最後一次 Git commit 說明
+ext.getLastCommitMessage = {
+    try {
+        def process = ['git', 'log', '-1', '--pretty=%B'].execute()
+        process.waitFor()
+        return process.text.trim()
+    } catch (Exception ignored) {
+        return "No commit message available"
+    }
+}
+
+def versionPropsFile = file('version.properties')
+def versionProps = new Properties()
+
+if (versionPropsFile.exists()) {
+    versionProps.load(new FileInputStream(versionPropsFile))
+} else {
+    versionProps['VERSION_CODE'] = "1"
+    versionProps['VERSION_NAME'] = "1.0.0"
+}
+
+def autoVersionCode = versionProps['VERSION_CODE'].toInteger() + 1
+def autoVersionName = versionProps['VERSION_NAME']
+
+// 將進版邏輯移到此處，確保每次 build 只執行一次
+def versionParts = autoVersionName.split('\\.')
+if (versionParts.size() > 0) {
+    try {
+        def lastNumber = (versionParts.last() as Integer) + 1
+        versionParts[-1] = lastNumber.toString()
+        autoVersionName = versionParts.join('.')
+    } catch (Exception ignored) {
+    }
+}
+
+// 立即更新 Properties 對象
+versionProps['VERSION_CODE'] = autoVersionCode.toString()
+versionProps['VERSION_NAME'] = autoVersionName
+versionProps.store(new FileOutputStream(versionPropsFile), null)
+
+// 將變數暴露給外部
+ext.autoVersionCode = autoVersionCode
+ext.autoVersionName = autoVersionName

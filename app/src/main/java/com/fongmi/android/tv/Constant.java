@@ -31,6 +31,8 @@ public class Constant {
     public static final int TIMEOUT_SEARCH = 30 * 1000;
     //搜尋線程數量
     public static final int THREAD_POOL = 10;
+    //歷史記錄時間
+    public static final long HISTORY_TIME = 60 * 24 * 60 * 60 * 1000L;
 
     public static long getOpEdLimit(long duration) {
         return duration / 5;

@@ -43,7 +43,7 @@ public class ADFilter {
     }
 
     private static final String[] AD_KEYWORDS = {
-            "adsvideo", "gvt1.com", "doubleclick.net", "googleads", "analytics", "ads.ts", "ad-", "-ad"
+            "adsvideo", "gvt1.com", "doubleclick.net", "googleads", "analytics", "ads.ts", "ad-", "-ad", "ad_", "_ad", "ad/", "/ad", "pstatp", "toutiao", "byteimg", "adservice", "adsystem", "union.video", "volcengine", "vcloud"
     };
 
     private static boolean isAdUrl(String url) {
@@ -56,19 +56,17 @@ public class ADFilter {
     }
 
     private static M3U8AdFilterResult parseAndFilterM3U8(String url, BufferedReader reader) {
-        StringBuilder output = new StringBuilder();
         List<String> lines = new ArrayList<>();
         try {
-            String l;
-            while ((l = reader.readLine()) != null) {
-                lines.add(l.trim());
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lines.add(line.trim());
             }
         } catch (IOException e) {
             Log.e("M3U8Parser", "IOException: " + e.getMessage());
         }
 
         String rawContent = String.join("\n", lines);
-        
         if (rawContent.contains("#EXT-X-STREAM-INF")) {
             return new M3U8AdFilterResult(rawContent, 0, 0.0);
         }
@@ -77,183 +75,170 @@ public class ADFilter {
         M3U8AdFilterResult cached = cache.get(cacheKey);
         if (cached != null) return cached;
 
+        // 1. Calculate main path feature and main config feature
         Map<String, Integer> pathCountMap = new HashMap<>();
-        int totalTsCount = 0;
+        Map<String, Integer> configCountMap = new HashMap<>();
+        String activeConfig = "";
 
         for (String line : lines) {
-            if (line.endsWith(".ts") || line.endsWith(".jpeg") || line.endsWith(".jpg") || line.contains(".ts?") || line.contains(".jpeg?") || line.contains(".jpg?")) {
-                totalTsCount++;
+            if (line.startsWith("#EXT-X-KEY") || line.startsWith("#EXT-X-MAP")) {
+                activeConfig = line;
+            } else if (isMediaSegment(line)) {
                 String feature = getUrlFeature(line);
                 pathCountMap.put(feature, pathCountMap.getOrDefault(feature, 0) + 1);
+                if (!activeConfig.isEmpty()) {
+                    configCountMap.put(activeConfig, configCountMap.getOrDefault(activeConfig, 0) + 1);
+                }
             }
         }
 
         String mainFeature = "";
         int maxCount = 0;
-        Log.d("M3U8Parser", "=== Start path feature statistics ===");
         for (Map.Entry<String, Integer> entry : pathCountMap.entrySet()) {
-            Log.d("M3U8Parser", "Feature path: [" + entry.getKey() + "] Count: " + entry.getValue());
             if (entry.getValue() > maxCount) {
                 maxCount = entry.getValue();
                 mainFeature = entry.getKey();
             }
         }
-        Log.d("M3U8Parser", "-> Selected main feature (video): [" + mainFeature + "]");
-        Log.d("M3U8Parser", "=== End path feature statistics ===");
 
-        boolean inAd = false;
-        boolean passFirstDiscontinuity = false;
-        double adDuration = 0.0;
-        int adCount = 0;
-        double currentDuration = 0.0;
-        double totalDuration = 0.0;
-        Long lastSegmentNumber = null;
-        String pendingExtInfLine = null;
-
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            if (line.startsWith("#EXTINF:")) {
-                pendingExtInfLine = line;
-                if (!passFirstDiscontinuity) passFirstDiscontinuity = true;
-                try {
-                    String durationStr = line.substring(8).split(",")[0];
-                    double duration = Double.parseDouble(durationStr);
-                    totalDuration += duration;
-                    if (inAd) {
-                        currentDuration += duration;
-                        pendingExtInfLine = null;
-                    }
-                } catch (Exception e) {
-                    Log.e("M3U8Parser", "Parse EXTINF error: " + line + " Cause: " + e.getMessage());
-                }
-                continue;
+        String mainConfig = "";
+        maxCount = 0;
+        for (Map.Entry<String, Integer> entry : configCountMap.entrySet()) {
+            if (entry.getValue() > maxCount) {
+                maxCount = entry.getValue();
+                mainConfig = entry.getKey();
             }
+        }
 
-            if (line.startsWith("#EXT-X-CUE-OUT")) {
-                inAd = true;
-                Log.d("M3U8Parser", "Trigger CUE-OUT, entering AD mode");
-                continue;
-            }
-            if (line.equals("#EXT-X-CUE-IN")) {
-                inAd = false;
-                Log.d("M3U8Parser", "Trigger CUE-IN, leaving AD mode");
-                continue;
-            }
+        // 2. Group into blocks by #EXT-X-DISCONTINUITY, CUE tags, or CONFIG changes
+        List<M3U8Block> blocks = new ArrayList<>();
+        M3U8Block currentBlock = new M3U8Block();
+        blocks.add(currentBlock);
+        boolean inCueAd = false;
+        activeConfig = "";
 
-            if (line.equals("#EXT-X-DISCONTINUITY")) {
-                if (!passFirstDiscontinuity) {
-                    passFirstDiscontinuity = true;
-                    output.append(line).append("\n");
-                    continue;
+        for (String line : lines) {
+            if (line.startsWith("#EXT-X-CUE-OUT") || line.startsWith("#EXT-X-CUT-OUT")) {
+                if (currentBlock.segmentCount > 0) {
+                    currentBlock = new M3U8Block();
+                    blocks.add(currentBlock);
                 }
-                
-                String nextExtInf = null;
-                String nextTsLine = null;
-                int lookAhead = i + 1;
-
-                while (lookAhead < lines.size()) {
-                    String forwardLine = lines.get(lookAhead);
-                    if (forwardLine.startsWith("#EXTINF:")) {
-                        nextExtInf = forwardLine;
-                        if (lookAhead + 1 < lines.size()) {
-                            nextTsLine = lines.get(lookAhead + 1);
-                        }
-                        break;
-                    }
-                    if (forwardLine.equals("#EXT-X-DISCONTINUITY") || forwardLine.equals("#EXT-X-ENDLIST")) {
-                        break;
-                    }
-                    lookAhead++;
+                inCueAd = true;
+                currentBlock.hasCueAd = true;
+                currentBlock.configFeature = activeConfig;
+                currentBlock.lines.add(line);
+            } else if (line.startsWith("#EXT-X-CUE-IN") || line.startsWith("#EXT-X-CUT-IN")) {
+                currentBlock.lines.add(line);
+                inCueAd = false;
+                currentBlock = new M3U8Block();
+                blocks.add(currentBlock);
+                currentBlock.configFeature = activeConfig;
+            } else if (line.equals("#EXT-X-DISCONTINUITY")) {
+                if (currentBlock.segmentCount > 0) {
+                    currentBlock = new M3U8Block();
+                    blocks.add(currentBlock);
                 }
-
-                Log.d("M3U8Parser", "Meet DISCONTINUITY, look ahead -> EXTINF: [" + nextExtInf + "], TS: [" + nextTsLine + "]");
-
-                if (!inAd) {
-                    if (nextExtInf != null && nextExtInf.startsWith("#EXTINF:") && nextTsLine != null) {
-                        boolean isAdOld = isAdUrl(nextTsLine);
-                        boolean isAdSmart = isAdUrlSmart(nextTsLine, mainFeature);
-
-                        Log.d("M3U8Parser", "DISCONTINUITY AD judgment -> Old: " + isAdOld + ", Smart: " + isAdSmart);
-
-                        if (isAdSmart || isAdOld) {
-                            inAd = true;
-                            Log.d("M3U8Parser", "-> DISCONTINUITY judged: Entering AD mode");
-                        } else if (isMediaSegment(nextTsLine)) {
-                            Long nextNumber = extractSegmentNumber(nextTsLine);
-                            if (lastSegmentNumber != null && nextNumber != null && nextNumber == lastSegmentNumber + 1) {
-                                output.append(line).append("\n");
-                            } else {
-                                if (!mainFeature.isEmpty()) {
-                                    output.append(line).append("\n");
-                                } else {
-                                    inAd = true;
-                                    Log.d("M3U8Parser", "-> Sequence mismatch and no main feature: Entering AD mode");
-                                }
-                            }
-                        } else {
-                            inAd = true;
-                        }
-                    } else {
-                        output.append(line).append("\n");
-                    }
-                } else {
-                    Log.d("M3U8Parser", "AD ended, duration: " + currentDuration);
-                    adDuration += currentDuration;
-                    adCount++;
-                    currentDuration = 0.0;
-                    inAd = false;
+                currentBlock.hasStartDiscontinuity = true;
+                currentBlock.hasCueAd = inCueAd;
+                currentBlock.configFeature = activeConfig;
+                currentBlock.lines.add(line);
+            } else if (line.startsWith("#EXT-X-KEY") || line.startsWith("#EXT-X-MAP")) {
+                if (currentBlock.segmentCount > 0) {
+                    currentBlock = new M3U8Block();
+                    blocks.add(currentBlock);
                 }
-                continue;
-            }
-
-            if (isMediaSegment(line)) {
-                boolean isAdOld = isAdUrl(line);
-                boolean isAdSmart = isAdUrlSmart(line, mainFeature);
-
-                if (isAdSmart || isAdOld) {
-                    if (!inAd) {
-                        Log.d("M3U8Parser", "Detected AD URL, switching to inAd = true. URL: " + line);
-                    }
-                    inAd = true;
-                }
-
-                Long currentNumber = extractSegmentNumber(line);
-                if (!inAd) {
-                    if (pendingExtInfLine != null) output.append(pendingExtInfLine).append("\n");
-                    output.append(line).append("\n");
-                    lastSegmentNumber = currentNumber;
-                } else {
-                    Log.d("M3U8Parser", "Filtered AD segment: " + line);
-                }
-                pendingExtInfLine = null;
-                continue;
-            }
-
-            if (!inAd) {
-                if (pendingExtInfLine != null) {
-                    output.append(pendingExtInfLine).append("\n");
-                    pendingExtInfLine = null;
-                }
-                output.append(line).append("\n");
+                activeConfig = line;
+                currentBlock.configFeature = activeConfig;
+                currentBlock.hasCueAd = inCueAd;
+                currentBlock.lines.add(line);
             } else {
-                if (!line.startsWith("#")) {
-                    Log.d("M3U8Parser", "Filtered AD line: " + line);
+                currentBlock.lines.add(line);
+                currentBlock.hasCueAd = inCueAd;
+                currentBlock.configFeature = activeConfig;
+                if (line.startsWith("#EXTINF:")) {
+                    try {
+                        String durationStr = line.substring(8).split(",")[0];
+                        currentBlock.duration += Double.parseDouble(durationStr);
+                    } catch (Exception ignored) {}
+                } else if (isMediaSegment(line)) {
+                    currentBlock.segmentCount++;
+                    Long currentNum = extractSegmentNumber(line);
+                    if (currentBlock.lastNum != null && currentNum != null && Math.abs(currentNum - currentBlock.lastNum) > 1) {
+                        currentBlock.hasSequenceJump = true;
+                    }
+                    currentBlock.lastNum = currentNum;
+                    if (isAdUrl(line) || (!mainFeature.isEmpty() && isAdUrlSmart(line, mainFeature))) {
+                        currentBlock.hasAdUrl = true;
+                    }
+                } else if (line.equals("#EXT-X-ENDLIST")) {
+                    currentBlock.hasEndList = true;
                 }
             }
         }
 
-        if (inAd && currentDuration > 0.0) {
-            adDuration += currentDuration;
-            adCount++;
+        // 3. Evaluate each block
+        StringBuilder output = new StringBuilder();
+        int adCount = 0;
+        double adDuration = 0.0;
+        double totalDuration = 0.0;
+        boolean processedFirstMediaBlock = false;
+
+        for (M3U8Block block : blocks) {
+            if (block.lines.isEmpty()) continue;
+            
+            totalDuration += block.duration;
+            boolean isAd = false;
+
+            if (block.segmentCount > 0) {
+                // Determine if config mismatch
+                boolean configMismatch = !mainConfig.isEmpty() && !block.configFeature.equals(mainConfig);
+
+                // 🚀 核心修正：如果區塊時長 > 120秒 或分片數 > 30，除非有明確的 Cue 標籤，否則視為正片
+                boolean isLikelyLongVideo = block.duration > 120 || block.segmentCount > 30;
+
+                if (block.hasCueAd) {
+                    isAd = true;
+                } else if (isLikelyLongVideo) {
+                    isAd = false;
+                } else if ( block.hasAdUrl || block.hasSequenceJump || configMismatch) {
+                    isAd = true;
+                } else if (block.duration > 0 && block.duration < 60) {
+                    if (block.hasStartDiscontinuity && processedFirstMediaBlock) {
+                        isAd = true;
+                    } else if (block.hasEndList && processedFirstMediaBlock) {
+                        isAd = true;
+                    }
+                }
+            }
+
+            if (isAd) {
+                adCount ++; //= block.segmentCount;
+                adDuration += block.duration;
+                Log.d("M3U8Parser", "Filtered Block (AD): Duration=" + block.duration + ", Segments=" + block.segmentCount + ", Cue=" + block.hasCueAd + ", ConfigMismatch=" + (!mainConfig.isEmpty() && !block.configFeature.equals(mainConfig)));
+                if (block.hasEndList) {
+                    output.append("#EXT-X-ENDLIST\n");
+                }
+            } else {
+                for (String line : block.lines) {
+                    output.append(line).append("\n");
+                }
+                if (block.segmentCount > 0) {
+                    processedFirstMediaBlock = true;
+                }
+            }
         }
+
         adDuration = Math.round(adDuration * 10.0) / 10.0;
         double adRatio = adDuration / (totalDuration > 0 ? totalDuration : 1.0);
         Log.d("M3U8Parser", "=== Summary ===");
         Log.d("M3U8Parser", "Total: " + totalDuration + ", AD Total: " + adDuration + ", AD Count: " + adCount + ", AD Ratio: " + adRatio);
 
         M3U8AdFilterResult result;
-        if (adDuration / (totalDuration > 0 ? totalDuration : 1.0) > 0.1) {
-            Log.w("M3U8Parser", "Warning: AD ratio > 10%, dropping video (-1)");
+        if (adRatio > 0.15 && totalDuration > 0) { 
+             Log.w("M3U8Parser", "Warning: AD ratio > 50%, returning raw content to avoid false positive");
+             result = new M3U8AdFilterResult(rawContent, 0, 0.0);
+        } else if (adDuration > 0 && adRatio > 0.1 && totalDuration > 300) { 
+            Log.w("M3U8Parser", "Warning: AD ratio > 15% in long video, dropping video (-1)");
             result = new M3U8AdFilterResult(rawContent, -1, 0.0);
         } else {
             Log.d("M3U8Parser", "Successfully filtered M3U8");
@@ -267,7 +252,8 @@ public class ADFilter {
     private static boolean isMediaSegment(String line) {
         if (line == null) return false;
         String lower = line.toLowerCase();
-        return lower.endsWith(".ts") || lower.endsWith(".jpeg") || lower.endsWith(".jpg") || lower.contains(".ts?") || lower.contains(".jpeg?") || lower.contains(".jpg?");
+        return lower.endsWith(".ts") || lower.endsWith(".jpeg") || lower.endsWith(".jpg") || lower.endsWith(".m4s") || lower.endsWith(".mp4") ||
+                lower.contains(".ts?") || lower.contains(".jpeg?") || lower.contains(".jpg?") || lower.contains(".m4s?") || lower.contains(".mp4?");
     }
 
     private static String getUrlFeature(String url) {
@@ -296,15 +282,28 @@ public class ADFilter {
 
     private static Long extractSegmentNumber(String tsFilename) {
         try {
-            Pattern pattern = Pattern.compile("(\\d+)\\.(ts|jpe?g)", Pattern.CASE_INSENSITIVE);
+            Pattern pattern = Pattern.compile("(\\d+)\\.(ts|jpe?g|m4s|mp4)", Pattern.CASE_INSENSITIVE);
             Matcher matcher = pattern.matcher(tsFilename);
             if (matcher.find()) {
                 return Long.parseLong(Objects.requireNonNull(matcher.group(1)));
             }
         } catch (Exception e) {
-            Log.e("M3U8Parser", "Failed to parse segment number from: " + tsFilename);
+            // Log.e("M3U8Parser", "Failed to parse segment number from: " + tsFilename);
         }
         return null;
+    }
+
+    private static class M3U8Block {
+        List<String> lines = new ArrayList<>();
+        double duration = 0.0;
+        int segmentCount = 0;
+        boolean hasAdUrl = false;
+        boolean hasStartDiscontinuity = false;
+        boolean hasEndList = false;
+        boolean hasCueAd = false;
+        String configFeature = "";
+        Long lastNum = null;
+        boolean hasSequenceJump = false;
     }
 
     private static class M3U8AdFilterResult {
@@ -349,12 +348,12 @@ public class ADFilter {
                     }
 
                     if (adCount > 0) {
-                        Notify.showTop("過濾 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
+                        Notify.showAd("過濾 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
                         lastCount = adCount;
                         lastSeconds = adSeconds;
                         lastTime = currentTime;
                     } else if (adCount < 0 && (currentTime - lastTime) > 60000) {
-                        Notify.showTop("廣告過濾失敗");
+                        Notify.showAd("廣告過濾失敗");
                         lastCount = adCount;
                         lastTime = currentTime;
                     }

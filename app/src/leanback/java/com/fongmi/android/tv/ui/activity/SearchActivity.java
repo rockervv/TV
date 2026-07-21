@@ -14,7 +14,7 @@ import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.bean.Hot;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Suggest;
@@ -165,7 +165,7 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
 
     @Override
     public void showDialog() {
-        SiteDialog.create(this).search().show();
+        SiteDialog.create(this).search().show(this);
     }
 
     @Override

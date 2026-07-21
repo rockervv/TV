@@ -131,7 +131,7 @@ public class MainActivity extends BaseActivity implements NavigationBarView.OnIt
     }
 
     private void loadLive(String url) {
-        LiveConfig.load(Config.find(url, 1), new Callback() {
+        LiveConfig.load(Config.find(url, Config.LIVE), new Callback() {
             @Override
             public void success() {
                 openLive();

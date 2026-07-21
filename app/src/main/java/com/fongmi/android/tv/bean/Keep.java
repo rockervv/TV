@@ -1,27 +1,27 @@
 package com.fongmi.android.tv.bean;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.db.AppDatabase;
-import com.fongmi.android.tv.event.RefreshEvent;
+import com.fongmi.android.tv.impl.Diffable;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-//import java.util.Objects;
+import java.util.Objects;
 
 @Entity
-public class Keep {
+public class Keep implements Diffable<Keep> {
 
     @NonNull
     @PrimaryKey
@@ -40,12 +40,68 @@ public class Keep {
     @SerializedName("cid")
     private int cid;
 
-    private static long Uptime;
-
     public static List<Keep> arrayFrom(String str) {
-        Type listType = new TypeToken<List<Keep>>() {}.getType();
+        Type listType = TypeToken.getParameterized(List.class, Keep.class).getType();
         List<Keep> items = App.gson().fromJson(str, listType);
         return items == null ? Collections.emptyList() : items;
+    }
+
+    public static Keep find(String key) {
+        return find(VodConfig.getCid(), key);
+    }
+
+    public static Keep find(int cid, String key) {
+        return AppDatabase.get().getKeepDao().find(cid, key);
+    }
+
+    public static boolean exist(String key) {
+        return AppDatabase.get().getKeepDao().find(key) != null;
+    }
+
+    public static void deleteAll() {
+        AppDatabase.get().getKeepDao().delete();
+    }
+
+    public static void delete(int cid) {
+        AppDatabase.get().getKeepDao().delete(cid);
+    }
+
+    public static void delete(String key) {
+        AppDatabase.get().getKeepDao().delete(key);
+    }
+
+    public static List<Keep> getVod() {
+        return AppDatabase.get().getKeepDao().getVod();
+    }
+
+    public static List<Keep> getLive() {
+        return AppDatabase.get().getKeepDao().getLive();
+    }
+
+    public static List<Keep> getAll() {
+        return AppDatabase.get().getKeepDao().getAll();
+    }
+
+    public static List<Keep> syncLists(List<Keep> local, List<Keep> remote) {
+        Map<String, Keep> map = new HashMap<>();
+        for (Keep item : local) map.put(item.getKey(), item);
+        for (Keep item : remote) {
+            Keep old = map.get(item.getKey());
+            if (old == null || item.getCreateTime() > old.getCreateTime()) {
+                map.put(item.getKey(), item);
+            }
+        }
+        return new ArrayList<>(map.values());
+    }
+
+    public static void sync(List<Keep> items) {
+        for (Keep item : items) item.save();
+    }
+
+    public static void sync(List<Config> configs, List<Keep> targets) {
+        targets.forEach(target -> configs.stream()
+                .filter(config -> target.getCid() == config.getId()).findFirst()
+                .ifPresent(config -> target.save(Config.find(config).getId())));
     }
 
     @NonNull
@@ -113,49 +169,13 @@ public class Keep {
         return getKey().split(AppDatabase.SYMBOL)[1];
     }
 
-    public static Keep find(String key) {
-        return find(VodConfig.getCid(), key);
-    }
-
-    public static Keep find(int cid, String key) {
-        return AppDatabase.get().getKeepDao().find(cid, key);
-    }
-
-    public static boolean exist(String key) {
-        return AppDatabase.get().getKeepDao().find(key) != null;
-    }
-
-    public static void deleteAll() {
-        AppDatabase.get().getKeepDao().delete();
-    }
-
-    public static void delete(int cid) {
-        AppDatabase.get().getKeepDao().delete(cid);
-    }
-
-    public static void delete(String key) {
-        AppDatabase.get().getKeepDao().delete(key);
-    }
-
-    public static List<Keep> getAll() {
-        return AppDatabase.get().getKeepDao().getAll();
-    }
-
-    public static List<Keep> getVod() {
-        return AppDatabase.get().getKeepDao().getVod();
-    }
-
-    public static List<Keep> getLive() {
-        return AppDatabase.get().getKeepDao().getLive();
-    }
-
     public void save(int cid) {
         setCid(cid);
-        AppDatabase.get().getKeepDao().insertOrUpdate(this);
+        save();
     }
 
     public void save() {
-        AppDatabase.get().getKeepDao().insert(this);
+        AppDatabase.get().getKeepDao().insertOrUpdate(this);
     }
 
     public Keep delete() {
@@ -163,72 +183,25 @@ public class Keep {
         return this;
     }
 
-    private static void startSync(List<Config> configs, List<Keep> targets) {
-        for (Keep target : targets) {
-            for (Config config : configs) {
-                if (target.getCid() == config.getId()) {
-                    target.save(Config.find(config).getId());
-                }
-            }
-        }
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Keep it)) return false;
+        return Objects.equals(getKey(), it.getKey());
     }
 
-    public static void sync(List<Config> configs, List<Keep> targets) {
-        App.execute(() -> {
-            startSync(configs, targets);
-            RefreshEvent.keep();
-        });
+    @Override
+    public int hashCode() {
+        return Objects.hash(getKey());
     }
 
-    private static void startSync(List<Keep> targets) {
-        //int cid = VodConfig.getCid();
-        //int cid = 1;
-        //deleteAll();
-        for (Keep target : targets) {
-                target.save(target.getCid());
-                //target.save();
-        }
-    }
-    public static void sync(List<Keep> targets) {
-        App.execute(() -> {
-            startSync(targets);
-            RefreshEvent.keep();
-        });
+    @Override
+    public boolean isSameItem(Keep other) {
+        return equals(other);
     }
 
-    public static long GetUptime() {return Uptime;}
-    public static List<Keep> syncLists(List<Keep> list1, List<Keep> list2) {
-        Map<String, Keep> mergedMap = new HashMap<>();
-        // Process items from both lists
-        for (List<Keep> list : Arrays.asList(list1, list2)) {
-            for (Keep item : list) {
-                String key = item.getKey();
-                //if (!item.isDeleted() && item.lastUpdate.days - Datetime.days > xxx) { //TODO or noTodo: lastupdated is more xx days then remove from the mergedMap for hard delete
-                if (item.getCreateTime() > Uptime) Uptime = item.getCreateTime();
-
-                Keep existingItem = mergedMap.get(key);
-                if (existingItem != null) {
-                    if (item.getCreateTime() > existingItem.getCreateTime()) {
-                        updateAllColumns(existingItem, item);
-                    }
-                } else {
-                    mergedMap.put(key, item);
-                }
-            }
-        }
-        //insertOrUpdate(result);
-        return new ArrayList<>(mergedMap.values());
+    @Override
+    public boolean isSameContent(Keep other) {
+        return getVodName().equals(other.getVodName()) && getVodPic().equals(other.getVodPic()) && getCreateTime() == other.getCreateTime();
     }
-    public static void insertOrUpdate(List<Keep> items) {
-        AppDatabase.get().getKeepDao().insertOrUpdate(items);
-    }
-    private static void updateAllColumns(Keep existingItem, Keep newItem) {
-        existingItem.setVodPic(newItem.getVodPic());
-        existingItem.setVodName(newItem.getVodName());
-        existingItem.setSiteName(newItem.getSiteName());
-        existingItem.setType(newItem.getType());
-        existingItem.setCreateTime(newItem.getCreateTime());
-        existingItem.setCid(newItem.getCid());
-    }
-
 }

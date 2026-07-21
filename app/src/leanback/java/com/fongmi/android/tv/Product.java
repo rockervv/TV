@@ -1,6 +1,7 @@
 package com.fongmi.android.tv;
 
 import com.fongmi.android.tv.bean.Style;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.ResUtil;
 
 public class Product {

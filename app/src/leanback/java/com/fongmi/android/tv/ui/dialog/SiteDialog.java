@@ -1,43 +1,38 @@
 package com.fongmi.android.tv.ui.dialog;
 
-import android.app.Activity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 
-import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.DialogSiteBinding;
 import com.fongmi.android.tv.impl.SiteCallback;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.adapter.SiteAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-public class SiteDialog implements SiteAdapter.OnClickListener{
+public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickListener {
 
     private RecyclerView.ItemDecoration decoration;
-    private final DialogSiteBinding binding;
-    private final SiteCallback callback;
-    private final SiteAdapter adapter;
-    private final AlertDialog dialog;
+    private DialogSiteBinding binding;
+    private SiteCallback callback;
+    private SiteAdapter adapter;
     private int type;
 
-    public static SiteDialog create(Activity activity) {
-        return new SiteDialog(activity);
+    public static SiteDialog create() {
+        return new SiteDialog();
     }
 
-    public SiteDialog(Activity activity) {
-        this.adapter = new SiteAdapter(this);
-        this.callback = (SiteCallback) activity;
-        this.binding = DialogSiteBinding.inflate(LayoutInflater.from(activity));
-        this.dialog = new MaterialAlertDialogBuilder(activity).setView(binding.getRoot()).create();
+    public static SiteDialog create(FragmentActivity activity) {
+        return new SiteDialog();
     }
 
     public SiteDialog search() {
@@ -46,14 +41,45 @@ public class SiteDialog implements SiteAdapter.OnClickListener{
     }
 
     public SiteDialog action() {
-        binding.action.setVisibility(View.VISIBLE);
+        type = 3; // Use a special type for action to show binding.action in initView
         return this;
     }
 
-    public void show() {
-        setType(type);
-        initView();
-        initEvent();
+    public void show(FragmentActivity activity) {
+        show(activity.getSupportFragmentManager(), null);
+    }
+
+    @Override
+    protected ViewBinding getBinding() {
+        return binding = DialogSiteBinding.inflate(getLayoutInflater());
+    }
+
+    @Override
+    protected MaterialAlertDialogBuilder getBuilder() {
+        return builder().setView(getBinding().getRoot());
+    }
+
+    @Override
+    protected void initView() {
+        this.callback = (SiteCallback) getActivity();
+        this.adapter = new SiteAdapter(this);
+        if (type == 3) {
+            binding.action.setVisibility(View.VISIBLE);
+            setType(0);
+        } else {
+            setType(type);
+        }
+        setRecyclerView();
+        setMode();
+    }
+
+    @Override
+    protected void initEvent() {
+        binding.mode.setOnClickListener(this::setMode);
+        binding.select.setOnClickListener(v -> adapter.selectAll());
+        binding.cancel.setOnClickListener(v -> adapter.cancelAll());
+        binding.search.setOnClickListener(v -> setType(v.isActivated() ? 0 : 1));
+        binding.change.setOnClickListener(v -> setType(v.isActivated() ? 0 : 2));
     }
 
     private boolean list() {
@@ -72,37 +98,14 @@ public class SiteDialog implements SiteAdapter.OnClickListener{
         return 0.4f + (getCount() - 1) * 0.2f;
     }
 
-    private void initView() {
-        setRecyclerView();
-        setDialog();
-        setMode();
-    }
-
-    private void initEvent() {
-        binding.mode.setOnClickListener(this::setMode);
-        binding.select.setOnClickListener(v -> adapter.selectAll());
-        binding.cancel.setOnClickListener(v -> adapter.cancelAll());
-        binding.search.setOnClickListener(v -> setType(v.isActivated() ? 0 : 1));
-        binding.change.setOnClickListener(v -> setType(v.isActivated() ? 0 : 2));
-    }
-
     private void setRecyclerView() {
         binding.recycler.setAdapter(adapter);
         binding.recycler.setHasFixedSize(true);
         binding.recycler.setItemAnimator(null);
         if (decoration != null) binding.recycler.removeItemDecoration(decoration);
         binding.recycler.addItemDecoration(decoration = new SpaceItemDecoration(getCount(), 16));
-        binding.recycler.setLayoutManager(new GridLayoutManager(dialog.getContext(), getCount()));
+        binding.recycler.setLayoutManager(new GridLayoutManager(getContext(), getCount()));
         if (!binding.mode.hasFocus()) binding.recycler.post(() -> binding.recycler.scrollToPosition(VodConfig.getHomeIndex()));
-    }
-
-    private void setDialog() {
-        if (adapter.getItemCount() == 0) return;
-        WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
-        params.width = (int) (ResUtil.getScreenWidth() * getWidth());
-        dialog.getWindow().setAttributes(params);
-        dialog.getWindow().setDimAmount(0);
-        dialog.show();
     }
 
     private void setMode() {
@@ -121,19 +124,25 @@ public class SiteDialog implements SiteAdapter.OnClickListener{
 
     private void setMode(View view) {
         Setting.putSiteMode(Math.abs(Setting.getSiteMode() - 1));
-        initView();
+        setRecyclerView();
+        setMode();
+        updateWidth();
+    }
+
+    private void updateWidth() {
+        setWidth(getWidth());
     }
 
     @Override
     public void onItemClick(Site item) {
         callback.setSite(item);
-        dialog.dismiss();
+        dismiss();
     }
 
     @Override
     public void onItemLongClick(Site item) {
         if (type != 0 || item.getKey().isEmpty()) return;
-        new MaterialAlertDialogBuilder(dialog.getContext())
+        new MaterialAlertDialogBuilder(getContext())
                 .setMessage(ResUtil.getString(item.isBlacklist() ? R.string.site_blacklist_remove_confirm : R.string.site_blacklist_confirm, item.getName()))
                 .setNegativeButton(R.string.dialog_negative, null)
                 .setPositiveButton(R.string.dialog_positive, (d, which) -> {
@@ -141,5 +150,17 @@ public class SiteDialog implements SiteAdapter.OnClickListener{
                     else item.setBlacklist();
                     adapter.notifyDataSetChanged();
                 }).show();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (adapter.getItemCount() == 0) dismiss();
+        else {
+            updateWidth();
+            if (getDialog() != null && getDialog().getWindow() != null) {
+                getDialog().getWindow().setDimAmount(0);
+            }
+        }
     }
 }

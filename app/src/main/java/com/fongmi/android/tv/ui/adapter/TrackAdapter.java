@@ -15,11 +15,11 @@ import java.util.List;
 
 public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.ViewHolder> {
 
-    private final OnClickListener mListener;
+    private final OnClickListener listener;
     private final List<Track> mItems;
 
     public TrackAdapter(OnClickListener listener) {
-        this.mListener = listener;
+        this.listener = listener;
         this.mItems = new ArrayList<>();
     }
 
@@ -54,7 +54,7 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Track item = mItems.get(position);
         holder.binding.text.setText(item.getName());
-        holder.binding.text.setActivated(item.isSelected());
+        holder.binding.text.setSelected(item.isSelected());
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
@@ -69,9 +69,7 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.ViewHolder> 
 
         @Override
         public void onClick(View view) {
-            Track item = mItems.get(getLayoutPosition()).toggle();
-            notifyItemChanged(getLayoutPosition());
-            mListener.onItemClick(item);
+            listener.onItemClick(mItems.get(getLayoutPosition()).toggle());
         }
     }
 }

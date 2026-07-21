@@ -2,7 +2,6 @@ package com.fongmi.android.tv.server;
 
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.service.PlaybackService;
-import com.github.catvod.Proxy;
 import com.github.catvod.utils.Util;
 
 public class Server {
@@ -62,18 +61,22 @@ public class Server {
 
     public void start() {
         if (nano != null) return;
+        android.util.Log.d("TV_FATAL", "Server.start() loop BEGIN");
         do {
             try {
                 nano = new Nano(port);
-                Proxy.set(port);
+                com.github.catvod.Proxy.set(port);
                 nano.start();
+                android.util.Log.d("TV_FATAL", "Server.start() success on port: " + port);
                 break;
             } catch (Exception e) {
+                android.util.Log.d("TV_FATAL", "Server.start() failed on port: " + port + ", trying next...");
                 ++port;
-                nano.stop();
+                if (nano != null) nano.stop();
                 nano = null;
             }
         } while (port < 9999);
+        android.util.Log.d("TV_FATAL", "Server.start() loop END");
     }
 
     public void stop() {

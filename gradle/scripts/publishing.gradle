@@ -1,0 +1,64 @@
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        def buildType = variant.buildType
+        def variantName = variant.name
+
+        // 1. 處理基本 Outputs 檔名與版本號設定
+        variant.outputs.each { output ->
+            def flavorNames = variant.productFlavors.collect { it.second }
+            def flavorFileName = flavorNames.join("-")
+
+            output.outputFileName.set("${flavorFileName}-${buildType}.apk")
+            if (buildType == 'release') {
+                output.versionName.set(project.autoVersionName)
+            }
+        }
+
+        // 2. 僅在 Release 模式時執行複製與生成 JSON 的邏輯
+        if (buildType == 'release') {
+            def flavorNames = variant.productFlavors.collect { it.second }
+            def flavorDirName = flavorNames.join("")
+            def targetOutputDir = file("${project.projectDir}/release_output/${flavorDirName}")
+            def jsonFile = new File(targetOutputDir, "leanback.json")
+
+            // 動態計算目標 Task 的名字
+            def targetTaskName = "assemble${variantName.substring(0, 1).toUpperCase()}${variantName.substring(1)}"
+
+            // 從專案屬性獲取由主腳本傳遞過來的 Artifact 實例
+            def apkDirProvider = variant.artifacts.get(project.apkArtifact)
+
+            tasks.configureEach { task ->
+                if (task.name == targetTaskName) {
+                    task.doLast {
+                        // 動態寫入 JSON 內容
+                        def commitMessage = project.getLastCommitMessage()
+                        def jsonContent = """{
+    "name": "${project.autoVersionName}",
+    "desc": "${commitMessage}",
+    "code": "${project.autoVersionCode}"
+}"""
+                        targetOutputDir.mkdirs()
+                        jsonFile.text = jsonContent
+
+                        println "DEBUG: json:\n-------------\n ${jsonContent} \n--------------\n"
+
+                        // 使用 Provider 獲取目錄
+                        def apkDir = apkDirProvider.get().asFile
+
+                        project.copy {
+                            from jsonFile
+                            into apkDir
+                        }
+                        // 將編譯好的 APK 複製到指定的 release_output 目錄下
+                        variant.outputs.each { output ->
+                            project.copy {
+                                from new File(apkDir, output.outputFileName.get())
+                                into targetOutputDir
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

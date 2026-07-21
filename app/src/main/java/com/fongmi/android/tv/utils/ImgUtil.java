@@ -1,9 +1,12 @@
 package com.fongmi.android.tv.utils;
 
+import static android.widget.ImageView.ScaleType.CENTER_CROP;
+import static android.widget.ImageView.ScaleType.FIT_CENTER;
+
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -11,188 +14,137 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestListener;
-import com.bumptech.glide.request.target.CustomTarget;
 import com.bumptech.glide.request.target.Target;
-import com.bumptech.glide.signature.ObjectKey;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.impl.CustomTarget;
 import com.github.catvod.utils.Json;
 import com.google.common.net.HttpHeaders;
 
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
-
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import jahirfiquitiva.libs.textdrawable.TextDrawable;
 
-
 public class ImgUtil {
 
-    private static ObjectKey getSignature(String url) {
-        return new ObjectKey(url + "_" + Setting.getQuality());
+    private static final Set<String> failed = Collections.synchronizedSet(new HashSet<>());
+
+    public static void logo(ImageView view) {
+        logo(view, VodConfig.get().getConfig().getLogo());
+    }
+
+    public static void logo(ImageView view, String url) {
+        try {
+            Glide.with(view).load(UrlUtil.convert(url)).circleCrop().override(Target.SIZE_ORIGINAL, Target.SIZE_ORIGINAL).error(R.drawable.ic_logo).into(view);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
     public static void load(String url, CustomTarget<Bitmap> target) {
-        if (!TextUtils.isEmpty(url)) Glide.with(App.get()).asBitmap().load(getUrl(url)).diskCacheStrategy(DiskCacheStrategy.ALL).dontAnimate().signature(getSignature(url)).into(target);
+        try {
+            Glide.with(App.get()).asBitmap().load(getUrl(url)).override(ResUtil.dp2px(96), ResUtil.dp2px(96)).error(R.drawable.artwork).into(target);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
-    public static void load(String url, int error, CustomTarget<Drawable> target) {
-        if (TextUtils.isEmpty(url)) target.onLoadFailed(ResUtil.getDrawable(error));
-        else Glide.with(App.get()).asDrawable().load(getUrl(url)).error(error).diskCacheStrategy(DiskCacheStrategy.ALL).dontAnimate().signature(getSignature(url)).into(target);
+    public static void load(Context context, String url, CustomTarget<Drawable> target) {
+        try {
+            Glide.with(context).load(getUrl(url)).override(ResUtil.getScreenWidth(), ResUtil.getScreenHeight()).error(R.drawable.artwork).into(target);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
-    public static void rect(String text, String url, ImageView view) {
-        load(text, url, view, ImageView.ScaleType.CENTER, true);
+    public static void load(String text, String url, ImageView view) {
+        load(text, url, view, true);
+    }
+
+    public static void loadVod(String text, String url, ImageView view) {
+        load(text, url, view, true);
+    }
+
+    public static void load(String text, String url, ImageView view, ImageView.ScaleType scaleType, boolean vod) {
+        view.setScaleType(scaleType);
+        if (!vod) view.setVisibility(TextUtils.isEmpty(url) ? View.GONE : View.VISIBLE);
+        if (TextUtils.isEmpty(url) || failed.contains(url)) view.setImageDrawable(getTextDrawable(text, vod));
+        else try {
+            RequestBuilder<Drawable> builder = Glide.with(view).load(getUrl(url)).listener(getListener(text, url, view, vod));
+            if (scaleType == CENTER_CROP) builder.centerCrop().into(view);
+            else builder.fitCenter().into(view);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
     public static void oval(String text, String url, ImageView view) {
-        load(text, url, view, ImageView.ScaleType.CENTER, false);
+        load(text, url, view, CENTER_CROP, true);
     }
 
-    // 🚀 魔改優化：首頁海報牆加載核心 (移除 skipMemoryCache，追加全量硬碟快取)
-    public static void load(String text, String url, ImageView view, ImageView.ScaleType scaleType, boolean rect) {
-        view.setScaleType(scaleType);
-        if (!TextUtils.isEmpty(url)) {
-            Glide.with(App.get()).asBitmap()
-                    .load(getUrl(url))
-                    .placeholder(R.drawable.ic_img_loading)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL) // 💥 核心：全量永久緩存到硬碟
-                    .dontAnimate()
-                    .sizeMultiplier(Setting.getThumbnail())
-                    .signature(getSignature(url))
-                    .listener(getListener(view, scaleType))
-                    .into(view);
-        } else if (text.length() > 0) {
-            view.setImageDrawable(getTextDrawable(text.substring(0, 1), rect));
-        } else {
-            view.setImageResource(R.drawable.ic_img_error);
-        }
+    public static void rect(String text, String url, ImageView view) {
+        load(text, url, view, CENTER_CROP, true);
     }
 
-    // 🚀 魔改優化：歷史紀錄與點播詳情頁海報加載
-    public static void loadVod(String text, String url, ImageView view) {
-        //android.util.Log.d("ImgUtil", "loadVod: " + text + ", url: " + url);
-        view.setScaleType(ImageView.ScaleType.CENTER);
-        if (!TextUtils.isEmpty(url)) {
-            Glide.with(App.get()).asBitmap()
-                    .load(getUrl(url))
-                    .placeholder(R.drawable.ic_img_loading)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL) // 💥 核心：全量永久緩存到硬碟
-                    .listener(getListener(view))
-                    .into(view);
-        } else if (text.length() > 0) {
-            view.setImageDrawable(getTextDrawable(text.substring(0, 1), true));
-        } else {
-            view.setImageResource(R.drawable.ic_img_error);
-        }
+    public static void load(String text, String url, ImageView view, boolean vod) {
+        load(text, url, view, vod ? CENTER_CROP : FIT_CENTER, vod);
     }
 
-    public static void loadLive(String url, ImageView view) {
-        view.setVisibility(TextUtils.isEmpty(url) ? View.GONE : View.VISIBLE);
-        if (TextUtils.isEmpty(url)) view.setImageResource(R.drawable.ic_img_empty);
-        else Glide.with(App.get()).asBitmap().load(url).error(R.drawable.ic_img_empty).diskCacheStrategy(DiskCacheStrategy.ALL).dontAnimate().signature(getSignature(url)).listener(getListener(view)).into(view);
-    }
-
-    private static Drawable getTextDrawable(String text, boolean rect) {
-        TextDrawable.Builder builder = new TextDrawable.Builder().withBorder(ResUtil.dp2px(2), ColorGenerator.get700(text));
-        if (rect) return builder.buildRoundRect(text, ColorGenerator.get500(text), ResUtil.dp2px(8));
-        return builder.buildRound(text, ColorGenerator.get500(text));
-    }
-
-    // 🚀 魔改優化：全網防盜鏈通殺型破解
     public static Object getUrl(String url) {
-        if (url == null) return "";
-        url = UrlUtil.convert(url);
-        if (url.startsWith("data:")) return url;
-
-        // 1. 使用 Map 暫存，以便進行「覆蓋」而非「附加」
-        Map<String, String> headersMap = new HashMap<>();
-        headersMap.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
         String param = null;
-        if (url.contains("@Headers=")) {
-            param = url.split("@Headers=")[1].split("@")[0];
-            headersMap.putAll(Json.toMap(Json.parse(param)));
-        }
-        if (url.contains("@Cookie=")) {
-            param = url.split("@Cookie=")[1].split("@")[0];
-            headersMap.put(HttpHeaders.COOKIE, param);
-        }
-        if (url.contains("@Referer=")) {
-            param = url.split("@Referer=")[1].split("@")[0];
-            headersMap.put(HttpHeaders.REFERER, param);
-        } else if (url.startsWith("http")) {
-            headersMap.put(HttpHeaders.REFERER, getBaseUrl(url));
-        }
-        if (url.contains("@User-Agent=")) {
-            param = url.split("@User-Agent=")[1].split("@")[0];
-            headersMap.put(HttpHeaders.USER_AGENT, param);
-        }
-
-        // 💥 終極優先級：如果是 Douban 圖片，強制修正 Referer，覆蓋站源提供的任何錯誤標頭
-        if (url.contains("doubanio.com")) {
-            headersMap.put(HttpHeaders.REFERER, "https://douban.com");
-        }
-
-        // 2. 移除 URL 中的標籤
-        url = (url.contains("@Headers=") || url.contains("@Cookie=") || url.contains("@Referer=") || url.contains("@User-Agent=")) 
-              ? url.split("@Headers=|@Cookie=|@Referer=|@User-Agent=")[0] : url;
-
-        // 3. 轉入 Glide 的 LazyHeaders
+        url = UrlUtil.convert(url);
+        if (TextUtils.isEmpty(url)) return null;
+        if (url.startsWith("data:")) return url;
         LazyHeaders.Builder builder = new LazyHeaders.Builder();
-        for (Map.Entry<String, String> entry : headersMap.entrySet()) {
-            builder.setHeader(UrlUtil.fixHeader(entry.getKey()), entry.getValue());
+        if (url.contains("@Headers=")) addHeader(builder, param = url.split("@Headers=")[1].split("@")[0]);
+        if (url.contains("@Cookie=")) builder.addHeader(HttpHeaders.COOKIE, param = url.split("@Cookie=")[1].split("@")[0]);
+        if (url.contains("@Referer=")) builder.addHeader(HttpHeaders.REFERER, param = url.split("@Referer=")[1].split("@")[0]);
+        if (url.contains("@User-Agent=")) builder.addHeader(HttpHeaders.USER_AGENT, param = url.split("@User-Agent=")[1].split("@")[0]);
+        
+        // 🛡️ 豆瓣特調：解決 403 Forbidden 歷史圖片問題
+        if (url.contains("doubanio.com")) {
+            builder.addHeader(HttpHeaders.REFERER, "https://www.douban.com/");
         }
 
-        //android.util.Log.d("ImgUtil", "Final URL: " + url + " | Referer: " + headersMap.get(HttpHeaders.REFERER));
-        return TextUtils.isEmpty(url) ? null : new GlideUrl(url, builder.build());
-    }
-
-    // 輔助工具方法：提取根域名
-    private static String getBaseUrl(String url) {
-        try {
-            java.net.URL u = new java.net.URL(url);
-            return u.getProtocol() + "://" + u.getHost() + "/";
-        } catch (Exception e) {
-            return url;
-        }
+        url = param == null ? url : url.split("@")[0];
+        return new GlideUrl(url, builder.build());
     }
 
     private static void addHeader(LazyHeaders.Builder builder, String header) {
         Map<String, String> map = Json.toMap(Json.parse(header));
-        if (map == null) return;
-        for (Map.Entry<String, String> entry : map.entrySet()) builder.setHeader(UrlUtil.fixHeader(entry.getKey()), entry.getValue());
+        for (Map.Entry<String, String> entry : map.entrySet()) builder.addHeader(UrlUtil.fixHeader(entry.getKey()), entry.getValue());
     }
 
-    private static RequestListener<Bitmap> getListener(ImageView view) {
-        return getListener(view, ImageView.ScaleType.CENTER);
+    private static Drawable getTextDrawable(String text, boolean vod) {
+        TextDrawable.Builder builder = new TextDrawable.Builder();
+        text = TextUtils.isEmpty(text) ? "！" : text.substring(0, 1);
+        if (vod) builder.buildRect(text, ColorGenerator.get400(text));
+        return builder.buildRoundRect(text, ColorGenerator.get400(text), ResUtil.dp2px(4));
     }
 
-    private static RequestListener<Bitmap> getListener(ImageView view, ImageView.ScaleType scaleType) {
+    private static RequestListener<Drawable> getListener(String text, String url, ImageView view, boolean vod) {
         return new RequestListener<>() {
             @Override
-            public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Bitmap> target, boolean isFirstResource) {
-                Log.e("ImgUtil", "Glide load failed for model: " + model);
-                if (e != null) {
-                    for (Throwable t : e.getRootCauses()) {
-                        Log.e("ImgUtil", "Root cause: " + t.getMessage());
-                    }
-                }
-                view.setImageResource(R.drawable.ic_img_error);
-                view.setScaleType(scaleType);
+            public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Drawable> target, boolean isFirstResource) {
+                android.util.Log.e("TV_FATAL", "onLoadFailed: " + url + " error: " + (e != null ? e.getMessage() : "unknown"));
+                view.setImageDrawable(getTextDrawable(text, vod));
+                failed.add(url);
                 return true;
             }
 
             @Override
-            public boolean onResourceReady(@NonNull Bitmap resource, @NonNull Object model, Target<Bitmap> target, @NonNull DataSource dataSource, boolean isFirstResource) {
-                view.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                android.util.Log.d("TV_FATAL", "onResourceReady: " + url);
                 return false;
             }
         };

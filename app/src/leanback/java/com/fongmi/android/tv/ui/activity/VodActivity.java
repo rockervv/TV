@@ -15,6 +15,7 @@ import androidx.leanback.widget.ArrayObjectAdapter;
 import androidx.leanback.widget.ItemBridgeAdapter;
 import androidx.leanback.widget.OnChildViewHolderSelectedListener;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewpager.widget.ViewPager;
 
@@ -25,6 +26,7 @@ import com.fongmi.android.tv.bean.Filter;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.ActivityVodBinding;
+import com.fongmi.android.tv.model.SiteViewModel;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.fragment.VodFragment;
 import com.fongmi.android.tv.ui.presenter.TypePresenter;
@@ -39,6 +41,7 @@ import java.util.Map;
 public class VodActivity extends BaseActivity implements TypePresenter.OnClickListener {
 
     private ActivityVodBinding mBinding;
+    private SiteViewModel mViewModel;
     private ArrayObjectAdapter mAdapter;
     private PageAdapter mPageAdapter;
     private boolean coolDown;
@@ -80,6 +83,7 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
 
     @Override
     protected void initView() {
+        mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
         setRecyclerView();
         setTypes();
         setPager();
@@ -140,8 +144,7 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
     };
 
     private void updateFilter(Class item) {
-        if (item.getFilter() == null) return;
-        getFragment().toggleFilter(item.toggleFilter());
+        mViewModel.setFilter(item.toggleFilter());
         mAdapter.notifyArrayItemRangeChanged(0, mAdapter.size());
     }
 
@@ -179,7 +182,7 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
     @Override
     public void onBackPressed() {
         Class item = (Class) mAdapter.get(mBinding.pager.getCurrentItem());
-        if (item.getFilter() != null && item.getFilter()) updateFilter(item);
+        if (item.getFilter()) updateFilter(item);
         else if (getFragment().canBack()) getFragment().goBack();
         else if (!coolDown) super.onBackPressed();
     }

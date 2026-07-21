@@ -11,12 +11,17 @@ import java.util.List;
 @Dao
 public abstract class HistoryDao extends BaseDao<History> {
 
+    @Query("SELECT * FROM History")
+    public abstract List<History> findAll();
+
     //@Query("SELECT * FROM History WHERE cid = :cid ORDER BY createTime DESC")
     //@Query("SELECT * FROM History WHERE cid = :cid ORDER BY lastUpdated DESC")
     //@Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid ORDER BY createTime DESC")
     @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid ORDER BY lastUpdated DESC")
-
     public abstract List<History> find(int cid);
+
+    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND createTime >= :createTime ORDER BY lastUpdated DESC")
+    public abstract List<History> find(int cid, long createTime);
 
     @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND `key` = :key ORDER BY lastUpdated DESC")
     public abstract History find(int cid, String key);
@@ -29,7 +34,7 @@ public abstract class HistoryDao extends BaseDao<History> {
 
     //hard Deleted from database, TODO or NotTodo: delete rows which has deleted flag on for more than xx days
     @Query("DELETE FROM History WHERE cid = :cid AND `key` = :key")
-    public abstract void deleteHard(int cid, String key);
+    public abstract void delete(int cid, String key);
 
     @Query("DELETE FROM History WHERE cid = :cid")
     public abstract void delete(int cid);

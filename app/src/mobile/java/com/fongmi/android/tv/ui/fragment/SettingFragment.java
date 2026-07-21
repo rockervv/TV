@@ -14,7 +14,7 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.BuildConfig;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Setting;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
@@ -226,46 +226,46 @@ public class SettingFragment extends BaseFragment implements BackupCallback, Con
     }
 
     private void onVod(View view) {
-        ConfigDialog.create(this).type(type = 0).show();
+        ConfigDialog.create(this).type(type = 0).show(this);
     }
 
     private void onLive(View view) {
-        ConfigDialog.create(this).type(type = 1).show();
+        ConfigDialog.create(this).type(type = 1).show(this);
     }
 
     private void onWall(View view) {
-        ConfigDialog.create(this).type(type = 2).show();
+        ConfigDialog.create(this).type(type = 2).show(this);
     }
 
     private boolean onVodEdit(View view) {
-        ConfigDialog.create(this).type(type = 0).edit().show();
+        ConfigDialog.create(this).type(type = 0).edit().show(this);
         return true;
     }
 
     private boolean onLiveEdit(View view) {
-        ConfigDialog.create(this).type(type = 1).edit().show();
+        ConfigDialog.create(this).type(type = 1).edit().show(this);
         return true;
     }
 
     private boolean onWallEdit(View view) {
-        ConfigDialog.create(this).type(type = 2).edit().show();
+        ConfigDialog.create(this).type(type = 2).edit().show(this);
         return true;
     }
 
     private void onVodHome(View view) {
-        SiteDialog.create(this).all().show();
+        SiteDialog.create(this).all().show(this);
     }
 
     private void onLiveHome(View view) {
-        LiveDialog.create(this).action().show();
+        LiveDialog.create(this).action().show(this);
     }
 
     private void onVodHistory(View view) {
-        HistoryDialog.create(this).type(type = 0).show();
+        HistoryDialog.create(this).type(type = 0).show(this);
     }
 
     private void onLiveHistory(View view) {
-        HistoryDialog.create(this).type(type = 1).show();
+        HistoryDialog.create(this).type(type = 1).show(this);
     }
 
     private void onPlayer(View view) {
@@ -321,7 +321,7 @@ public class SettingFragment extends BaseFragment implements BackupCallback, Con
     }
 
     private void onProxy(View view) {
-        ProxyDialog.create(this).show();
+        ProxyDialog.create(this).show(this);
     }
 
     @Override
@@ -359,7 +359,7 @@ public class SettingFragment extends BaseFragment implements BackupCallback, Con
 
     private void onRestore(View view) {
         PermissionX.init(this).permissions(Manifest.permission.WRITE_EXTERNAL_STORAGE).request((allGranted, grantedList, deniedList) -> {
-            if (allGranted) BackupDialog.create(this).show();
+            if (allGranted) BackupDialog.create(this).show(this);
         });
     }
 

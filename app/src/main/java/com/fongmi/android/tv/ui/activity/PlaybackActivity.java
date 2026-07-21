@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.Color;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.View;
@@ -26,9 +25,13 @@ import androidx.media3.exoplayer.drm.FrameworkMediaDrm;
 import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
 import androidx.media3.ui.CaptionStyleCompat;
+import com.fongmi.android.tv.ui.custom.PlayerSeekView;
 import androidx.media3.ui.PlayerView;
+
+
 import androidx.media3.ui.TimeBar;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.player.PlayerManager;
@@ -37,13 +40,12 @@ import com.fongmi.android.tv.player.util.PlayerHelper;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
-import com.fongmi.android.tv.ui.custom.CustomSeekView;
 import com.fongmi.android.tv.utils.ResUtil;
-import com.github.catvod.net.OkHttp;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 public abstract class PlaybackActivity extends BaseActivity implements MediaController.Listener, Player.Listener, ServiceConnection {
@@ -68,6 +70,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     }
 
     protected PlayerManager player() {
+        if (mService == null) return null;
         return mService.player();
     }
 
@@ -110,7 +113,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
 
     protected abstract PlaybackService.NavigationCallback getNavigationCallback();
 
-    protected abstract CustomSeekView getSeekView();
+    protected abstract PlayerSeekView getSeekView();
 
     protected abstract PlayerView getPlayerView();
 
@@ -118,7 +121,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
 
     protected boolean isOwner() {
         String key = getPlaybackKey();
-        return key == null || (mService != null && key.equals(player().getKey()));
+        return key == null || (mService != null && Objects.equals(key, player().getKey()));
     }
 
     protected <T> void observeForever(LiveData<T> liveData, Observer<T> observer) {
@@ -126,20 +129,15 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
         foreverObserverRemovers.add(() -> liveData.removeObserver(observer));
     }
 
-
     public boolean isDebugViewVisible() {
-        return false; //getPlayerView().isDebugViewVisible();
+        return false;
     }
 
     public void toggleDebugView() {
-        return; //getPlayerView().toggleDebugView();
     }
 
-    public void hideDebugView()  {
-        return;
-        //getPlayerView().hideDebugView();
+    public void hideDebugView() {
     }
-
 
     public void chooseOtherPlayer(CharSequence title) {
         PlayerManager player = player();
@@ -148,7 +146,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     }
 
     protected void setSeekNextFocusDown(int id) {
-        View timeBar = getSeekView().getTimeBar();
+        View timeBar = getSeekView().findViewById(androidx.media3.ui.R.id.exo_progress);
         if (timeBar != null) timeBar.setNextFocusDownId(id);
     }
 
@@ -208,9 +206,6 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     protected void onReclaim() {
     }
 
-    protected void onPlayerRebuild(Player player) {
-    }
-
     protected long startPositionMs() {
         return C.TIME_UNSET;
     }
@@ -238,12 +233,13 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
             onError(result.getMsg());
         } else if (result.getRealUrl().isEmpty()) {
             onError(ResUtil.getString(R.string.error_play_url));
-        } else if (result.getParse() == 1 || useParse) {
-            attachSurface();
-            player().parse(key, result, useParse, metadata, startPositionMs);
         } else {
             attachSurface();
-            player().start(PlaySpec.from(result, key, metadata), timeout, startPositionMs);
+            if (result.needParse() || useParse) {
+                player().parse(key, result, useParse, metadata, startPositionMs);
+            } else {
+                player().start(PlaySpec.from(result, key, metadata), timeout, startPositionMs);
+            }
         }
     }
 
@@ -257,17 +253,21 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     private void buildControllerAsync() {
         SessionToken token = new SessionToken(this, new ComponentName(this, PlaybackService.class));
         mControllerFuture = new MediaController.Builder(this, token).setListener(this).buildAsync();
-        mControllerFuture.addListener(this::onControllerConnected, ContextCompat.getMainExecutor(this));
-    }
+        com.google.common.util.concurrent.Futures.addCallback(mControllerFuture, new com.google.common.util.concurrent.FutureCallback<MediaController>() {
+            @Override
+            public void onSuccess(MediaController result) {
+                mController = result;
+                getSeekView().setPlayer(mController);
+                mController.addListener(PlaybackActivity.this);
+                updateKeyIncrement();
+                android.util.Log.d("TV_FATAL", "MediaController connected successfully");
+            }
 
-    private void onControllerConnected() {
-        try {
-            mController = mControllerFuture.get();
-            getSeekView().setPlayer(mController);
-            mController.addListener(this);
-            updateKeyIncrement();
-        } catch (Exception ignored) {
-        }
+            @Override
+            public void onFailure(Throwable t) {
+                android.util.Log.e("TV_FATAL", "MediaController connection failed", t);
+            }
+        }, ContextCompat.getMainExecutor(this));
     }
 
     private void addSeekListener() {
@@ -354,16 +354,20 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     }
 
     private void setRender() {
-        // getPlayerView().setRender(PlayerSetting.getRender());
+        configurePlayerView();
         detachSurface();
         attachSurface();
     }
 
     private void configurePlayerView() {
         PlayerView playerView = getPlayerView();
-        playerView.getSubtitleView().setStyle(getCaptionStyle());
-        playerView.getSubtitleView().setApplyEmbeddedStyles(true);
-        playerView.getSubtitleView().setApplyEmbeddedFontSizes(false);
+        if (playerView.getSubtitleView() != null) {
+            playerView.getSubtitleView().setStyle(getCaptionStyle());
+            playerView.getSubtitleView().setApplyEmbeddedStyles(true);
+            playerView.getSubtitleView().setApplyEmbeddedFontSizes(false);
+            if (PlayerSetting.getSubtitlePosition() != 0) playerView.getSubtitleView().setBottomPaddingFraction(PlayerSetting.getSubtitlePosition());
+            if (PlayerSetting.getSubtitleTextSize() != 0) playerView.getSubtitleView().setFractionalTextSize(PlayerSetting.getSubtitleTextSize());
+        }
     }
 
     private CaptionStyleCompat getCaptionStyle() {
@@ -415,6 +419,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     }
 
     private final PlaybackService.PlayerCallback mPlayerCallback = new PlaybackService.PlayerCallback() {
+
         @Override
         public void onPrepare() {
             if (isOwner()) PlaybackActivity.this.onPrepare();
@@ -443,15 +448,14 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
         @Override
         public void onPlayerRebuild(Player player) {
             if (isOwner()) setRender();
-            if (isOwner()) PlaybackActivity.this.onPlayerRebuild(player);
         }
     };
 
     @Override
-    protected void initView() {
-        super.initView();
+    protected void initView(Bundle savedInstanceState) {
+        super.initView(savedInstanceState);
         configurePlayerView();
-        bindPlaybackService();
+        App.post(this::bindPlaybackService, 100); // 延遲綁定服務，防止 block onCreate
         addSeekListener();
     }
 
@@ -485,14 +489,12 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
         mService.setSessionActivity(buildSessionIntent());
         mService.setNavigationCallback(getNavigationCallback(), getPlaybackKey());
         mService.addPlayerCallback(mPlayerCallback);
-        com.fongmi.android.tv.server.Server.get().setPlayer(player());
         onServiceConnected();
     }
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
         mService = null;
-        com.fongmi.android.tv.server.Server.get().setPlayer(null);
     }
 
     @Override

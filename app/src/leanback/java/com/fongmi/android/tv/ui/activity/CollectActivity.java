@@ -20,7 +20,6 @@ import androidx.viewbinding.ViewBinding;
 import androidx.viewpager.widget.ViewPager;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Collect;
@@ -30,7 +29,6 @@ import com.fongmi.android.tv.model.SiteViewModel;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.fragment.CollectFragment;
 import com.fongmi.android.tv.ui.presenter.CollectPresenter;
-import com.fongmi.android.tv.utils.PauseExecutor;
 import com.fongmi.android.tv.utils.ResUtil;
 
 import java.util.ArrayList;
@@ -42,7 +40,6 @@ public class CollectActivity extends BaseActivity {
     private ActivityCollectBinding mBinding;
     private ArrayObjectAdapter mAdapter;
     private SiteViewModel mViewModel;
-    private PauseExecutor mExecutor;
     private List<Site> mSites;
     private View mOldView;
 
@@ -104,6 +101,7 @@ public class CollectActivity extends BaseActivity {
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
         mViewModel.getSearch().observe(this, result -> {
+            if (result.getList().isEmpty()) return;
             getFragment().addVideo(result.getList());
             mAdapter.add(Collect.create(result.getList()));
             Objects.requireNonNull(mBinding.pager.getAdapter()).notifyDataSetChanged();
@@ -126,23 +124,12 @@ public class CollectActivity extends BaseActivity {
     private void search() {
         mAdapter.add(Collect.all());
         mBinding.pager.getAdapter().notifyDataSetChanged();
-        mExecutor = new PauseExecutor(Constant.THREAD_POOL);
         mBinding.result.setText(getString(R.string.collect_result, getKeyword()));
-        for (Site site : mSites) mExecutor.execute(() -> search(site));
-    }
-
-    private void search(Site site) {
-        try {
-            mViewModel.searchContent(site, getKeyword(), false, "1");
-        } catch (Throwable e) {
-            site.setBlacklist();
-        }
+        mViewModel.searchContent(mSites, getKeyword(), false);
     }
 
     private void stop() {
-        if (mExecutor == null) return;
-        mExecutor.shutdownNow();
-        mExecutor = null;
+        mViewModel.stopSearch();
     }
 
     private void onChildSelected(@Nullable RecyclerView.ViewHolder child) {
@@ -171,13 +158,11 @@ public class CollectActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (mExecutor != null) mExecutor.resume();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (mExecutor != null) mExecutor.pause();
     }
 
     @Override

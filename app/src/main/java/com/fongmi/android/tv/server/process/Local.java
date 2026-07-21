@@ -59,20 +59,20 @@ public class Local implements Process {
             if (fn.toLowerCase().endsWith(".zip")) FileUtil.extractZip(temp, Path.root(path));
             else Path.copy(temp, Path.root(path, fn));
         }
-        return Nano.success();
+        return Nano.ok();
     }
 
     private NanoHTTPD.Response newFolder(Map<String, String> params) {
         String path = params.get("path");
         String name = params.get("name");
         Path.root(path, name).mkdirs();
-        return Nano.success();
+        return Nano.ok();
     }
 
     private NanoHTTPD.Response delFolder(Map<String, String> params) {
         String path = params.get("path");
         Path.clear(Path.root(path));
-        return Nano.success();
+        return Nano.ok();
     }
 
     private NanoHTTPD.Response getFolder(File root) {
@@ -81,7 +81,7 @@ public class Local implements Process {
         info.addProperty("parent", root.equals(Path.root()) ? "." : root.getParent().replace(Path.rootPath(), ""));
         if (list == null || list.length == 0) {
             info.add("files", new JsonArray());
-            return Nano.success(info.toString());
+            return Nano.ok(info.toString());
         }
         Arrays.sort(list, (o1, o2) -> {
             if (o1.isDirectory() && o2.isFile()) return -1;
@@ -97,7 +97,7 @@ public class Local implements Process {
             obj.addProperty("dir", file.isDirectory() ? 1 : 0);
             files.add(obj);
         }
-        return Nano.success(info.toString());
+        return Nano.ok(info.toString());
     }
 
     private NanoHTTPD.Response getFile(Map<String, String> header, File file, String mime) throws Exception {

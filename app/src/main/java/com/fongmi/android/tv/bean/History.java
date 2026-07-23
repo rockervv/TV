@@ -78,6 +78,7 @@ public class History implements Diffable<History> {
         this.opening = C.TIME_UNSET;
         this.position = C.TIME_UNSET;
         this.duration = C.TIME_UNSET;
+        this.createTime = System.currentTimeMillis();
         this.lastUpdated = System.currentTimeMillis();
     }
 
@@ -369,6 +370,11 @@ public class History implements Diffable<History> {
     }
 
     public History save() {
+        return save(true);
+    }
+
+    public History save(boolean update) {
+        if (update) lastUpdated = System.currentTimeMillis();
         updateTime = System.currentTimeMillis();
         AppDatabase.get().getHistoryDao().insertOrUpdate(this);
         return this;

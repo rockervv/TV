@@ -531,6 +531,16 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 Config live = Config.live();
                 App.post(() -> {
                     android.util.Log.d("TV_FATAL", "Posting to main thread for load()");
+                    if (vod != null && !vod.getJson().isEmpty()) {
+                        VodConfig.get().config(vod).cache();
+                        if (VodConfig.get().isLoaded()) {
+                            showContent();
+                            App.post(() -> {
+                                RefreshEvent.history();
+                                RefreshEvent.home();
+                            }, 500);
+                        }
+                    }
                     Monitor.start("Config_Load");
                     if (vod != null && !vod.isEmpty()) {
                         VodConfig.get().config(vod).load(getCallback());

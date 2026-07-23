@@ -595,7 +595,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
                 .setNegativeButton(R.string.dialog_negative, null)
                 .setPositiveButton(R.string.dialog_positive, (d, which) -> {
                     getSite().setBlacklist();
-                    onBackPressed();
+                    onChange();
                 }).show();
         return true;
     }

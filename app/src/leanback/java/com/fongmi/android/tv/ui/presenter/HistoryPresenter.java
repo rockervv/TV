@@ -96,7 +96,7 @@ public class HistoryPresenter extends Presenter {
                 Result result = SiteApi.detailContent(item.getSiteKey(), item.getVodId());
                 if (!result.getList().isEmpty()) {
                     item.setVodPic(result.getList().get(0).getVodPic());
-                    item.save();
+                    item.save(false);
                     App.post(() -> ImgUtil.loadVod(item.getVodName(), item.getVodPic(), holder.binding.image));
                 }
             } catch (Throwable ignored) {

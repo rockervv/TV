@@ -103,6 +103,7 @@ Updater implements Download.Callback {
             String name = object.optString("name");
             String desc = object.optString("desc");
             int code = object.optInt("code");
+            Log.d ("Updater", "URL: " + Github.URL + " name:[" + name + "] code: " + code + ", desc:\n" + desc + "\n");
             if (need(code, name)) App.post(() -> show(activity, name, desc));
         } catch (Exception e) {
             Log.d("Updater", url + " error: " + e);

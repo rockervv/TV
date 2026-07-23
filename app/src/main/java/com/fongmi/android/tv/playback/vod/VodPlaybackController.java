@@ -9,6 +9,7 @@ import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Vod;
+import com.fongmi.android.tv.db.AppDatabase;
 
 import java.util.Collections;
 import java.util.List;
@@ -163,6 +164,7 @@ public class VodPlaybackController {
     private void switchSource(Vod item, boolean autoFallback) {
         state.setAutoFallback(autoFallback);
         state.clearPlayRequest();
+        if (state.getHistory() != null) state.getHistory().replace(item.getSiteKey() + AppDatabase.SYMBOL + item.getId());
         saveCurrentHistory();
         host.prepareSource(item);
         requestDetail();

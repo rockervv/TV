@@ -21,7 +21,8 @@ public class VodHistoryPolicy {
         if (!TextUtils.isEmpty(mark)) history.setVodRemarks(mark);
         if (Setting.isIncognito() && history.getKey().equals(key)) history.delete();
         history.setVodName(item.getName());
-        return history;
+        history.setCreateTime(System.currentTimeMillis());
+        return history.save();
     }
 
     private History create(String key, Vod item) {

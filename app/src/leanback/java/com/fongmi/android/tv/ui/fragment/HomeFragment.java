@@ -230,6 +230,7 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
                 if ((items.isEmpty() && exist) || (renew && exist)) mAdapter.removeItems(historyIndex, 1);
                 if ((items.size() > 0 && !exist) || (renew && exist)) mAdapter.add(historyIndex, new ListRow(mHistoryAdapter));
                 mHistoryAdapter.setItems(items, null);
+                if (items.size() > 0 && !renew) showContent();
             });
         });
     }

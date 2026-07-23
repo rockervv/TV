@@ -354,7 +354,7 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
     @Override
     protected void onPause() {
         super.onPause();
-        saveHistory(false);
+        saveHistory(isFinishing());
     }
 
     @Override

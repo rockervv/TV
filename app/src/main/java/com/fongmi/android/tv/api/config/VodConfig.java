@@ -54,6 +54,16 @@ public class VodConfig extends BaseConfig {
         static volatile VodConfig INSTANCE = new VodConfig();
     }
 
+    public VodConfig() {
+        this.ads = new ArrayList<>();
+        this.parseAds = new ArrayList<>();
+        this.doh = new ArrayList<>();
+        this.rules = new ArrayList<>();
+        this.sites = new ArrayList<>();
+        this.flags = new ArrayList<>();
+        this.parses = new ArrayList<>();
+    }
+
     public static VodConfig get() {
         return Loader.INSTANCE;
     }
@@ -80,7 +90,15 @@ public class VodConfig extends BaseConfig {
 
 
     public static void load(Config config, Callback callback) {
-        get().clear().config(config).load(callback);
+        get().config(config).load(callback);
+    }
+
+    public void cache() {
+        try {
+            if (config.getJson().isEmpty()) return;
+            checkJson(config, Json.parse(config.getJson()).getAsJsonObject());
+        } catch (Throwable ignored) {
+        }
     }
 
     public VodConfig init() {
@@ -126,13 +144,16 @@ public class VodConfig extends BaseConfig {
 
     @Override
     protected void load(Config config) throws Throwable {
-        String json = Decoder.getJson(UrlUtil.convert(config.getUrl()), TAG);
+        String url = UrlUtil.convert(config.getUrl());
+        String json = Decoder.getJson(url, TAG);
+        if (json.equals(config.getJson()) && isLoaded()) return;
+        config.setJson(json);
         checkJson(config, Json.parse(json).getAsJsonObject());
     }
 
 
     @Override
-    protected boolean isLoaded() {
+    public boolean isLoaded() {
         return !getSites().isEmpty();
     }
 

@@ -46,6 +46,7 @@ import com.fongmi.android.tv.ui.presenter.HeaderPresenter;
 import com.fongmi.android.tv.ui.presenter.HistoryPresenter;
 import com.fongmi.android.tv.ui.presenter.ProgressPresenter;
 import com.fongmi.android.tv.ui.presenter.VodPresenter;
+import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.common.collect.Lists;
@@ -204,7 +205,8 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
     }
 
     public void getHistory(boolean renew) {
-        if (mAdapter == null) return; // 🛡️ 安全防護：若適配器未初始化則跳過
+        if (mAdapter == null) return;
+        if (renew) ImgUtil.clearFailed();
         Task.execute(() -> {
             List<History> items = History.get();
             android.util.Log.d("TV_FATAL", "HomeFragment.getHistory: found " + items.size() + " items, renew=" + renew);

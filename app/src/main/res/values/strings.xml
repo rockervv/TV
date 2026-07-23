@@ -6,6 +6,7 @@
 
     <!-- Vod -->
     <string name="vod_last">Last seen <xliff:g name="name">%s</xliff:g></string>
+    <string name="error_site_empty">Site data is empty</string>
 
     <!-- Live -->
     <string name="live_pass">Pass</string>
@@ -217,6 +218,7 @@
     <!-- Hint -->
     <string name="copied">Copied</string>
     <string name="backed">Backup successful</string>
+    <string name="restored">Restore successful</string>
     <string name="config_refreshed">Config rereshed</string>
 
     <!-- UNIT -->

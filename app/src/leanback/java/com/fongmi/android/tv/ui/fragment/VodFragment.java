@@ -179,6 +179,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         boolean first = "1".equals(page);
         if (first) mLast = null;
         if (first) showProgress();
+        mScroller.setLoading(true);
         int filterSize = mOpen ? mFilters.size() : 0;
         boolean clear = first && mAdapter.size() > filterSize;
         if (clear) mAdapter.removeItems(filterSize, mAdapter.size() - filterSize);
@@ -303,6 +304,8 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
 
     @Override
     public void onLoadMore(String page) {
+        if (isIndexs()) return;
+        if (Integer.parseInt(page) <= 1) return;
         mScroller.setLoading(true);
         getVideo(getTypeId(), page);
     }

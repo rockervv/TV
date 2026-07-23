@@ -21,6 +21,8 @@ import java.util.regex.Pattern;
 public class ADFilter {
     private static M3U8ParseListener parseListener;
     private static final LruCache<String, M3U8AdFilterResult> cache = new LruCache<>(10);
+    private static final Pattern PATTERN_SEGMENT = Pattern.compile("(\\d+)\\.(ts|jpe?g|m4s|mp4)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PATTERN_URL_CLEAN = Pattern.compile("[\\s\\u200B\\u00A0]+");
 
     public static String Process(String url, BufferedReader reader) {
         M3U8AdFilterResult result = parseAndFilterM3U8(url, reader);
@@ -258,7 +260,7 @@ public class ADFilter {
 
     private static String getUrlFeature(String url) {
         if (url == null || url.isEmpty()) return "";
-        String cleanUrl = url.replaceAll("[\\s\\u200B\\u00A0]+", "").trim();
+        String cleanUrl = PATTERN_URL_CLEAN.matcher(url).replaceAll("").trim();
         if (cleanUrl.endsWith("/")) {
             cleanUrl = cleanUrl.substring(0, cleanUrl.length() - 1);
         }
@@ -282,8 +284,7 @@ public class ADFilter {
 
     private static Long extractSegmentNumber(String tsFilename) {
         try {
-            Pattern pattern = Pattern.compile("(\\d+)\\.(ts|jpe?g|m4s|mp4)", Pattern.CASE_INSENSITIVE);
-            Matcher matcher = pattern.matcher(tsFilename);
+            Matcher matcher = PATTERN_SEGMENT.matcher(tsFilename);
             if (matcher.find()) {
                 return Long.parseLong(Objects.requireNonNull(matcher.group(1)));
             }
@@ -348,12 +349,12 @@ public class ADFilter {
                     }
 
                     if (adCount > 0) {
-                        Notify.showAd("過濾 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
+                        Notify.showTop("過濾 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
                         lastCount = adCount;
                         lastSeconds = adSeconds;
                         lastTime = currentTime;
                     } else if (adCount < 0 && (currentTime - lastTime) > 60000) {
-                        Notify.showAd("廣告過濾失敗");
+                        Notify.showTop("廣告過濾失敗");
                         lastCount = adCount;
                         lastTime = currentTime;
                     }

@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.model;
 
+import android.util.Log;
+
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -75,6 +77,7 @@ public class SiteViewModel extends ViewModel {
     }
 
     public void categoryContent(String key, String tid, String page, boolean filter, HashMap<String, String> extend) {
+        android.util.Log.d("SiteViewModel", "categoryContent: tid=" + tid + " page=" + page);
         execute(TaskType.RESULT, result, () -> SiteApi.categoryContent(key, tid, page, filter, extend));
     }
 
@@ -112,7 +115,7 @@ public class SiteViewModel extends ViewModel {
             Monitor.end(monitorKey);
             if (error instanceof ExtractException) liveData.postValue(Result.error(error.getMessage()));
             else liveData.postValue(Result.empty());
-            error.printStackTrace();
+            Log.e ("SiteViewModel", "Error:", error);
         });
     }
 
@@ -140,8 +143,12 @@ public class SiteViewModel extends ViewModel {
 
         @Override
         public Result call() throws Exception {
-            if (quick && !site.isQuickSearch()) return Result.empty();
-            return SiteApi.searchContent(site, keyword, quick, page);
+            try {
+                if (quick && !site.isQuickSearch()) return Result.empty();
+                return SiteApi.searchContent(site, keyword, quick, page);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

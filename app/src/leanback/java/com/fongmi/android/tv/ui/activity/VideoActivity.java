@@ -398,7 +398,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBinding.widget.title.setText(item.getName());
         mViewModel.checkKeep(getHistoryKey());
         setArtwork(item.getPic());
-        updateKeep();
+        updateKeep(item);
         if (item.getContent() != null && !item.getContent().equals(mBinding.content.getText().toString())) {
             setText(item);
         }
@@ -714,6 +714,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private void onKeep() {
+        if (mHistory == null) return;
         mViewModel.toggleKeep(getHistoryKey(), mHistory, getSite().getName());
     }
 
@@ -948,6 +949,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private void setPartAdapter() {
+        if (mHistory == null) return;
         mPartAdapter.addAll(PartUtil.split(mHistory.getVodName()));
         mBinding.part.setVisibility(View.VISIBLE);
         setR2Callback();
@@ -967,11 +969,11 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
 
-    private void updateKeep() {
+    private void updateKeep(Vod item) {
         Keep keep = Keep.find(getHistoryKey());
         if (keep != null) {
-            keep.setVodName(mHistory.getVodName());
-            keep.setVodPic(mHistory.getVodPic());
+            keep.setVodName(item.getName());
+            keep.setVodPic(item.getPic());
             keep.save();
         }
     }
@@ -981,14 +983,14 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         boolean pic = !item.getPic().isEmpty();
         boolean name = !item.getName().isEmpty();
         if (id) getIntent().putExtra("id", item.getId());
-        if (name) mHistory.setVodName(item.getName());
+        if (name && mHistory != null) mHistory.setVodName(item.getName());
         if (name) mBinding.name.setText(item.getName());
         if (name) mBinding.widget.title.setText(item.getName());
         mVod.mergeFlags(item.getFlags());
         if (pic) setArtwork(item.getPic());
         if (pic || name) setMetadata();
         if (pic || name) syncHistory();
-        if (pic || name) updateKeep();
+        if (pic || name) updateKeep(item);
         if (id) updateNavigationKey();
         if (name) setPartAdapter();
         setText(item);

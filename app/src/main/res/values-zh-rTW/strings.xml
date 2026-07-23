@@ -6,6 +6,7 @@
 
     <!-- Vod -->
     <string name="vod_last">上次看到<xliff:g name="name">%s</xliff:g></string>
+    <string name="error_site_empty">站源數據為空</string>
 
     <!-- Live -->
     <string name="live_pass">密碼</string>
@@ -204,6 +205,7 @@
     <!-- Hint -->
     <string name="copied">已複製</string>
     <string name="backed">備份成功</string>
+    <string name="restored">恢復成功</string>
     <string name="config_refreshed">接口已刷新</string>
 
     <!-- UNIT -->

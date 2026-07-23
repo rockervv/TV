@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.bean;
 
+import android.content.SharedPreferences;
+
 import androidx.annotation.NonNull;
 
 import com.fongmi.android.tv.App;
@@ -9,6 +11,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
 import com.google.gson.annotations.SerializedName;
+import com.orhanobut.logger.Logger;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,22 +62,50 @@ public class Backup {
             Backup backup = gson.fromJson(json, Backup.class);
             return backup == null ? new Backup() : backup;
         } catch (Exception e) {
+            e.printStackTrace();
             return new Backup();
         }
     }
 
+    public boolean isEmpty() {
+        return getConfig().isEmpty() && getSite().isEmpty() && getLive().isEmpty() && getKeep().isEmpty() && getHistory().isEmpty() && getPrefers().isEmpty();
+    }
+
     public void restore() {
-        AppDatabase.get().clearAllTables();
-        AppDatabase.get().getSiteDao().insertOrUpdate(getSite());
-        AppDatabase.get().getLiveDao().insertOrUpdate(getLive());
-        AppDatabase.get().getKeepDao().insertOrUpdate(getKeep());
-        AppDatabase.get().getConfigDao().insertOrUpdate(getConfig());
-        AppDatabase.get().getHistoryDao().insertOrUpdate(getHistory());
-        AppDatabase.get().getTrackDao().insertOrUpdate(getTrack());
-        AppDatabase.get().getDeviceDao().insertOrUpdate(getDevice());
-        AppDatabase.get().getDownloadDao().insertOrUpdate(getDownload());
-        AppDatabase.get().getFlagScoreDao().insertOrUpdate(getFlagScore());
-        for (Map.Entry<String, ?> entry : getPrefers().entrySet()) Prefers.put(entry.getKey(), entry.getValue());
+        android.util.Log.d("Backup", "database restore START");
+        AppDatabase.get().runInTransaction(() -> {
+            AppDatabase.get().clearAllTables();
+            AppDatabase.get().getSiteDao().insertOrUpdate(getSite());
+            AppDatabase.get().getLiveDao().insertOrUpdate(getLive());
+            AppDatabase.get().getKeepDao().insertOrUpdate(getKeep());
+            AppDatabase.get().getConfigDao().insertOrUpdate(getConfig());
+            AppDatabase.get().getHistoryDao().insertOrUpdate(getHistory());
+            AppDatabase.get().getTrackDao().insertOrUpdate(getTrack());
+            AppDatabase.get().getDeviceDao().insertOrUpdate(getDevice());
+            AppDatabase.get().getDownloadDao().insertOrUpdate(getDownload());
+            AppDatabase.get().getFlagScoreDao().insertOrUpdate(getFlagScore());
+        });
+        android.util.Log.d("Backup", "database restore SUCCESS, updating prefers");
+        SharedPreferences.Editor editor = Prefers.getPrefers().edit();
+        for (Map.Entry<String, ?> entry : getPrefers().entrySet()) {
+            Object obj = entry.getValue();
+            if (obj instanceof String) editor.putString(entry.getKey(), (String) obj);
+            else if (obj instanceof Boolean) editor.putBoolean(entry.getKey(), (Boolean) obj);
+            else if (obj instanceof Float) editor.putFloat(entry.getKey(), (Float) obj);
+            else if (obj instanceof Integer) editor.putInt(entry.getKey(), (Integer) obj);
+            else if (obj instanceof Long) editor.putLong(entry.getKey(), (Long) obj);
+            else if (obj instanceof Number) {
+                Number num = (Number) obj;
+                if (num.toString().contains(".")) editor.putFloat(entry.getKey(), num.floatValue());
+                else {
+                    long val = num.longValue();
+                    if (val <= Integer.MAX_VALUE && val >= Integer.MIN_VALUE) editor.putInt(entry.getKey(), (int) val);
+                    else editor.putLong(entry.getKey(), val);
+                }
+            }
+        }
+        editor.apply();
+        android.util.Log.d("Backup", "prefers update SUCCESS");
     }
 
     public List<Site> getSite() {

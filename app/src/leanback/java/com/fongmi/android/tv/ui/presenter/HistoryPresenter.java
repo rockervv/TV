@@ -1,5 +1,6 @@
 package com.fongmi.android.tv.ui.presenter;
 
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -7,20 +8,30 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.leanback.widget.Presenter;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.bean.History;
+import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.databinding.AdapterVodBinding;
 import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Task;
+
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public class HistoryPresenter extends Presenter {
 
     private final OnClickListener mListener;
+    private final Set<String> fetching;
     private int width, height;
     private boolean delete;
 
     public HistoryPresenter(OnClickListener listener) {
+        this.fetching = Collections.synchronizedSet(new HashSet<>());
         this.mListener = listener;
         setLayoutSize();
     }
@@ -69,7 +80,30 @@ public class HistoryPresenter extends Presenter {
         holder.binding.remark.setVisibility(delete ? View.GONE : View.VISIBLE);
         holder.binding.delete.setVisibility(!delete ? View.GONE : View.VISIBLE);
         holder.binding.remark.setText(ResUtil.getString(R.string.vod_last, item.getVodRemarks()));
-        ImgUtil.loadVod(item.getVodName(), item.getVodPic(), holder.binding.image);
+        if (TextUtils.isEmpty(item.getVodPic())) {
+            ImgUtil.loadVod(item.getVodName(), "", holder.binding.image);
+            fetchPic(item, holder);
+        } else {
+            ImgUtil.loadVod(item.getVodName(), item.getVodPic(), holder.binding.image);
+        }
+    }
+
+    private void fetchPic(History item, ViewHolder holder) {
+        if (fetching.contains(item.getKey()) || item.getVodId().startsWith("msearch:")) return;
+        fetching.add(item.getKey());
+        Task.execute(() -> {
+            try {
+                Result result = SiteApi.detailContent(item.getSiteKey(), item.getVodId());
+                if (!result.getList().isEmpty()) {
+                    item.setVodPic(result.getList().get(0).getVodPic());
+                    item.save();
+                    App.post(() -> ImgUtil.loadVod(item.getVodName(), item.getVodPic(), holder.binding.image));
+                }
+            } catch (Throwable ignored) {
+            } finally {
+                fetching.remove(item.getKey());
+            }
+        });
     }
 
     private void setClickListener(View root, History item) {

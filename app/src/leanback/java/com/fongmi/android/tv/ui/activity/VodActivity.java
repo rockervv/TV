@@ -20,6 +20,7 @@ import androidx.viewbinding.ViewBinding;
 import androidx.viewpager.widget.ViewPager;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Class;
 import com.fongmi.android.tv.bean.Filter;
@@ -31,8 +32,10 @@ import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.fragment.VodFragment;
 import com.fongmi.android.tv.ui.presenter.TypePresenter;
 import com.fongmi.android.tv.utils.KeyUtil;
+import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.github.catvod.utils.Prefers;
+import com.github.catvod.utils.Trans;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +55,10 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
     }
 
     public static void start(Activity activity, String key, Result result) {
-        if (result == null || result.getTypes().isEmpty()) return;
+        if (result == null || result.getTypes().isEmpty()) {
+            Notify.show(R.string.error_site_empty);
+            return;
+        }
         Intent intent = new Intent(activity, VodActivity.class);
         intent.putExtra("key", key);
         intent.putExtra("result", result);
@@ -112,9 +118,18 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
     }
 
     private List<Class> getTypes(Result result) {
+        List<String> categories = getSite().getCategories();
+        if (categories.isEmpty() || (categories.size() == 1 && categories.get(0).trim().isEmpty())) return result.getTypes();
         List<Class> items = new ArrayList<>();
-        for (String cate : getSite().getCategories()) for (Class item : result.getTypes()) if (cate.equals(item.getTypeName())) items.add(item);
-        return items;
+        for (String cate : categories) {
+            if (cate.trim().isEmpty()) continue;
+            for (Class item : result.getTypes()) {
+                if (Trans.s2t(cate.trim()).equalsIgnoreCase(item.getTypeName().trim())) {
+                    items.add(item);
+                }
+            }
+        }
+        return items.isEmpty() ? result.getTypes() : items;
     }
 
     private void setTypes() {

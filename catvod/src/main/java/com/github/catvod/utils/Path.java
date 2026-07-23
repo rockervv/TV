@@ -6,6 +6,7 @@ import android.util.Log;
 import com.github.catvod.Init;
 import com.orhanobut.logger.Logger;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -75,7 +76,12 @@ public class Path {
     }
 
     public static File tv() {
-        return mkdir(new File(root() + File.separator + "TV"));
+        File dir = new File(root() + File.separator + "TV");
+        if (!dir.exists()) {
+            dir.mkdirs();
+            Shell.exec("chmod 777 " + dir);
+        }
+        return dir;
     }
 
     public static File so() {
@@ -185,14 +191,19 @@ public class Path {
     }
 
     public static String read(InputStream is) {
-        try {
-            byte[] data = new byte[is.available()];
-            is.read(data);
-            is.close();
-            return new String(data, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            e.printStackTrace();
+        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[16384];
+            int read;
+            while ((read = is.read(buffer)) != -1) os.write(buffer, 0, read);
+            return os.toString("UTF-8");
+        } catch (Exception e) {
+            Logger.t(TAG).e(e, "read failed");
             return "";
+        } finally {
+            try {
+                is.close();
+            } catch (Exception ignored) {
+            }
         }
     }
 

@@ -331,13 +331,26 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
-        mViewModel.getResult().observe(this, result -> setTypes(mResult = result));
+        mViewModel.getResult().observe(this, result -> {
+            if (result != null && !result.getTypes().isEmpty()) setTypes(mResult = result);
+            else if (result != null && result.getList().size() > 0 && mResult.getTypes().isEmpty()) setTypes(mResult = result);
+        });
     }
 
     private List<Class> getTypes(Result result) {
+        List<String> categories = getHome().getCategories();
+        if (categories.isEmpty() || (categories.size() == 1 && categories.get(0).trim().isEmpty())) return result.getTypes();
         List<Class> items = new ArrayList<>();
-        for (String cate : getHome().getCategories()) for (Class item : result.getTypes()) if (Trans.s2t(cate).equals(item.getTypeName())) items.add(item);
-        return items;
+        for (String cate : categories) {
+            if (cate.trim().isEmpty()) continue;
+            for (Class item : result.getTypes()) {
+                if (Trans.s2t(cate.trim()).equalsIgnoreCase(item.getTypeName().trim())) {
+                    items.add(item);
+                }
+            }
+        }
+        android.util.Log.d("HomeActivity", "getTypes: input=" + result.getTypes().size() + " filtered=" + items.size());
+        return items.isEmpty() ? result.getTypes() : items;
     }
 
     private String getKey() {

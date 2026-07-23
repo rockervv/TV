@@ -17,7 +17,6 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationChannelCompat;
 import androidx.core.app.NotificationManagerCompat;
-import androidx.core.content.ContextCompat;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.databinding.ViewProgressBinding;
@@ -61,12 +60,9 @@ public class Notify {
         get().makeText(text, Gravity.BOTTOM);
     }
 
-    public static void showTop(String text) {
-        get().makeText(text, Gravity.TOP | Gravity.END, 12, Color.parseColor("#80000000"));
-    }
 
-    public static void showAd(String text) {
-        get().makeText(text, Gravity.TOP | Gravity.END, 10, Color.parseColor("#66000000"));
+    public static void showTop(String text) {
+        get().makeText(text, Gravity.TOP | Gravity.END, 12, Color.parseColor("#66000000"));
     }
 
 

@@ -31,6 +31,7 @@ import com.fongmi.android.tv.impl.ProxyCallback;
 import com.fongmi.android.tv.impl.SiteCallback;
 import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.ui.adapter.BackupAdapter;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.BackupDialog;
 import com.fongmi.android.tv.ui.dialog.ConfigDialog;
@@ -45,6 +46,7 @@ import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.UrlUtil;
+import com.orhanobut.logger.Logger;
 import com.github.catvod.bean.Doh;
 import com.github.catvod.net.OkHttp;
 
@@ -108,6 +110,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
 
     @Override
     protected void initEvent() {
+        android.util.Log.d("Backup", "initEvent START");
         mBinding.vod.setOnClickListener(this::onVod);
         mBinding.live.setOnClickListener(this::onLive);
         mBinding.wall.setOnClickListener(this::onWall);
@@ -134,6 +137,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         mBinding.about.setOnClickListener(this::onAbout);
         mBinding.syncSetting.setOnClickListener(this::onSyncSetting);
         mBinding.sync.setOnClickListener(this::onSync);
+        android.util.Log.d("Backup", "initEvent SUCCESS");
     }
 
     @Override
@@ -337,14 +341,30 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
                 App.post(() -> {
                     AppDatabase.reset();
                     initConfig();
+                    Notify.dismiss();
+                    Notify.show(R.string.restored);
                 }, 3000);
+            }
+
+            @Override
+            public void error() {
+                Notify.show(R.string.error_config_parse);
             }
         });
     }
 
     private void onRestore(View view) {
+        android.util.Log.d("Backup", "onRestore clicked");
         PermissionUtil.requestFile(this, (allGranted, grantedList, deniedList) -> {
-            if (allGranted) BackupDialog.create(this).show(this);
+            android.util.Log.d("Backup", "onRestore permission: " + allGranted);
+            App.post(() -> {
+                if (new BackupAdapter(null).addAll().getItemCount() == 0) {
+                    Notify.show(R.string.error_empty);
+                } else {
+                    android.util.Log.d("Backup", "Showing BackupDialog");
+                    BackupDialog.create(this).show(this);
+                }
+            });
         });
     }
 

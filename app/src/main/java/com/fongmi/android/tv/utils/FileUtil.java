@@ -57,25 +57,29 @@ public class FileUtil {
         }
     }
 
-    public static void gzipCompress(File target) {
+    public static File gzipCompress(File target) {
+        File gz = new File(target.getAbsolutePath() + ".gz");
         byte[] buffer = new byte[16384];
-        try (FileInputStream is = new FileInputStream(target); GZIPOutputStream os = new GZIPOutputStream(new FileOutputStream(target.getAbsolutePath() + ".gz"))) {
+        try (FileInputStream is = new FileInputStream(target); GZIPOutputStream os = new GZIPOutputStream(new FileOutputStream(gz))) {
             int read;
-            while ((read = is.read(buffer)) > 0) os.write(buffer, 0, read);
+            while ((read = is.read(buffer)) != -1) os.write(buffer, 0, read);
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            Path.clear(target);
+            return target;
         }
+        Path.clear(target);
+        return gz;
     }
 
-    public static void gzipDecompress(File target, File path) {
+    public static boolean gzipDecompress(File target, File path) {
         byte[] buffer = new byte[16384];
         try (GZIPInputStream is = new GZIPInputStream(new BufferedInputStream(new FileInputStream(target))); BufferedOutputStream os = new BufferedOutputStream(new FileOutputStream(path))) {
             int read;
             while ((read = is.read(buffer)) != -1) os.write(buffer, 0, read);
+            return true;
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
     }
 

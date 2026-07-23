@@ -86,12 +86,9 @@ public class BackupDialog extends BaseAlertDialog implements BackupAdapter.OnCli
     @Override
     public void onStart() {
         super.onStart();
-        if (adapter.getItemCount() == 0) dismiss();
-        else {
-            setWidth(ResUtil.isPad() || ResUtil.isLand(requireContext()) ? 0.4f : 0.8f);
-            if (getDialog() != null && getDialog().getWindow() != null) {
-                getDialog().getWindow().setDimAmount(0);
-            }
+        setWidth(ResUtil.isPad() || ResUtil.isLand(requireContext()) ? 0.4f : 0.8f);
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setDimAmount(0);
         }
     }
 }

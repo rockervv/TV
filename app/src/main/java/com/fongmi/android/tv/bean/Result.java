@@ -105,6 +105,7 @@ public class Result implements Parcelable {
         try {
             return App.gson().fromJson(str, Result.class);
         } catch (Exception e) {
+            android.util.Log.e("Result", "objectFrom error: " + e.getMessage());
             return empty();
         }
     }

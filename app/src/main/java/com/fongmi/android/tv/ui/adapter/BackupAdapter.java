@@ -9,6 +9,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.fongmi.android.tv.databinding.AdapterBackupBinding;
 import com.github.catvod.utils.Path;
 
+import com.orhanobut.logger.Logger;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,12 +34,16 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.ViewHolder
 
     public BackupAdapter addAll() {
         mItems = new ArrayList<>();
-        for (File file : Path.list(Path.tv())) {
+        File tv = Path.tv();
+        List<File> files = Path.list(tv);
+        android.util.Log.d("Backup", "addAll path: " + tv.getAbsolutePath() + " size: " + files.size());
+        for (File file : files) {
             if (file.getName().endsWith(".bk.gz") || file.getName().endsWith(".tv.backup") || file.getName().endsWith(".bk")) {
                 mItems.add(file.getName());
             }
         }
-        Collections.sort(mItems);
+        Collections.sort(mItems, Collections.reverseOrder());
+        android.util.Log.d("Backup", "addAll items found: " + mItems.size());
         return this;
     }
 

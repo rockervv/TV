@@ -37,6 +37,7 @@ import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.Util;
+import com.orhanobut.logger.Logger;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Prefers;
 
@@ -56,13 +57,16 @@ public abstract class AppDatabase extends RoomDatabase {
     public static final String BACKUP_SUFFIX = "bk.gz";
 
     private static volatile AppDatabase instance;
+    private static volatile boolean backingUp;
+    private static volatile boolean restoring;
 
     public static synchronized AppDatabase get() {
         if (instance == null) instance = create(App.get());
         return instance;
     }
 
-    public static void reset() {
+    public static synchronized void reset() {
+        if (instance != null) instance.close();
         instance = null;
     }
 
@@ -71,37 +75,70 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
     public static void backup(com.fongmi.android.tv.impl.Callback callback) {
+        if (backingUp || restoring) {
+            Logger.t(NAME).w("backup skipped: backingUp=" + backingUp + " restoring=" + restoring);
+            return;
+        }
+        backingUp = true;
         Task.execute(() -> {
-            File file = new File(Path.tv(), "tv-" + LocalDate.now().format(Formatters.DATE) + ".bk");
-            Backup backup = Backup.create();
-            if (backup.getConfig().isEmpty()) {
+            try {
+                File file = new File(Path.tv(), "tv-" + LocalDate.now().format(Formatters.DATE) + ".bk");
+                Backup backup = Backup.create();
+                if (backup.isEmpty()) {
+                    Logger.t(NAME).w("backup FAILED: backup is empty");
+                    App.post(callback::error);
+                } else {
+                    Path.write(file, backup.toString().getBytes());
+                    File gz = FileUtil.gzipCompress(file);
+                    App.post(() -> callback.success(gz.getAbsolutePath()));
+                    cleanOld();
+                }
+            } catch (Exception e) {
+                Logger.e(e, "Backup failed");
                 App.post(callback::error);
-            } else {
-                Path.write(file, backup.toString().getBytes());
-                FileUtil.gzipCompress(file);
-                App.post(callback::success);
-                cleanOld();
+            } finally {
+                backingUp = false;
             }
         });
     }
 
     public static void restore(File file, com.fongmi.android.tv.impl.Callback callback) {
+        if (backingUp || restoring) {
+            android.util.Log.w("Backup", "restore skipped: backingUp=" + backingUp + " restoring=" + restoring);
+            return;
+        }
+        restoring = true;
+        android.util.Log.d("Backup", "restore START: " + file.getAbsolutePath());
         Task.execute(() -> {
-            String content;
-            if (file.getName().endsWith(".gz")) {
-                File restore = Path.cache("restore");
-                FileUtil.gzipDecompress(file, restore);
-                content = Path.read(restore);
-                Path.clear(restore);
-            } else {
-                content = Path.read(file);
-            }
-            Backup backup = Backup.objectFrom(content);
-            if (backup.getConfig().isEmpty()) {
+            try {
+                String content;
+                if (file.getName().endsWith(".gz")) {
+                    File restore = Path.cache("restore");
+                    if (FileUtil.gzipDecompress(file, restore)) {
+                        content = Path.read(restore);
+                        Path.clear(restore);
+                    } else {
+                        android.util.Log.e("Backup", "restore FAILED: decompress error");
+                        content = "";
+                    }
+                } else {
+                    content = Path.read(file);
+                }
+                android.util.Log.d("Backup", "restore content length: " + content.length());
+                Backup backup = Backup.objectFrom(content);
+                if (backup.isEmpty()) {
+                    android.util.Log.w("Backup", "restore FAILED: backup is empty");
+                    App.post(callback::error);
+                } else {
+                    backup.restore();
+                    android.util.Log.d("Backup", "restore SUCCESS");
+                    App.post(callback::success);
+                }
+            } catch (Exception e) {
+                android.util.Log.e("Backup", "restore FAILED", e);
                 App.post(callback::error);
-            } else {
-                backup.restore();
-                App.post(callback::success);
+            } finally {
+                restoring = false;
             }
         });
     }

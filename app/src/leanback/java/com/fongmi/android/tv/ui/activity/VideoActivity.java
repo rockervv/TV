@@ -399,9 +399,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mViewModel.checkKeep(getHistoryKey());
         setArtwork(item.getPic());
         updateKeep(item);
-        if (item.getContent() != null && !item.getContent().equals(mBinding.content.getText().toString())) {
-            setText(item);
-        }
+        setText(item);
     }
 
     @Override
@@ -577,7 +575,6 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private void setText(TextView view, int resId, String text) {
-        if (TextUtils.isEmpty(text) && !TextUtils.isEmpty(view.getText())) return;
         view.setText(resId > 0 ? getString(resId, text) : text);
         view.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
         view.setLinkTextColor(MDColor.YELLOW_500);
@@ -1316,13 +1313,18 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     @Override
+    protected boolean handleBack() {
+        return true;
+    }
+
+    @Override
     protected void onBackPress() {
         if (isVisible(mBinding.control.getRoot())) {
             hideControl();
         } else if (isVisible(mBinding.widget.center)) {
             hideCenter();
         } else if (isFullscreen()) {
-            exitFullscreen();
+            mViewModel.setFullscreen(false);
         } else {
             mViewModel.stopSearch();
             finish();

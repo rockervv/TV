@@ -375,6 +375,7 @@ public class History implements Diffable<History> {
 
     public History save(boolean update) {
         if (update) lastUpdated = System.currentTimeMillis();
+        if (update) createTime = System.currentTimeMillis();
         updateTime = System.currentTimeMillis();
         AppDatabase.get().getHistoryDao().insertOrUpdate(this);
         return this;

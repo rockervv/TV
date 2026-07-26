@@ -6,8 +6,13 @@ lib-*.aar
 /media*
 /Release
 /local.properties
+/app/release_output
+.cxx
+*_temp
+*_temp.zip
 
-
+# == mpv cpp ===
+/mpv/src/main/cpp
 # === macOS ===
 .DS_Store
 

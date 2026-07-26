@@ -191,7 +191,7 @@ public class Device implements Diffable<Device>, Comparable<Device> {
 
     @Override
     public boolean isSameContent(Device other) {
-        return getName().equals(other.getName()) && getType() == other.getType();
+        return Objects.equals(getName(), other.getName()) && getType() == other.getType();
     }
 
     @Override

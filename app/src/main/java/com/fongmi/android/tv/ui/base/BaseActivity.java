@@ -145,7 +145,9 @@ public abstract class BaseActivity extends AppCompatActivity {
     private void refreshWall() {
         try {
             if (!customWall()) return;
-            File file = FileUtil.getWall(Setting.getWall());
+            int index = Setting.getWall();
+            File file = FileUtil.getWall(index);
+            if (index == 0 && Setting.getWallType() > 0) file = FileUtil.getWallCache();
             if (file.exists() && file.length() > 0) getWindow().setBackgroundDrawable(Drawable.createFromPath(file.getAbsolutePath()));
             else getWindow().setBackgroundDrawableResource(ResUtil.getDrawable(file.getName()));
         } catch (Exception e) {

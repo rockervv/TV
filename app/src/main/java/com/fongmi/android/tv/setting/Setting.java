@@ -112,7 +112,7 @@ public class Setting {
     }
 
     public static int getReset() {
-        return Prefers.getInt("reset", 0);
+        return Prefers.getInt("reset", 1);
     }
 
     public static void putReset(int reset) {
@@ -224,7 +224,7 @@ public class Setting {
     }
 
     public static int getBackground() {
-        return Prefers.getInt("background", 2);
+        return Prefers.getInt("background", 0);
     }
 
     public static void putBackground(int background) {
@@ -552,7 +552,7 @@ public class Setting {
     }
 
     public static boolean isRemoveAd() {
-        return Prefers.getBoolean("remove_ad", false);
+        return Prefers.getBoolean("remove_ad", true);
     }
 
     public static void putRemoveAd(boolean remove) {
@@ -632,7 +632,7 @@ public class Setting {
     }
 
     public static boolean isNormalize() {
-        return Prefers.getBoolean("normalize", false);
+        return Prefers.getBoolean("normalize", true);
     }
 
     public static void putNormalize(boolean normalize) {

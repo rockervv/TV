@@ -8,6 +8,7 @@ import android.text.TextUtils;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.signature.ObjectKey;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.event.ConfigEvent;
@@ -25,6 +26,7 @@ import com.github.catvod.utils.Asset;
 import com.github.catvod.utils.Path;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 
@@ -83,6 +85,10 @@ public class WallConfig  extends BaseConfig{
     protected void postEvent() {
         super.postEvent();
         ConfigEvent.wall();
+        RefreshEvent.wall();
+        RefreshEvent.video();
+        RefreshEvent.image();
+        RefreshEvent.config();
     }
 
     @Override
@@ -91,6 +97,7 @@ public class WallConfig  extends BaseConfig{
         checkUrl(config.getUrl(), file);
         setWallType(file);
         setSnapshot(file);
+        Setting.putWall(0);
     }
 
     @Override
@@ -111,17 +118,17 @@ public class WallConfig  extends BaseConfig{
     }
 
     private void setSnapshot(File file) throws Throwable {
-        Bitmap bitmap = Glide.with(App.get()).asBitmap().frame(0).load(file).override(ResUtil.getScreenWidth(), ResUtil.getScreenHeight()).skipMemoryCache(true).diskCacheStrategy(DiskCacheStrategy.NONE).submit().get();
+        Bitmap bitmap = Glide.with(App.get()).asBitmap().load(file).signature(new ObjectKey(file.length() + "@" + file.lastModified())).frame(0).override(ResUtil.getScreenWidth(), ResUtil.getScreenHeight()).skipMemoryCache(true).diskCacheStrategy(DiskCacheStrategy.NONE).submit().get();
         try (FileOutputStream fos = new FileOutputStream(FileUtil.getWallCache())) {
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
         } finally {
-            bitmap.recycle();
+            if (bitmap != null) bitmap.recycle();
         }
     }
 
     private boolean isVideo(File file) {
-        try (MediaMetadataRetriever retriever = new MediaMetadataRetriever()) {
-            retriever.setDataSource(file.getAbsolutePath());
+        try (MediaMetadataRetriever retriever = new MediaMetadataRetriever(); FileInputStream is = new FileInputStream(file)) {
+            retriever.setDataSource(is.getFD());
             return "yes".equalsIgnoreCase(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO));
         } catch (Exception e) {
             return false;

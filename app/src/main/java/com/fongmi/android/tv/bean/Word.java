@@ -45,12 +45,12 @@ public class Word {
 
         @Override
         public boolean isSameItem(Data other) {
-            return getTitle().equals(other.getTitle());
+            return TextUtils.equals(getTitle(), other.getTitle());
         }
 
         @Override
         public boolean isSameContent(Data other) {
-            return getTitle().equals(other.getTitle());
+            return TextUtils.equals(getTitle(), other.getTitle());
         }
 
         public Data trans() {

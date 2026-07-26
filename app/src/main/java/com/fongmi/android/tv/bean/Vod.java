@@ -389,7 +389,7 @@ public class Vod implements Parcelable, Diffable<Vod> {
 
     @Override
     public boolean isSameContent(Vod other) {
-        return getName().equals(other.getName()) && getPic().equals(other.getPic()) && getRemarks().equals(other.getRemarks()) && Objects.equals(getSite(), other.getSite());
+        return TextUtils.equals(getName(), other.getName()) && TextUtils.equals(getPic(), other.getPic()) && TextUtils.equals(getRemarks(), other.getRemarks()) && Objects.equals(getSite(), other.getSite());
     }
 
     public static final Creator<Vod> CREATOR = new Creator<>() {

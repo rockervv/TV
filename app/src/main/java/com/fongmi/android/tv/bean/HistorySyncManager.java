@@ -4,6 +4,7 @@ import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.db.AppDatabase;
+import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.Task;
 import com.google.gson.Gson;
@@ -74,6 +75,7 @@ public class HistorySyncManager {
             List<Keep> newMergedItems = Keep.syncLists(sqliteItems, remoteItems);
 
             Keep.sync(newMergedItems);
+            RefreshEvent.keep();
 
             JSONObject newJson = new JSONObject();
             newJson.put("Uptime", System.currentTimeMillis());
@@ -135,6 +137,7 @@ public class HistorySyncManager {
             }
 
             History.sync(newMergedItems);
+            RefreshEvent.history();
 
             JSONObject newJson = new JSONObject();
             newJson.put("Uptime", System.currentTimeMillis());

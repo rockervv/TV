@@ -91,7 +91,9 @@ public class Keep implements Diffable<Keep> {
                 map.put(item.getKey(), item);
             }
         }
-        return new ArrayList<>(map.values());
+        List<Keep> items = new ArrayList<>(map.values());
+        Collections.sort(items, (o1, o2) -> Long.compare(o2.getCreateTime(), o1.getCreateTime()));
+        return items;
     }
 
     public static void sync(List<Keep> items) {
@@ -202,6 +204,6 @@ public class Keep implements Diffable<Keep> {
 
     @Override
     public boolean isSameContent(Keep other) {
-        return getVodName().equals(other.getVodName()) && getVodPic().equals(other.getVodPic()) && getCreateTime() == other.getCreateTime();
+        return Objects.equals(getVodName(), other.getVodName()) && Objects.equals(getVodPic(), other.getVodPic()) && getCreateTime() == other.getCreateTime();
     }
 }

@@ -22,7 +22,7 @@ android {
         versionName autoVersionName
 
         ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            abiFilters "armeabi-v7a", "arm64-v8a"
         }
 
         externalNativeBuild {
@@ -61,10 +61,11 @@ android {
         }
         x86 {
             dimension 'abi'
-            ndk { abiFilters "x86" }
+            ndk { abiFilters "armeabi-v7a", "arm64-v8a" }
         }
         x86_64 {
             dimension 'abi'
+            ndk { abiFilters "armeabi-v7a", "arm64-v8a" }
         }
     }
 

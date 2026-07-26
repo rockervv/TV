@@ -125,16 +125,18 @@ public class History implements Diffable<History> {
                 map.put(item.getCid() + item.getKey(), item);
             }
         }
-        return new ArrayList<>(map.values());
+        List<History> items = new ArrayList<>(map.values());
+        Collections.sort(items, (o1, o2) -> Long.compare(o2.getLastUpdated(), o1.getLastUpdated()));
+        return items;
     }
 
     public static void sync(List<History> targets) {
         targets.forEach(target -> {
             List<History> items = findByName(target.getVodName());
-            if (items.isEmpty()) target.cid(VodConfig.getCid()).save();
+            if (items.isEmpty()) target.cid(VodConfig.getCid()).save(false);
             else {
                 long latestTime = items.stream().mapToLong(History::getCreateTime).max().orElse(0L);
-                if (target.getCreateTime() > latestTime) target.cid(VodConfig.getCid()).merge(items, true).save();
+                if (target.getCreateTime() > latestTime) target.cid(VodConfig.getCid()).merge(items, true).save(false);
             }
         });
     }
@@ -430,6 +432,6 @@ public class History implements Diffable<History> {
 
     @Override
     public boolean isSameContent(History other) {
-        return getVodName().equals(other.getVodName()) && getVodPic().equals(other.getVodPic()) && getCreateTime() == other.getCreateTime();
+        return TextUtils.equals(getVodName(), other.getVodName()) && TextUtils.equals(getVodPic(), other.getVodPic()) && getCreateTime() == other.getCreateTime();
     }
 }

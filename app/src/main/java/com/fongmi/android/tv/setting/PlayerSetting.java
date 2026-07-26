@@ -18,7 +18,7 @@ public class PlayerSetting {
     private static final int MAX_SIZE = 3;
     private static final int MIN_BACKGROUND = 0;
     private static final int MAX_BACKGROUND = 2;
-    private static final float MIN_SPEED = 2.0f;
+    private static final float MIN_SPEED = 1.0f;
     private static final float MAX_SPEED = 5.0f;
 
     public static int getEngine() {
@@ -89,7 +89,7 @@ public class PlayerSetting {
     }
 
     public static int getBackground() {
-        return Math.min(Math.max(Prefers.getInt("background", 2), MIN_BACKGROUND), MAX_BACKGROUND);
+        return Math.min(Math.max(Prefers.getInt("background", 0), MIN_BACKGROUND), MAX_BACKGROUND);
     }
 
     public static void putBackground(int background) {
@@ -109,7 +109,7 @@ public class PlayerSetting {
     }
 
     public static float getSpeed() {
-        return Math.min( Math.max(Prefers.getFloat("speed", 3), MIN_SPEED), MAX_SPEED);
+        return Math.min(Math.max(Prefers.getFloat("speed", 1.0f), MIN_SPEED), MAX_SPEED);
     }
 
     public static void putSpeed(float speed) {

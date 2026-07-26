@@ -198,7 +198,7 @@ public class Class implements Parcelable, Diffable<Class> {
 
     @Override
     public boolean isSameContent(Class other) {
-        return getTypeName().equals(other.getTypeName()) && getTypeFlag().equals(other.getTypeFlag());
+        return Objects.equals(getTypeName(), other.getTypeName()) && Objects.equals(getTypeFlag(), other.getTypeFlag());
     }
 
     public static final Creator<Class> CREATOR = new Creator<>() {

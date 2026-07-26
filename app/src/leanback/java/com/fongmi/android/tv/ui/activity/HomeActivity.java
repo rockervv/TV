@@ -384,7 +384,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mFocus = getCurrentFocus();
         HomeFragment fragment = getHomeFragment();
         if (fragment != null && fragment.mBinding != null && !fragment.mBinding.progressLayout.isContent()) fragment.mBinding.progressLayout.showProgress();
-        Notify.showTop(ResUtil.getString(R.string.home_loading, title));
+        Notify.showTop(this, ResUtil.getString(R.string.home_loading, title));
         if (mViewModel != null) mViewModel.homeContent();
     }
 
@@ -696,6 +696,9 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 RefreshEvent.history();
                 RefreshEvent.home();
                 setLogo();
+                break;
+            case WALL:
+                RefreshEvent.wall();
                 break;
             case BOOT:
                 LiveActivity.start(this);

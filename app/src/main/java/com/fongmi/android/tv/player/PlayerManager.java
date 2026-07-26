@@ -26,6 +26,7 @@ import com.fongmi.android.tv.impl.ParseCallback;
 import com.fongmi.android.tv.player.engine.PlayerEngine;
 import com.fongmi.android.tv.player.engine.PlayerEngineFactory;
 import com.fongmi.android.tv.player.exo.ExoUtil;
+import com.fongmi.android.tv.player.mpv.MpvPlayerEngine;
 import com.fongmi.android.tv.player.media.PlaySpec;
 import com.fongmi.android.tv.player.parse.ParseJob;
 import com.fongmi.android.tv.player.track.TrackUtil;
@@ -119,6 +120,10 @@ public class PlayerManager implements ParseCallback {
     }
 
     public String getM3u8Content() {
+        return getM3u8Content(false);
+    }
+
+    public String getM3u8Content(boolean fetch) {
         if (TextUtils.isEmpty(getUrl())) return "";
         String url = getUrl();
         try {
@@ -127,6 +132,7 @@ public class PlayerManager implements ParseCallback {
             }
         } catch (Exception ignored) {
         }
+        if (fetch) return M3U8.fetch(url, getHeaders());
         return M3U8.getCache(url);
     }
 
@@ -371,8 +377,11 @@ public class PlayerManager implements ParseCallback {
     }
 
     private void handleFallback(PlaybackException e) {
-        if (++retry > 1) {
+        if (++retry > 2) {
             callback.onError(engine.getErrorMessage(e));
+        } else if (retry == 2 && engine.getType() == PlayerEngine.Type.EXO && MpvPlayerEngine.isAvailable()) {
+            setEngine(PlayerSetting.ENGINE_MPV);
+            startCurrent(getPosition());
         } else {
             Notify.show(R.string.error_decode_fallback);
             toggleDecode();
@@ -401,11 +410,10 @@ public class PlayerManager implements ParseCallback {
 
     private void ensureEngine(PlaySpec spec) {
         if (PlayerEngineFactory.matches(engine, spec)) return;
-        PlayerEngine old = engine;
         player.removeListener(listener);
+        engine.release();
         engine = PlayerEngineFactory.create(decode, spec, listener);
         setPlayer(engine.getPlayer());
-        old.release();
     }
 
     private void setPlayer(Player player) {

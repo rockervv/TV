@@ -112,6 +112,10 @@ public class Path {
         return mkdir(new File(tv() + File.separator + "mpv"));
     }
 
+    public static File mpvCache() {
+        return mkdir(new File(cache() + File.separator + "mpv"));
+    }
+
     public static File epg() {
         return mkdir(new File(cache() + File.separator + "epg"));
     }

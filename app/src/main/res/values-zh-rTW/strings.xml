@@ -7,6 +7,7 @@
     <!-- Vod -->
     <string name="vod_last">上次看到<xliff:g name="name">%s</xliff:g></string>
     <string name="error_site_empty">站源數據為空</string>
+    <string name="home_loading">正在載入「%1$s」的內容&#8230;</string>
 
     <!-- Live -->
     <string name="live_pass">密碼</string>

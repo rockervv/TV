@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import fi.iki.elonen.NanoHTTPD;
@@ -22,10 +23,8 @@ import android.util.LruCache;
 
 public class M3U8 implements Process {
 
-    //private static final Map<String, CacheItem> urlCache = new ConcurrentHashMap<>();
-
-    private static final LruCache<String, CacheItem> urlCache = new LruCache<>(5);
-    private static final long CACHE_TIME = 30 * 1000; // 30 秒快取
+    private static final LruCache<String, CacheItem> urlCache = new LruCache<>(10);
+    private static final long CACHE_TIME = 10 * 60 * 1000; // 10 分鐘快取
 
     private static class CacheItem {
         String content;
@@ -46,73 +45,37 @@ public class M3U8 implements Process {
         return item != null ? item.content : "";
     }
 
-    @Override
-    public boolean isRequest(NanoHTTPD.IHTTPSession session, String url) {
-        return url.startsWith("/m3u8");
-    }
-
-    @Override
-    public NanoHTTPD.Response doResponse(NanoHTTPD.IHTTPSession session, String url, Map<String, String> files) {
-        String targetUrl = session.getParms().get("url");
-        if (targetUrl == null) return Nano.error("Missing URL");
-
-        // 檢查 URL 快取
+    public static String fetch(String targetUrl, Map<String, String> headers) {
         CacheItem cached = urlCache.get(targetUrl);
-        if (cached != null && !cached.isExpired()) {
-            Log.d("M3U8Proxy", "🛡️ Cache found:\n-----------\n" + cached.content.substring(0, 200) + "\n------------\n");
-
-            //return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", cached.content);
-            return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", cached.content);
-        }
-
-        String proxyUrlPrefix = Server.get().getAddress("/m3u8?url=");
-
+        if (cached != null && !cached.isExpired()) return cached.content;
         try {
             Headers.Builder headersBuilder = new Headers.Builder();
-            for (Map.Entry<String, String> entry : session.getHeaders().entrySet()) {
-                String key = entry.getKey();
-                if (key.equalsIgnoreCase("host") || key.equalsIgnoreCase("connection") || key.equalsIgnoreCase("remote-addr")) continue;
-                headersBuilder.add(key, entry.getValue());
-            }
-
-            // 2. 🚀 萬能魔改大招：動態繼承爬蟲吐回來的專屬破防 Headers！
-            PlayerManager player = Server.get().getPlayer();
-            Map<String, String> spiderHeaders = player != null ? player.getHeaders() : null;
-            if (spiderHeaders != null && !spiderHeaders.isEmpty()) {
-                for (Map.Entry<String, String> entry : spiderHeaders.entrySet()) {
-                    headersBuilder.set(entry.getKey(), entry.getValue());
+            if (headers != null) {
+                for (Map.Entry<String, String> entry : headers.entrySet()) {
+                    headersBuilder.add(entry.getKey(), entry.getValue());
                 }
-                Log.d("M3U8Proxy", "🛡️ 成功動態繼承外部爬蟲的防盜鏈專屬標頭！");
             }
-
-            // 確保 User-Agent 存在
             if (headersBuilder.build().get("User-Agent") == null) {
                 headersBuilder.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             }
-
-
             try (Response response = OkHttp.newCall(targetUrl, headersBuilder.build()).execute()) {
-                if (!response.isSuccessful()) return Nano.error("HTTP " + response.code());
-
+                if (!response.isSuccessful()) return "";
                 BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
-                String filtered = ADFilter.Process(targetUrl, reader);
-
-                // 強制補上點播標籤，防止播放器誤判為直播
+                String filtered = ADFilter.Process(targetUrl, reader).trim();
+                if (filtered.startsWith("\uFEFF")) filtered = filtered.substring(1);
                 if (!filtered.contains("#EXT-X-ENDLIST") && isVod(targetUrl, filtered)) {
                     filtered = filtered.trim() + "\n#EXT-X-ENDLIST\n";
                 }
-
                 StringBuilder result = new StringBuilder();
                 URL baseUrl = new URL(response.request().url().toString());
                 String[] lines = filtered.split("\\n");
-
+                String proxyUrlPrefix = Server.get().getAddress("/m3u8?url=");
                 for (String content : lines) {
                     content = content.trim();
                     if (content.isEmpty()) {
                         result.append("\n");
                         continue;
                     }
-
                     if (content.startsWith("#")) {
                         if (content.contains("URI=\"")) {
                             content = resolveTagUri(content, baseUrl);
@@ -127,27 +90,50 @@ public class M3U8 implements Process {
                         }
                     }
                 }
-
-                if (result.length() == 0) return Nano.error("Filtered m3u8 is empty");
-
-
-                String finalM3u8 = result.toString();
-
-                // 🚀 核心偵錯 Hook：在回傳前，把過濾後的內容前 200 個字列印出來看
-                Log.e("M3U8Proxy_DEBUG", "📥 吐給播放器的開頭內容是: \n------------------------\n" + (finalM3u8.length() > 2000 ? finalM3u8.substring(0, 2000) : finalM3u8) + "....\n-----------------------\n");
-
+                String finalM3u8 = result.toString().trim();
+                if (!finalM3u8.startsWith("#EXTM3U")) {
+                    if (finalM3u8.contains("#EXTM3U")) {
+                        finalM3u8 = finalM3u8.substring(finalM3u8.indexOf("#EXTM3U"));
+                    } else {
+                        finalM3u8 = "#EXTM3U\n" + finalM3u8;
+                    }
+                }
                 urlCache.put(targetUrl, new CacheItem(finalM3u8));
-                //return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/x-mpegURL", finalM3u8);
-                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", finalM3u8);
+                return finalM3u8;
             }
-
         } catch (Exception e) {
-            Log.e("M3U8Proxy", "Error: " + e.getMessage());
-            return Nano.error("Proxy failed: " + e.getMessage());
+            return "";
         }
     }
 
-    private String resolveTagUri(String line, URL baseUrl) {
+    @Override
+    public boolean isRequest(NanoHTTPD.IHTTPSession session, String url) {
+        return url.startsWith("/m3u8");
+    }
+
+    @Override
+    public NanoHTTPD.Response doResponse(NanoHTTPD.IHTTPSession session, String url, Map<String, String> files) {
+        String targetUrl = session.getParms().get("url");
+        if (targetUrl == null) return Nano.error("Missing URL");
+
+        Map<String, String> headers = new HashMap<>();
+        for (Map.Entry<String, String> entry : session.getHeaders().entrySet()) {
+            String key = entry.getKey();
+            if (key.equalsIgnoreCase("host") || key.equalsIgnoreCase("connection") || key.equalsIgnoreCase("remote-addr")) continue;
+            headers.put(key, entry.getValue());
+        }
+
+        PlayerManager player = Server.get().getPlayer();
+        Map<String, String> spiderHeaders = player != null ? player.getHeaders() : null;
+        if (spiderHeaders != null) headers.putAll(spiderHeaders);
+
+        String finalM3u8 = fetch(targetUrl, headers);
+        if (finalM3u8.isEmpty()) return Nano.error("Fetch failed");
+
+        return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", finalM3u8);
+    }
+
+    private static String resolveTagUri(String line, URL baseUrl) {
         try {
             int start = line.indexOf("URI=\"") + 5;
             int end = line.indexOf("\"", start);
@@ -159,7 +145,7 @@ public class M3U8 implements Process {
         }
     }
 
-    private boolean isVod(String url, String content) {
+    private static boolean isVod(String url, String content) {
         String lowerUrl = url.toLowerCase();
         if (lowerUrl.contains("live")) return false; // 排除明確的直播
         if (content.contains("#EXT-X-PLAYLIST-TYPE:VOD")) return true;

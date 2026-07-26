@@ -64,6 +64,7 @@ public class VodPlaybackController {
     }
 
     public void onPlayerResult(Result result) {
+        state.setRecovering(false);
         VodPlayRequest request = state.getPendingRequest();
         if (request == null) request = currentRequest();
         if (cannotApply(result, request)) return;
@@ -179,8 +180,11 @@ public class VodPlaybackController {
     }
 
     public void playbackError(String msg) {
-        host.resetPlaybackForError(msg);
-        fallbackPolicy.playbackError();
+        state.setRecovering(true);
+        if (!fallbackPolicy.playbackError()) {
+            state.setRecovering(false);
+            host.resetPlaybackForError(msg);
+        }
     }
 
     public void playbackEnded() {
@@ -293,13 +297,13 @@ public class VodPlaybackController {
     private void detailEmpty(boolean finish) {
         android.util.Log.w("TV_FATAL", "VodPlaybackController.detailEmpty: finish=" + finish + " name=" + host.getVodName());
         if (host.isFromCollect() || finish) {
-            host.finishVod();
+            if (!fallbackPolicy.emptyDetail()) host.finishVod();
         } else if (host.getVodName().isEmpty()) {
-            host.renderEmptyDetail();
+            if (!fallbackPolicy.emptyDetail()) host.renderEmptyDetail();
         } else {
             host.renderFallbackName(host.getVodName());
             host.onDetailFallbackScheduled();
-            fallbackPolicy.emptyDetail();
+            if (!fallbackPolicy.emptyDetail()) host.showDetailMessage(com.fongmi.android.tv.utils.ResUtil.getString(com.fongmi.android.tv.R.string.error_play_flag));
         }
     }
 

@@ -27,16 +27,16 @@ public class VodFallbackPolicy {
         this.viewModel = viewModel;
     }
 
-    public void playbackError() {
-        fallbackToNextLineOrSource();
+    public boolean playbackError() {
+        return fallbackToNextLineOrSource();
     }
 
-    public void emptyFlag() {
-        fallbackToNextLineOrSource();
+    public boolean emptyFlag() {
+        return fallbackToNextLineOrSource();
     }
 
-    public void emptyDetail() {
-        fallbackToNextSource(false);
+    public boolean emptyDetail() {
+        return fallbackToNextSource(false);
     }
 
     public void manualSwitchSource() {
@@ -57,14 +57,17 @@ public class VodFallbackPolicy {
         state.setSources(items);
         if (viewModel != null) viewModel.setSources(state.getSources());
         if (state.isSelectFirstSource()) nextSource();
-        if (items.isEmpty()) return;
+        if (items.isEmpty()) {
+            host.showDetailMessage(com.fongmi.android.tv.utils.ResUtil.getString(com.fongmi.android.tv.R.string.error_play_flag));
+            return;
+        }
         host.onSearchResult();
     }
 
-    private void fallbackToNextLineOrSource() {
-        if (!host.isSiteChangeable()) return;
-        if (fallbackToNextLine()) return;
-        fallbackToNextSource(false);
+    private boolean fallbackToNextLineOrSource() {
+        if (!host.isSiteChangeable()) return false;
+        if (fallbackToNextLine()) return true;
+        return fallbackToNextSource(false);
     }
 
     private boolean fallbackToNextLine() {
@@ -76,9 +79,15 @@ public class VodFallbackPolicy {
         return true;
     }
 
-    private void fallbackToNextSource(boolean force) {
-        if (!state.hasSources()) search(host.getVodName(), true);
-        else if (state.isAutoFallback() || force) nextSource();
+    private boolean fallbackToNextSource(boolean force) {
+        if (!state.hasSources()) {
+            search(host.getVodName(), true);
+            return true;
+        } else if (state.isAutoFallback() || force) {
+            nextSource();
+            return true;
+        }
+        return false;
     }
 
     private void nextSource() {

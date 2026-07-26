@@ -73,8 +73,16 @@ public class Nano extends NanoHTTPD {
     }
 
     @Override
+    protected boolean useGzipWhenAccepted(Response r) {
+        return false;
+    }
+
+    @Override
     public Response serve(IHTTPSession session) {
         String url = session.getUri().trim();
+        String query = session.getQueryParameterString();
+        String fullPath = url + (query != null ? "?" + query : "");
+        
         Map<String, String> files = new HashMap<>();
         if (session.getMethod() == Method.POST) parse(session, files);
         if (url.contains("?")) url = url.substring(0, url.indexOf('?'));
@@ -82,10 +90,32 @@ public class Nano extends NanoHTTPD {
         if (url.startsWith("/tvbus")) return ok(LiveConfig.getResp());
         if (url.startsWith("/device")) return ok(Device.get().toString());
 
-        for (Process process : process) if (process.isRequest(session, url)) return process.doResponse(session, url, files);
-        if (url.startsWith("/index.html"))
-            return getAssets(url.substring(1));
-        return doProxy(session);  // fallback 成為普通 HTTP proxy
+        Response response = null;
+        for (Process process : process) {
+            if (process.isRequest(session, url)) {
+                response = process.doResponse(session, url, files);
+                break;
+            }
+        }
+
+        if (response == null && url.startsWith("/index.html")) {
+            response = getAssets(url.substring(1));
+        }
+
+        if (response == null) {
+            // 只允許以 http 開頭的 URL 進入 doProxy，其他的視為無效請求並 Log
+            if (url.startsWith("/http") || url.startsWith("http")) {
+                android.util.Log.d("NanoHTTPD", "🌐 Fallback to Proxy: " + fullPath);
+                response = doProxy(session);
+            } else {
+                android.util.Log.e("NanoHTTPD", "❌ Invalid/Malformed Request Blocked: " + fullPath);
+                response = error(Response.Status.NOT_FOUND, "Invalid request path: " + url);
+            }
+        }
+
+        // 強制關閉 GZIP，防止播放器在探測時因 Stream 關閉導致 Broken Pipe
+        if (response != null) response.setGzipEncoding(false);
+        return response;
     }
 
     private void parse(IHTTPSession session, Map<String, String> files) {
@@ -102,12 +132,17 @@ public class Nano extends NanoHTTPD {
     }
 
     private Response doProxy(IHTTPSession session) {
-        String fullUrl = session.getUri().substring(1); // 把 `/https://xxx` 拿掉開頭的 `/`
+        String urlPath = session.getUri();
+        // 增加更嚴謹的截斷檢查，防止出現像 /3U 這樣的錯誤路徑
+        String fullUrl = urlPath.startsWith("/") ? urlPath.substring(1) : urlPath; 
+        
         if (!fullUrl.startsWith("http")) {
-            return error("Invalid proxy URL: " + fullUrl);
+            android.util.Log.w("NanoHTTPD", "⚠️ Unhandled Request Type (Skipping Proxy): " + urlPath);
+            return error(Response.Status.NOT_FOUND, "Not a proxyable path: " + urlPath);
         }
 
         try {
+            android.util.Log.d("NanoHTTPD", "🌐 Proxying Remote URL: " + fullUrl);
             URL url = new URL(fullUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(5000);
@@ -118,8 +153,10 @@ public class Nano extends NanoHTTPD {
             String mime = conn.getContentType();
             int length = conn.getContentLength();
 
+            // 如果長度未知，NanoHTTPD 會自動處理成 Chunked 傳輸
             return NanoHTTPD.newFixedLengthResponse(Response.Status.OK, mime, is, length);
         } catch (Exception e) {
+            android.util.Log.e("NanoHTTPD", "🔥 Proxy Backend Connection Failed: " + e.getMessage());
             return error("Proxy Error: " + e.getMessage());
         }
     }

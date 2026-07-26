@@ -31,6 +31,9 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
     private String[] scale;
     private String[] reset;
     private String[] engine;
+    private String[] mpvHwdec;
+    private String[] mpvGpuApi;
+    private String[] mpvFboFormat;
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, SettingPlayerActivity.class));
@@ -49,7 +52,9 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
         format = new DecimalFormat("0.#");
         mBinding.speedText.setText(format.format(PlayerSetting.getSpeed()));
         mBinding.adblockText.setText(Setting.getSwitch(Setting.isAdblock()));
-        mBinding.mpvVulkanText.setText(Setting.getSwitch(PlayerSetting.isMpvVulkan()));
+        mBinding.mpvHwdecText.setText(mpvHwdec[PlayerSetting.getMpvHwdec()]);
+        mBinding.mpvGpuApiText.setText(mpvGpuApi[PlayerSetting.getMpvGpuApi()]);
+        mBinding.mpvFboFormatText.setText(mpvFboFormat[PlayerSetting.getMpvFboFormat()]);
         mBinding.mpvGpuNextText.setText(Setting.getSwitch(PlayerSetting.isMpvGpuNext()));
         mBinding.backgroundText.setText(Setting.getSwitch(PlayerSetting.isBackgroundOn()));
         mBinding.scaleText.setText((scale = ResUtil.getStringArray(R.array.select_scale))[PlayerSetting.getScale()]);
@@ -63,8 +68,10 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
         mBinding.engine.setOnClickListener(this::setEngine);
         mBinding.reset.setOnClickListener(this::setReset);
         mBinding.mpvConf.setOnClickListener(this::onMpvConf);
+        mBinding.mpvHwdec.setOnClickListener(this::onMpvHwdec);
+        mBinding.mpvGpuApi.setOnClickListener(this::onMpvGpuApi);
+        mBinding.mpvFboFormat.setOnClickListener(this::onMpvFboFormat);
         mBinding.mpvGpuNext.setOnClickListener(this::setMpvGpuNext);
-        mBinding.mpvVulkan.setOnClickListener(this::setMpvVulkan);
         mBinding.render.setOnClickListener(this::setRender);
         mBinding.scale.setOnClickListener(this::setScale);
         mBinding.caption.setOnClickListener(this::setCaption);
@@ -82,7 +89,9 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
         boolean exo = !PlayerSetting.isMpv();
         if (PlayerSetting.isBackgroundPiP()) PlayerSetting.putBackground(1);
         mBinding.mpvConf.setVisibility(exo ? View.GONE : View.VISIBLE);
-        mBinding.mpvVulkan.setVisibility(exo ? View.GONE : View.VISIBLE);
+        mBinding.mpvHwdec.setVisibility(exo ? View.GONE : View.VISIBLE);
+        mBinding.mpvGpuApi.setVisibility(exo ? View.GONE : View.VISIBLE);
+        mBinding.mpvFboFormat.setVisibility(exo ? View.GONE : View.VISIBLE);
         mBinding.mpvGpuNext.setVisibility(exo ? View.GONE : View.VISIBLE);
         mBinding.decode.setVisibility(exo ? View.VISIBLE : View.GONE);
         mBinding.adblock.setVisibility(exo ? View.VISIBLE : View.GONE);
@@ -106,14 +115,27 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
         MpvConfDialog.show(this);
     }
 
+    private void onMpvHwdec(View view) {
+        int index = PlayerSetting.getMpvHwdec();
+        PlayerSetting.putMpvHwdec(index = index == mpvHwdec.length - 1 ? 0 : ++index);
+        mBinding.mpvHwdecText.setText(mpvHwdec[index]);
+    }
+
+    private void onMpvGpuApi(View view) {
+        int index = PlayerSetting.getMpvGpuApi();
+        PlayerSetting.putMpvGpuApi(index = index == mpvGpuApi.length - 1 ? 0 : ++index);
+        mBinding.mpvGpuApiText.setText(mpvGpuApi[index]);
+    }
+
+    private void onMpvFboFormat(View view) {
+        int index = PlayerSetting.getMpvFboFormat();
+        PlayerSetting.putMpvFboFormat(index = index == mpvFboFormat.length - 1 ? 0 : ++index);
+        mBinding.mpvFboFormatText.setText(mpvFboFormat[index]);
+    }
+
     private void setMpvGpuNext(View view) {
         PlayerSetting.putMpvGpuNext(!PlayerSetting.isMpvGpuNext());
         mBinding.mpvGpuNextText.setText(Setting.getSwitch(PlayerSetting.isMpvGpuNext()));
-    }
-
-    private void setMpvVulkan(View view) {
-        PlayerSetting.putMpvVulkan(!PlayerSetting.isMpvVulkan());
-        mBinding.mpvVulkanText.setText(Setting.getSwitch(PlayerSetting.isMpvVulkan()));
     }
 
     private void setRender(View view) {
@@ -124,6 +146,9 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
 
     private void setPlaybackModeText() {
         engine = ResUtil.getStringArray(R.array.select_engine);
+        mpvHwdec = ResUtil.getStringArray(R.array.select_mpv_hwdec);
+        mpvGpuApi = ResUtil.getStringArray(R.array.select_mpv_gpu_api);
+        mpvFboFormat = ResUtil.getStringArray(R.array.select_mpv_fbo_format);
         render = ResUtil.getStringArray(R.array.select_render);
         mBinding.engineText.setText(engine[PlayerSetting.getEngine()]);
         mBinding.renderText.setText(render[PlayerSetting.getRender()]);

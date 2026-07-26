@@ -266,6 +266,11 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
     }
 
     private void setPlayerResult(Result result) {
+        if (result == null) return;
+        if (!result.getMsg().isEmpty()) {
+            onError(result.getMsg());
+            return;
+        }
         setPlayer(result);
     }
 
@@ -402,6 +407,7 @@ public class VideoActivity extends BaseVideoActivity implements ControlDialog.Li
 
     @Override
     protected void setPlayer(Result result) {
+        mVod.onPlayerResult(result);
     }
 
     @Override

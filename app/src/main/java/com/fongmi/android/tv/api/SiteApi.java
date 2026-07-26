@@ -34,7 +34,9 @@ public class SiteApi {
 
     public static String call(@NonNull Site site, @NonNull ArrayMap<String, String> params) throws IOException {
         if (!site.getExt().isEmpty()) params.put("extend", site.getExt());
+        if (site.getApi().isEmpty()) return "";
         Call call = site.getExt().length() <= 1000 ? OkHttp.newCall(site.getApi(), site.getHeader(), params) : OkHttp.newCall(site.getApi(), site.getHeader(), OkHttp.toBody(params));
+        if (call == null) return "";
         try (Response response = call.execute()) {
             return response.body().string();
         }

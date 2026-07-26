@@ -112,6 +112,14 @@
     public static ** valueOf(java.lang.String);
 }
 
+# MPV
+-keep class is.xyz.mpv.** { *; }
+-keep interface is.xyz.mpv.** { *; }
+-keepclassmembers class is.xyz.mpv.** {
+    public static <methods>;
+}
+-keep class androidx.media3.mpvplayer.MpvPlayer { *; }
+
 # x5
 
 

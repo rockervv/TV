@@ -10,6 +10,7 @@ import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.impl.ParseCallback;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.ui.custom.CustomWebView;
+import com.fongmi.android.tv.utils.Sniffer;
 import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.fongmi.android.tv.utils.WebViewUtil;
@@ -154,15 +155,17 @@ public class ParseJob implements ParseCallback {
     }
 
     private void checkResult(Map<String, String> headers, String url, String from, boolean fatal) {
-        if (url.length() > 40) onParseSuccess(headers, url, from);
+        if (url.length() > 40 && !url.contains(".js") && !url.contains(".css") && !url.contains(".html")) onParseSuccess(headers, url, from);
         else if (fatal) onParseError();
     }
 
     private void checkResult(Result result) {
         result.setHeader(parse.getExt().getHeader());
-        if (result.getUrl().v().isEmpty()) onParseError();
-        else if (result.getParse() == 1 || result.getJx() == 1) startWeb(result.getHeader(), UrlUtil.convert(result.getUrl().v()));
-        else onParseSuccess(result.getHeader(), result.getUrl().v(), result.getJxFrom());
+        String url = result.getUrl().v();
+        if (url.isEmpty()) onParseError();
+        else if (result.getParse() == 1 || result.getJx() == 1) startWeb(result.getHeader(), UrlUtil.convert(url));
+        else if (Sniffer.isVideoFormat(url)) onParseSuccess(result.getHeader(), url, result.getJxFrom());
+        else onParseError();
     }
 
     private void startWeb(List<Parse> items, String webUrl) {

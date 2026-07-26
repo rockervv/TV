@@ -22,6 +22,7 @@ public class VodPlaybackState {
     private Result quality;
     private boolean selectFirstSource;
     private boolean autoFallback;
+    private boolean recovering;
     private boolean useParse;
     private String searchKeyword;
     private int qualityPosition;
@@ -165,6 +166,14 @@ public class VodPlaybackState {
 
     public void setAutoFallback(boolean autoFallback) {
         this.autoFallback = autoFallback;
+    }
+
+    public boolean isRecovering() {
+        return recovering;
+    }
+
+    public void setRecovering(boolean recovering) {
+        this.recovering = recovering;
     }
 
     public boolean isUseParse() {

@@ -90,7 +90,9 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         player = new PlayerManager(this);
         sessionPlayer = player.getPlayer();
         sessionPlayer.addListener(listener);
+
         session = new MediaLibrarySession.Builder(this, wrap(sessionPlayer), this).build();
+        session.setSessionActivity(buildDefaultIntent());
         session.setSessionActivity(buildDefaultIntent());
         EventBus.getDefault().register(this);
         Server.get().setService(this);
@@ -440,10 +442,35 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
                 dispatchStop();
             }
 
+            @Override
+            public boolean isCommandAvailable(int command) {
+                return getAvailableCommands().contains(command);
+            }
+
             @NonNull
             @Override
             public Commands getAvailableCommands() {
-                return super.getAvailableCommands().buildUpon().add(COMMAND_SEEK_TO_PREVIOUS).add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM).add(COMMAND_SEEK_TO_NEXT).add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM).add(COMMAND_SEEK_BACK).add(COMMAND_SEEK_FORWARD).add(COMMAND_STOP).add(COMMAND_SET_REPEAT_MODE).build();
+                return super.getAvailableCommands().buildUpon()
+                        .add(COMMAND_GET_TIMELINE)
+                        .add(COMMAND_GET_METADATA)
+                        .add(COMMAND_GET_TRACKS)
+                        .add(COMMAND_GET_CURRENT_MEDIA_ITEM)
+                        .add(COMMAND_GET_AUDIO_ATTRIBUTES)
+                        .add(COMMAND_GET_VOLUME)
+                        .add(COMMAND_SET_VOLUME)
+                        .add(COMMAND_SET_MEDIA_ITEM)
+                        .add(COMMAND_CHANGE_MEDIA_ITEMS)
+                        .add(COMMAND_STOP)
+                        .add(COMMAND_SET_REPEAT_MODE)
+                        .add(COMMAND_SEEK_TO_PREVIOUS)
+                        .add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                        .add(COMMAND_SEEK_TO_NEXT)
+                        .add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                        .add(COMMAND_SEEK_BACK)
+                        .add(COMMAND_SEEK_FORWARD)
+                        .add(COMMAND_SET_TRACK_SELECTION_PARAMETERS)
+                        .remove(COMMAND_RELEASE)
+                        .build();
             }
         };
     }

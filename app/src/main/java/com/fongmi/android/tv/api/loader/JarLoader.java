@@ -116,6 +116,10 @@ public class JarLoader {
         } catch (Throwable e) {
             failures.put(key, e);
             SpiderDebug.log(e);
+            if (e instanceof VerifyError) {
+                File file = Path.jar(jar);
+                if (file.exists()) file.delete();
+            }
         } finally {
             Monitor.end("Spider_ParseJar_" + key);
         }

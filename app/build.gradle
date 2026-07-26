@@ -25,6 +25,12 @@ android {
             abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         }
 
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17"
+            }
+        }
+
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments = ["room.schemaLocation": "$projectDir/schemas".toString(), "eventBusIndex": "com.fongmi.android.tv.event.EventIndex"]
@@ -67,6 +73,13 @@ android {
         viewBinding = true
     }
 
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+
     //signingConfigs {
     //    release {
     //        if (file('../../my-release-key.jks').exists()) {
@@ -106,6 +119,21 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = false
+            pickFirsts += [
+                    'lib/*/libc++_shared.so',
+                    'lib/*/libavif_android.so',
+                    'lib/*/libjpa.so',
+                    'lib/*/libdav1dJNI.so',
+                    'lib/*/libffmpegJNI.so',
+                    'lib/*/libmpeghJNI.so',
+                    'lib/*/librtmp-jni.so',
+                    'lib/*/libxl_stat.so',
+                    'lib/*/libxl_thunder_sdk.so',
+                    'lib/*/libchaquopy_java.so',
+                    'lib/*/libmitv.so',
+                    'lib/*/libp2p.so',
+                    'lib/*/libp3p.so'
+            ]
         }
         resources {
             excludes += ['META-INF/beans.xml']
@@ -114,6 +142,12 @@ android {
             excludes += ['META-INF/NOTICE.markdown']
             excludes += ['META-INF/LICENSE.txt']
             excludes += ['META-INF/LICENSE.md']
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jnilibs']
         }
     }
 
@@ -147,6 +181,7 @@ dependencies {
     implementation project(':quickjs')
     implementation project(':youtube')
     implementation project(':hook')
+    implementation project(':mpv')
 
     implementation libs.appcompat
     implementation libs.biometric

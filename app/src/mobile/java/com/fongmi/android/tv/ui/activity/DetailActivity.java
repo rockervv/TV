@@ -259,6 +259,7 @@ public class DetailActivity extends BaseActivity implements FlagAdapter.OnClickL
 
     @Override
     public void onItemClick(Episode item) {
-
+        item.setSelected(true);
+        VideoActivity.start(this, getKey(), getId(), getName(), getPic(), getMark(), isFromCollect());
     }
 }

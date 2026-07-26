@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.leanback.widget.ArrayObjectAdapter;
+import androidx.leanback.widget.DiffCallback;
 import androidx.leanback.widget.ItemBridgeAdapter;
 import androidx.leanback.widget.ListRow;
 import androidx.leanback.widget.OnChildViewHolderSelectedListener;
@@ -105,6 +106,7 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
     @Override
     protected void initData() {
         getHistory();
+        refreshRecommond();
     }
 
     protected void initEvent() {
@@ -136,7 +138,6 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
     private void setAdapter() {
         ListRow funcRow = getFuncRow();
         if (funcRow != null) mAdapter.add(funcRow);
-        if (Setting.isHomeHistory()) mAdapter.add(R.string.home_history);
         mAdapter.add(R.string.home_recommend);
         mHistoryAdapter = new ArrayObjectAdapter(mPresenter = new HistoryPresenter(this));
         homeUI = Setting.getHomeUI();
@@ -150,10 +151,12 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
 
     public void addVideo(Result result) {
         int index = getRecommendIndex();
-        if (mAdapter.size() > index) mAdapter.removeItems(index, mAdapter.size() - index);
+        List<Vod> list = result.getList();
         Style style = result.getStyle(getHome().getStyle());
-        if (style.isList()) mAdapter.addAll(mAdapter.size(), result.getList());
-        else addGrid(result.getList(), style);
+        if (mAdapter.size() > index && list.isEmpty()) return;
+        if (mAdapter.size() > index) mAdapter.removeItems(index, mAdapter.size() - index);
+        if (style.isList()) mAdapter.addAll(mAdapter.size(), list);
+        else addGrid(list, style);
     }
 
     private void addGrid(List<Vod> items, Style style) {
@@ -209,28 +212,30 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
         if (renew) ImgUtil.clearFailed();
         Task.execute(() -> {
             List<History> items = History.get();
-            android.util.Log.d("TV_FATAL", "HomeFragment.getHistory: found " + items.size() + " items, renew=" + renew);
             App.post(() -> {
                 int historyIndex = getHistoryIndex();
                 int recommendIndex = getRecommendIndex();
-                if (historyIndex == -1) {
-                    if (!Setting.isHomeHistory()) return;
-                    int historyStringIndex = recommendIndex - 1;
-                    historyStringIndex = historyStringIndex < 0 ? 0 : historyStringIndex;
-                    mAdapter.add(historyStringIndex, R.string.home_history);
-                }
-                if (!Setting.isHomeHistory()) {
-                    mAdapter.removeItems(historyIndex - 1, 2);
+                if (items.isEmpty() || !Setting.isHomeHistory()) {
+                    if (historyIndex != -1) mAdapter.removeItems(historyIndex - 1, 2);
                     return;
                 }
-                historyIndex = getHistoryIndex();
-                recommendIndex = getRecommendIndex();
-                boolean exist = recommendIndex - historyIndex == 2;
-                if (renew) mHistoryAdapter = new ArrayObjectAdapter(mPresenter = new HistoryPresenter(this));
-                if ((items.isEmpty() && exist) || (renew && exist)) mAdapter.removeItems(historyIndex, 1);
-                if ((items.size() > 0 && !exist) || (renew && exist)) mAdapter.add(historyIndex, new ListRow(mHistoryAdapter));
-                mHistoryAdapter.setItems(items, null);
-                if (items.size() > 0 && !renew) showContent();
+                if (historyIndex == -1) {
+                    int index = recommendIndex != -1 ? recommendIndex - 1 : mAdapter.size();
+                    mAdapter.add(index, R.string.home_history);
+                    mAdapter.add(index + 1, new ListRow(mHistoryAdapter));
+                }
+                mHistoryAdapter.setItems(items, new DiffCallback<History>() {
+                    @Override
+                    public boolean areItemsTheSame(@NonNull History oldItem, @NonNull History newItem) {
+                        return oldItem.isSameItem(newItem);
+                    }
+
+                    @Override
+                    public boolean areContentsTheSame(@NonNull History oldItem, @NonNull History newItem) {
+                        return oldItem.isSameContent(newItem);
+                    }
+                });
+                if (items.size() > 0 && !renew && mBinding.progressLayout.isProgress()) showContent();
             });
         });
     }

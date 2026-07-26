@@ -149,7 +149,9 @@ public class OkHttp {
     }
 
     public static Call newCall(String url, Map<String, String> headers, ArrayMap<String, String> params) {
-        return client().newCall(new Request.Builder().url(buildUrl(url, params)).headers(Headers.of(headers)).build());
+        HttpUrl httpUrl = buildUrl(url, params);
+        if (httpUrl == null) return null;
+        return client().newCall(new Request.Builder().url(httpUrl).headers(Headers.of(headers)).build());
     }
 
     public static Call newCall(String url, Map<String, String> headers, RequestBody body) {
@@ -188,7 +190,9 @@ public class OkHttp {
     }
 
     private static HttpUrl buildUrl(String url, ArrayMap<String, String> params) {
-        HttpUrl.Builder builder = Objects.requireNonNull(HttpUrl.parse(url)).newBuilder();
+        HttpUrl httpUrl = HttpUrl.parse(url);
+        if (httpUrl == null) return null;
+        HttpUrl.Builder builder = httpUrl.newBuilder();
         for (Map.Entry<String, String> entry : params.entrySet()) builder.addQueryParameter(entry.getKey(), entry.getValue());
         return builder.build();
     }

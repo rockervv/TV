@@ -52,7 +52,7 @@ zxingAndroidEmbedded = "4.3.0"
 zxingCore = "3.5.3"            # 降級：3.5.4 要求高版本環境
 
 # ===== 核心影音解碼 (Media3 世代對齊) =====
-media3 = "1.4.1"               # 降級：對齊 Android 34 的穩定版本
+media3 = "1.4.1"               # 恢復官方穩定版本
 
 
 [libraries]

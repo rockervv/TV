@@ -109,6 +109,7 @@ import java.util.Optional;
 
 public class HomeActivity extends BaseActivity implements CustomTitleView.Listener, TypePresenter.OnClickListener, VodPresenter.OnClickListener, FuncPresenter.OnClickListener, HistoryPresenter.OnClickListener {
 
+    private static final Map<String, Result> mCache = new HashMap<>();
     public ActivityHomeBinding mBinding;
     private PageAdapter mPageAdapter;
     private ArrayObjectAdapter mAdapter;
@@ -281,6 +282,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mBinding.recycler.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
+                onChildSelected(child);
                 mBinding.toolbar.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
                 if (getHomeFragment().mPresenter != null && getHomeFragment().mPresenter.isDelete()) getHomeFragment().setHistoryDelete(false);
             }
@@ -374,16 +376,36 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         String title = getHome().getName();
         mBinding.title.setText(title.isEmpty() ? ResUtil.getString(R.string.app_name) : title);
         if (getHome().getKey().isEmpty()) return;
+        Result cached = mCache.get(getKey());
+        if (cached != null) {
+            setTypes(mResult = cached);
+            return;
+        }
         mFocus = getCurrentFocus();
         HomeFragment fragment = getHomeFragment();
-        if (fragment != null && fragment.mBinding != null) fragment.mBinding.progressLayout.showProgress();
+        if (fragment != null && fragment.mBinding != null && !fragment.mBinding.progressLayout.isContent()) fragment.mBinding.progressLayout.showProgress();
+        Notify.showTop(ResUtil.getString(R.string.home_loading, title));
         if (mViewModel != null) mViewModel.homeContent();
     }
 
     public void setTypes(Result result) {
+        mCache.put(getKey(), result);
         int position = mBinding.recycler.getSelectedPosition();
+        List<Class> types = getTypes(result);
+        if (mAdapter.size() == types.size() + 1) {
+            boolean same = true;
+            for (int i = 0; i < types.size(); i++) {
+                Class oldType = (Class) mAdapter.get(i + 1);
+                Class newType = types.get(i);
+                if (!oldType.isSameItem(newType) || !oldType.isSameContent(newType)) {
+                    same = false;
+                    break;
+                }
+            }
+            if (same) return;
+        }
         updating = true;
-        result.setTypes(getTypes(result));
+        result.setTypes(types);
         for (Map.Entry<String, List<Filter>> entry : result.getFilters().entrySet()) Prefers.put("filter_" + getKey() + "_" + entry.getKey(), App.gson().toJson(entry.getValue()));
         for (Class item : result.getTypes()) item.setFilters(getFilter(item.getTypeId()));
         if (mAdapter.size() > 1) mAdapter.removeItems(1, mAdapter.size() - 1);
@@ -461,7 +483,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     public void onItemClick(Class item) {
-        if (mBinding.pager.getCurrentItem() == 0) {
+        if (item.getTypeId().equals("home")) {
             SiteDialog.create(this).show(this);
         } else {
             updateFilter(item);
@@ -476,7 +498,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     public boolean onItemLongClick(Class item) {
-        if (mBinding.pager.getCurrentItem() != 0) return true;
+        if (!item.getTypeId().equals("home")) return true;
         onRefresh();
         return true;
     }

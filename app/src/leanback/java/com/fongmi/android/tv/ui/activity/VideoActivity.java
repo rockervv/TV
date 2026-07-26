@@ -549,7 +549,18 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     public void finishVod() {
+        setStop(true);
         finish();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (isFullscreen()) {
+            exitFullscreen();
+        } else {
+            setStop(true);
+            super.onBackPressed();
+        }
     }
 
     private void checkCast() {
@@ -1006,7 +1017,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
         @Override
         public void onStop() {
-            finish();
+            if (isStop() || !mViewModel.getPlaybackState().isRecovering()) finish();
         }
 
         @Override

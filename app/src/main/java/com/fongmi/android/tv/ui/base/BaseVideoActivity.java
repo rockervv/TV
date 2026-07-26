@@ -277,7 +277,12 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
     }
 
     protected void onPlayerObserved(Result result) {
-        if (result == null || result.getUrl().isEmpty()) return;
+        if (result == null) return;
+        if (!result.getMsg().isEmpty()) {
+            onError(result.getMsg());
+            return;
+        }
+        if (result.getUrl().isEmpty()) return;
         android.util.Log.d("BaseVideoActivity", "onPlayerObserved: " + result.getUrl());
         if (service() == null) {
             android.util.Log.w("BaseVideoActivity", "onPlayerObserved: service is null!");
@@ -302,22 +307,23 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
     protected void onSave() {
         String url = player().getUrl();
         if (TextUtils.isEmpty(url)) return;
-        String content = player().getM3u8Content();
-        if (content.isEmpty()) {
-            Notify.show(R.string.error_play_url);
-            return;
-        }
+        Notify.show(ResUtil.getString(R.string.play_save) + "...");
         String prefix = player().isLive() ? "Live_" : "Vod_";
         App.execute(() -> {
             try {
+                String content = player().getM3u8Content(true);
+                if (content.isEmpty()) {
+                    App.post(() -> Notify.show(R.string.error_play_url));
+                    return;
+                }
                 String realUrl = url;
                 if (url.startsWith(Server.get().getAddress())) {
                     realUrl = java.net.URLDecoder.decode(url.split("url=")[1].split("&")[0], StandardCharsets.UTF_8.name());
                 }
                 long timestamp = System.currentTimeMillis();
-                long dd = timestamp / (1000L * 60 * 60 * 24);
                 LocalDateTime ldt = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
-                String name = prefix + dd + ldt.getHour() + ldt.getMinute() + ldt.getSecond() + "_" + getVodName() + ".json";
+                String date = String.format(java.util.Locale.getDefault(), "%04d%02d%02d%02d%02d%02d", ldt.getYear(), ldt.getMonthValue(), ldt.getDayOfMonth(), ldt.getHour(), ldt.getMinute(), ldt.getSecond());
+                String name = prefix + date + "_" + getVodName().replaceAll("[\\\\/:*?\"<>|]", "_") + ".json";
                 JsonObject json = new JsonObject();
                 json.addProperty("URL", realUrl);
                 json.addProperty("m3u8", content);
@@ -359,7 +365,7 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         saveHistory(true);
+        super.onDestroy();
     }
 }

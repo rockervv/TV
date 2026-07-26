@@ -35,7 +35,7 @@ public class PlayerSetting {
     }
 
     public static boolean isMpvGpuNext() {
-        return Prefers.getBoolean("mpv_gpu_next");
+        return Prefers.getBoolean("mpv_gpu_next", true);
     }
 
     public static void putMpvGpuNext(boolean gpuNext) {
@@ -182,5 +182,37 @@ public class PlayerSetting {
 
     public static void putDv7HevcFallback(boolean fallback) {
         Prefers.put("dv7_hevc_fallback", fallback);
+    }
+
+    public static String getMpvConfig() {
+        return Prefers.getString("mpv_config", "");
+    }
+
+    public static void putMpvConfig(String config) {
+        Prefers.put("mpv_config", config);
+    }
+
+    public static int getMpvHwdec() {
+        return Prefers.getInt("mpv_hwdec", 0);
+    }
+
+    public static void putMpvHwdec(int hwdec) {
+        Prefers.put("mpv_hwdec", hwdec);
+    }
+
+    public static int getMpvGpuApi() {
+        return Prefers.getInt("mpv_gpu_api", 0);
+    }
+
+    public static void putMpvGpuApi(int api) {
+        Prefers.put("mpv_gpu_api", api);
+    }
+
+    public static int getMpvFboFormat() {
+        return Prefers.getInt("mpv_fbo_format", 0);
+    }
+
+    public static void putMpvFboFormat(int format) {
+        Prefers.put("mpv_fbo_format", format);
     }
 }

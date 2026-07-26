@@ -7,6 +7,7 @@
     <!-- Vod -->
     <string name="vod_last">Last seen <xliff:g name="name">%s</xliff:g></string>
     <string name="error_site_empty">Site data is empty</string>
+    <string name="home_loading">Loading content from \"%1$s\"&#8230;</string>
 
     <!-- Live -->
     <string name="live_pass">Pass</string>
@@ -151,6 +152,9 @@
     <string name="player_decode_setting">Decode setting</string>
     <string name="player_preload_setting">Preload setting</string>
     <string name="player_mpv_conf">mpv.conf</string>
+    <string name="player_mpv_hwdec">mpv HWDEC</string>
+    <string name="player_mpv_gpu_api">mpv GPU API</string>
+    <string name="player_mpv_fbo_format">mpv FBO Format</string>
     <string name="player_mpv_gpu_next">gpu-next</string>
     <string name="player_mpv_vulkan">vulkan</string>
     <string name="player_preload">Preload</string>
@@ -357,6 +361,23 @@
     <string-array name="select_rtsp" translatable="false">
         <item>UDP</item>
         <item>TCP</item>
+    </string-array>
+
+    <string-array name="select_mpv_hwdec">
+        <item>no</item>
+        <item>mediacodec</item>
+        <item>mediacodec-copy</item>
+    </string-array>
+
+    <string-array name="select_mpv_gpu_api">
+        <item>auto</item>
+        <item>opengl</item>
+        <item>vulkan</item>
+    </string-array>
+
+    <string-array name="select_mpv_fbo_format">
+        <item>auto</item>
+        <item>rgba8</item>
     </string-array>
 
     <string name="site_blacklist_confirm">Are you sure to add \"%s\" to the blacklist?</string>

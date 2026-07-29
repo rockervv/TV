@@ -46,6 +46,7 @@ import com.fongmi.android.tv.playback.vod.VodPlayRequest;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.fongmi.android.tv.playback.vod.VodPlaybackMedia;
+import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.adapter.ArrayAdapter;
@@ -95,6 +96,8 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     private FlagAdapter mFlagAdapter;
     private PartAdapter mPartAdapter;
     private CustomKeyDownVod mKeyDown;
+    private Runnable mDataTimer;
+    private int mDataCountdown;
     private Runnable mR1;
     private Runnable mR2;
     private Runnable mR3;
@@ -102,6 +105,15 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     private Clock mClock;
     private View mFocus1;
     private View mFocus2;
+    private long mBasePosition = -1;
+    private boolean mSeeking;
+
+    private final Runnable mHideCenter = this::hideCenter;
+    private final Runnable mSeekReset = () -> {
+        mBasePosition = -1;
+        mSeeking = false;
+    };
+    
 
     public static void push(FragmentActivity activity, String text) {
         Uri uri = UrlUtil.uri(text);
@@ -317,6 +329,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         setSeekNextFocusDown(R.id.next);
         setActionFocusBoundary(mBinding.control.actionLayout);
         PlayerEngineDialog.setText(mBinding.control.player);
+        mBinding.control.next.requestFocus();
         setResetText();
     }
 
@@ -392,7 +405,6 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     protected void onVodChanged(Vod item) {
-        android.util.Log.d("VideoActivity", "onVodChanged: " + item.getName());
         mBinding.progressLayout.showContent();
         mBinding.name.setText(item.getName());
         mBinding.widget.title.setText(item.getName());
@@ -441,9 +453,23 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     @Override
-    protected void onEpisodeChanged(Episode item) {
+    public void onEpisodeChanged(Episode item) {
         mEpisodeAdapter.notifyItemChanged(mEpisodeAdapter.getPosition());
         mBinding.episode.setSelectedPosition(mEpisodeAdapter.getPosition());
+    }
+
+    @Override
+    public void onTimeoutCountdown(long ms) {
+        if (mSeeking || isFullscreen()) {
+            mBinding.widget.status.setVisibility(View.GONE);
+            return;
+        }
+        if (mBinding.widget.status.getVisibility() != View.VISIBLE) mBinding.widget.status.setVisibility(View.VISIBLE);
+        if (ms <= 0) {
+            mBinding.widget.status.setText(R.string.play_timeout_error);
+        } else {
+            mBinding.widget.status.setText(ResUtil.getString(R.string.play_timeout_count, ms / 1000.0f));
+        }
     }
 
     @Override
@@ -697,9 +723,13 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     private void enterFullscreen() {
         mFocus1 = getCurrentFocus();
+        mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         mBinding.video.requestFocus();
         mBinding.video.setForeground(null);
         mBinding.video.setLayoutParams(new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT));
+        mBinding.video.setTranslationZ(0f);
+        mBinding.exo.setTranslationZ(-100f);
+        mBinding.exo.setFocusable(false);
         mBinding.flag.setSelectedPosition(mFlagAdapter.getPosition());
         mKeyDown.setFull(true);
         this.fullscreen = true;
@@ -707,6 +737,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private void exitFullscreen() {
+        mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         mBinding.video.setForeground(ResUtil.getDrawable(R.drawable.selector_video));
         mBinding.video.setLayoutParams(mFrameParams);
         getFocus1().requestFocus();
@@ -811,10 +842,18 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     private void onOpening() {
         long position = player().getPosition();
         long duration = player().getDuration();
+        if (position > 600000) {
+            Notify.show(getString(R.string.error_play_op_limit));
+            return;
+        }
         if (player().canSetOpening(position, duration)) setOpening(position);
     }
 
     private void onOpeningAdd() {
+        if (mHistory.getOpening() >= 600000) {
+            Notify.show(getString(R.string.error_play_op_limit));
+            return;
+        }
         mViewModel.addOpening(1000);
         setOpening(mHistory.getOpening());
     }
@@ -837,10 +876,19 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     private void onEnding() {
         long position = player().getPosition();
         long duration = player().getDuration();
-        if (player().canSetEnding(position, duration)) setEnding(duration - position);
+        long ending = duration - position;
+        if (ending > 600000) {
+            Notify.show(getString(R.string.error_play_ed_limit));
+            return;
+        }
+        if (player().canSetEnding(position, duration)) setEnding(ending);
     }
 
     private void onEndingAdd() {
+        if (mHistory.getEnding() >= 600000) {
+            Notify.show(getString(R.string.error_play_ed_limit));
+            return;
+        }
         mViewModel.addEnding(1000);
         setEnding(mHistory.getEnding());
     }
@@ -903,9 +951,16 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private void showInfo() {
-        if (player() == null || player().getPlayer() == null) return;
+        if (mSeeking || player() == null || player().getPlayer() == null || !isFullscreen()) return;
+        mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        mBinding.widget.getRoot().setVisibility(View.VISIBLE);
+        mBinding.widget.getRoot().setTranslationZ(2000f);
         mBinding.widget.info.setVisibility(View.VISIBLE);
         mBinding.widget.center.setVisibility(View.VISIBLE);
+        mBinding.exo.setTranslationZ(-100f);
+        mBinding.video.bringToFront();
+        mBinding.widget.getRoot().bringToFront();
+        mBinding.widget.getRoot().requestLayout();
         mBinding.widget.size.setText(player().getSizeText());
         mBinding.widget.exoDuration.setText(player().getDurationTime());
         mBinding.widget.exoPosition.setText(player().getPositionTime(0));
@@ -918,17 +973,28 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     private void showControl(View view) {
         if (player() == null || player().getPlayer() == null) return;
+        mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         mBinding.control.getRoot().setVisibility(View.VISIBLE);
+        mBinding.widget.getRoot().setVisibility(View.VISIBLE);
         mBinding.widget.info.setVisibility(View.VISIBLE);
+        mBinding.control.getRoot().setTranslationZ(2000f);
+        mBinding.widget.getRoot().setTranslationZ(2000f);
+        mBinding.exo.setTranslationZ(-100f);
+        mBinding.control.getRoot().bringToFront();
+        mBinding.widget.getRoot().bringToFront();
+        mBinding.control.getRoot().requestLayout();
+        mBinding.widget.getRoot().requestLayout();
         mBinding.widget.size.setText(player().getSizeText());
-        if (view != null) view.requestFocus();
+        if (view != null) App.post(view::requestFocus, 50);
         setR1Callback();
     }
 
     protected void hideControl() {
+        if (mBinding == null) return;
+        if (isFullscreen()) mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         mBinding.control.getRoot().setVisibility(View.GONE);
         hideInfo();
-        if (player().isPlaying() && !isPaused()) mBinding.widget.info.setVisibility(View.GONE);
+        if (player() != null && player().isPlaying() && !isPaused()) mBinding.widget.info.setVisibility(View.GONE);
         App.removeCallbacks(mR1);
     }
 
@@ -1017,7 +1083,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
         @Override
         public void onStop() {
-            if (isStop() || !mViewModel.getPlaybackState().isRecovering()) finish();
+            if (isStop()) finish();
         }
 
         @Override
@@ -1062,9 +1128,18 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         switch (state) {
             case Player.STATE_BUFFERING:
                 mClock.setCallback(null);
+                if (mBinding.widget.status.getVisibility() == View.VISIBLE || mBinding.widget.progress.getVisibility() == View.VISIBLE) {
+                    mBinding.widget.status.setVisibility(View.VISIBLE);
+                    mBinding.widget.status.setText(R.string.play_buffering);
+                }
                 break;
             case Player.STATE_READY:
                 mClock.setCallback(this);
+                mBinding.video.setBackgroundResource(0);
+                mBinding.exo.setBackgroundResource(0);
+                mBinding.widget.status.setVisibility(View.GONE);
+                if (!isFullscreen()) hideInfo();
+                if (!isFullscreen()) hideCenter();
                 break;
             case Player.STATE_ENDED:
                 mClock.setCallback(null);
@@ -1076,7 +1151,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     protected void onPlayingChanged(boolean isPlaying) {
-        if (isUpdatingInfo) return;
+        if (isUpdatingInfo || mSeeking || !isFullscreen()) return;
         isUpdatingInfo = true;
         try {
             if (isPlaying) {
@@ -1100,7 +1175,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     public void onTimeChanged(long time) {
-        if (!isOwner() || player() == null || isUpdatingInfo) return;
+        if (!isOwner() || player() == null || isUpdatingInfo || isScrubbing() || mSeeking) return;
         if (System.currentTimeMillis() - lastTimeUpdate < 2000) return; // 🛠️ 降低進度更新頻率(2秒)，減輕主線程壓力
         lastTimeUpdate = System.currentTimeMillis();
         if (player().isPlaying()) mVod.onTimeChanged(time, player().getPosition(), player().getDuration());
@@ -1154,13 +1229,17 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private void onPaused() {
-        controller().pause();
+        if (player() == null || player().getPlayer() == null) return;
+        player().getPlayer().pause();
+        showInfo();
     }
 
     private void onPlay() {
-        if (mHistory != null && isEnded()) controller().seekTo(mHistory.getOpening());
-        if (!player().isEmpty() && isIdle()) controller().prepare();
-        controller().play();
+        if (player() == null || player().getPlayer() == null) return;
+        if (mHistory != null && isEnded()) player().seekTo(mHistory.getOpening());
+        if (!player().isEmpty() && isIdle()) player().getPlayer().prepare();
+        player().getPlayer().play();
+        hideControl();
     }
 
     private boolean onSeekBack() {
@@ -1178,17 +1257,40 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private View getFocus2() {
-        return mFocus2 == null || mFocus2.getVisibility() != View.VISIBLE || mFocus2 == mBinding.control.opening || mFocus2 == mBinding.control.ending ? mBinding.control.next : mFocus2;
+        List<View> list = Arrays.asList(mBinding.control.next, mBinding.control.reset, mBinding.control.player, mBinding.control.decode, mBinding.control.speed, mBinding.control.scale, mBinding.control.episodes);
+        if (mFocus2 != null && mFocus2.getVisibility() == View.VISIBLE && mFocus2 != mBinding.control.opening && mFocus2 != mBinding.control.ending) return mFocus2;
+        for (View view : list) if (view.getVisibility() == View.VISIBLE) return view;
+        return mBinding.video;
     }
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        if (isFullscreen() && KeyUtil.isMenuKey(event)) onToggle();
+        if (mBinding == null) return false;
         if (isVisible(mBinding.control.getRoot())) setR1Callback();
         if (isVisible(mBinding.control.getRoot())) mFocus2 = getCurrentFocus();
-        if (isFullscreen() && isGone(mBinding.control.getRoot()) && mKeyDown.hasEvent(event) && service() != null) return mKeyDown.onKeyDown(event);
-        // if (KeyUtil.isMediaFastForward(event)) return onSeekForward();
-        // if (KeyUtil.isMediaRewind(event)) return onSeekBack();
+
+        if (isFullscreen()) {
+            if (KeyUtil.isMenuKey(event)) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) onToggle();
+                return true;
+            }
+            if (isGone(mBinding.control.getRoot())) {
+                if (KeyUtil.isBackKey(event)) {
+                    if (event.getAction() == KeyEvent.ACTION_UP) exitFullscreen();
+                    return true;
+                }
+                if (mKeyDown.hasEvent(event)) {
+                    if (event.getAction() == KeyEvent.ACTION_DOWN && !KeyUtil.isEnterKey(event) && !KeyUtil.isLeftKey(event) && !KeyUtil.isRightKey(event)) {
+                        showControl(getFocus2());
+                        return true;
+                    }
+                    return mKeyDown.onKeyDown(event);
+                } else if (event.getAction() == KeyEvent.ACTION_DOWN && !KeyUtil.isVolumeKey(event)) {
+                    showControl(getFocus2());
+                    return true;
+                }
+            }
+        }
         return super.dispatchKeyEvent(event);
     }
 
@@ -1222,17 +1324,35 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     public void onSeeking(int time) {
+        App.removeCallbacks(mHideCenter);
+        App.removeCallbacks(mSeekReset);
+        if (mBasePosition == -1) mBasePosition = player().getPosition();
+        mSeeking = true;
+        mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        mBinding.widget.getRoot().setVisibility(View.VISIBLE);
+        mBinding.widget.getRoot().setTranslationZ(2000f);
         mBinding.widget.center.setVisibility(View.VISIBLE);
+        mBinding.video.bringToFront();
+        mBinding.widget.getRoot().bringToFront();
+        mBinding.widget.getRoot().requestLayout();
         mBinding.widget.exoDuration.setText(player().getDurationTime());
-        mBinding.widget.exoPosition.setText(player().getPositionTime(time));
+        mBinding.widget.exoPosition.setText(player().getPositionTime(mBasePosition, time));
         mBinding.widget.action.setImageResource(time > 0 ? R.drawable.ic_widget_forward : R.drawable.ic_widget_rewind);
         hideProgress();
     }
 
     @Override
     public void onSeekTo(int time) {
+        if (mBasePosition == -1) return;
+        long target = mBasePosition + time;
+        long duration = player().getDuration();
+        long finalPos = Math.max(0, Math.min(target, duration));
+        android.util.Log.d("VideoActivity", "onSeekTo: finalPos=" + finalPos + " (base=" + mBasePosition + ", delta=" + time + ")");
         mKeyDown.resetTime();
-        seekTo(time);
+        player().seekTo(finalPos);
+        mBasePosition = finalPos;
+        App.post(mHideCenter, 500);
+        App.post(mSeekReset, 2500);
     }
 
     @Override
@@ -1270,10 +1390,14 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     public void onKeyCenter() {
-        if (player().isPlaying()) onPaused();
-        else if (player().isEmpty()) onRefresh();
-        else onPlay();
-        hideControl();
+        if (player().isPlaying() || player().getPlayer().getPlayWhenReady()) {
+            onPaused();
+        } else if (player().isEmpty()) {
+            onRefresh();
+            hideControl();
+        } else {
+            onPlay();
+        }
     }
 
     @Override
@@ -1304,6 +1428,14 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     @Override
+    protected void onDestroy() {
+        mClock.release();
+        Source.get().exit();
+        App.removeCallbacks(mR1, mR2, mR3, mR4, mDataTimer);
+        super.onDestroy();
+    }
+
+    @Override
     protected void showProgress() {
         if (mBinding == null) return;
         if (mBinding.progressLayout.isContent() || mBinding.name.length() > 0) {
@@ -1318,7 +1450,18 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     protected void hideProgress() {
         if (mBinding == null) return;
+        if (mBinding.widget.status.getVisibility() == View.VISIBLE) {
+            mBinding.widget.status.setText(R.string.play_timeout_success);
+            App.post(() -> {
+                if (mBinding != null && player().getPlaybackState() == Player.STATE_BUFFERING) {
+                    mBinding.widget.status.setText(R.string.play_buffering);
+                } else if (mBinding != null) {
+                    mBinding.widget.status.setVisibility(View.GONE);
+                }
+            }, 1000);
+        }
         if (mBinding.widget.progress.getVisibility() == View.GONE && mBinding.progressLayout.isContent()) return;
+        mBinding.widget.status.setVisibility(View.GONE);
         mBinding.widget.progress.setVisibility(View.GONE);
         mBinding.progressLayout.showContent();
     }

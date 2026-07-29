@@ -1,0 +1,159 @@
+package com.fongmi.android.tv;
+
+import android.app.Activity;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+
+import androidx.appcompat.app.AlertDialog;
+
+import com.fongmi.android.tv.databinding.DialogUpdateBinding;
+import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.Download;
+import com.fongmi.android.tv.utils.FileUtil;
+import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Task;
+import com.github.catvod.net.OkHttp;
+import com.github.catvod.utils.Github;
+import com.github.catvod.utils.Json;
+import com.github.catvod.utils.Path;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
+import org.json.JSONObject;
+
+import java.io.File;
+import java.util.Locale;
+
+public class
+Updater implements Download.Callback {
+
+    private DialogUpdateBinding binding;
+    private AlertDialog dialog;
+    private boolean dev;
+
+    private static class Loader {
+        static volatile Updater INSTANCE = new Updater();
+    }
+
+    public static Updater get() {
+        return Loader.INSTANCE;
+    }
+
+    private File getFile() {
+        return Path.externalCache("update.apk");
+    }
+
+    private String getJson() {
+        return Github.getJson(dev, "leanback"); //leanback
+    }
+
+    private String getApk() {
+        return Github.getApk(dev, "leanback-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi); //leanback-python-x86_64-release
+
+        //return Github.getApk(dev, BuildConfig.FLAVOR); //leanbackPythonX86_64
+    }
+
+    public Updater force() {
+        Notify.show(R.string.update_check);
+        Setting.putUpdate(true);
+        return this;
+    }
+
+    public Updater release() {
+        this.dev = false;
+        return this;
+    }
+
+    public Updater dev() {
+        this.dev = true;
+        return this;
+    }
+
+    private Updater check() {
+        dismiss();
+        return this;
+    }
+
+    public void start(Activity activity) {
+        Task.execute(() -> doInBackground(activity));
+    }
+
+
+    //VERSION_CODE = 258;
+    //VERSION_NAME = "Rocker-2.5.8";
+    private boolean need(int code, String name) {
+        Log.d("Updater", name + " code: " + code );
+        return Setting.getUpdate() && (dev ? !name.equals(BuildConfig.VERSION_NAME) && code >= BuildConfig.VERSION_CODE : code > BuildConfig.VERSION_CODE);
+    }
+
+    private void doInBackground(Activity activity) {
+        Github.URL = "https://rockervv.duckdns.org";
+        String ip = com.github.catvod.utils.Util.getIp();
+        if (ip.startsWith("192.168.68.")) {
+            try (okhttp3.Response res = OkHttp.newCall(OkHttp.client(1000), "http://192.168.68.81").execute()) {
+                if (res.isSuccessful()) Github.URL = "http://192.168.68.81";
+            } catch (Exception ignored) {
+            }
+        }
+        String url = getJson();
+        try {
+            String Jsondata = OkHttp.string(url);
+            JSONObject object = Json.safeJSONObject(Jsondata);
+            String name = object.optString("name");
+            String desc = object.optString("desc");
+            int code = object.optInt("code");
+            Log.d ("Updater", "URL: " + Github.URL + " name:[" + name + "] code: " + code + ", desc:\n" + desc + "\n");
+            if (need(code, name)) App.post(() -> show(activity, name, desc));
+        } catch (Exception e) {
+            Log.d("Updater", url + " error: " + e);
+        }
+    }
+
+    private void show(Activity activity, String version, String desc) {
+        binding = DialogUpdateBinding.inflate(LayoutInflater.from(activity));
+        binding.version.setText(ResUtil.getString(R.string.update_version, version));
+        binding.confirm.setOnClickListener(this::confirm);
+        binding.cancel.setOnClickListener(this::cancel);
+        check().create(activity).show();
+        binding.desc.setText(desc);
+    }
+
+    private AlertDialog create(Activity activity) {
+        return dialog = new MaterialAlertDialogBuilder(activity).setView(binding.getRoot()).setCancelable(false).create();
+    }
+
+    private void cancel(View view) {
+        Setting.putUpdate(false);
+        dismiss();
+    }
+
+    private void confirm(View view) {
+        binding.confirm.setEnabled(false);
+        Download.create(getApk(), getFile(), this).start();
+    }
+
+    private void dismiss() {
+        try {
+            if (dialog != null) dialog.dismiss();
+        } catch (Exception ignored) {
+        }
+    }
+
+    @Override
+    public void progress(int progress) {
+        binding.confirm.setText(String.format(Locale.getDefault(), "%1$d%%", progress));
+    }
+
+    @Override
+    public void error(String msg) {
+        Notify.show(msg);
+        dismiss();
+    }
+
+    @Override
+    public void success(File file) {
+        FileUtil.openFile(file);
+        dismiss();
+    }
+}

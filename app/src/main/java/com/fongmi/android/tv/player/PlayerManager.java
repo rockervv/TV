@@ -5,8 +5,6 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.media3.common.C;
-//import androidx.media3.common.MediaChapter;
-//import androidx.media3.common.MediaEdition;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.PlaybackException;
@@ -45,12 +43,14 @@ import java.util.Map;
 public class PlayerManager implements ParseCallback {
 
     private final Runnable runnable;
+    private final Runnable countdownRunnable;
     private final Callback callback;
     private PlayerEngine engine;
     private VideoSize videoSize;
     private ParseJob parseJob;
     private PlaySpec spec;
     private Player player;
+    private long timeoutRemaining;
 
     private long pendingStartPositionMs;
     private boolean initTrack;
@@ -60,6 +60,7 @@ public class PlayerManager implements ParseCallback {
     public PlayerManager(Callback callback) {
         this.callback = callback;
         this.runnable = this::onPlayTimeout;
+        this.countdownRunnable = this::onCountdown;
         this.decode = PlayerEngine.HARD;
         this.engine = PlayerEngineFactory.create(decode, listener);
         this.player = engine.getPlayer();
@@ -73,6 +74,7 @@ public class PlayerManager implements ParseCallback {
 
     public void release() {
         App.removeCallbacks(runnable);
+        App.removeCallbacks(countdownRunnable);
         if (player != null) player.removeListener(listener);
         if (engine != null) engine.release();
         engine = null;
@@ -87,24 +89,16 @@ public class PlayerManager implements ParseCallback {
         return player.getCurrentTracks();
     }
 
-    /*public List<MediaChapter> getCurrentMediaChapters() {
-        return player.getCurrentMediaChapters();
-    }
-
-    public List<MediaEdition> getCurrentMediaEditions() {
-        return player.getCurrentMediaEditions();
-    }*/
-
     public MediaItem getCurrentMediaItem() {
         return player.getCurrentMediaItem();
     }
 
     public int getPlaybackState() {
-        return player.getPlaybackState();
+        return player == null ? Player.STATE_IDLE : player.getPlaybackState();
     }
 
     public boolean isPlaying() {
-        return player.isPlaying();
+        return player != null && player.isPlaying();
     }
 
     public boolean isReleased() {
@@ -183,12 +177,10 @@ public class PlayerManager implements ParseCallback {
     }
 
     public boolean haveEdition() {
-        //return !getCurrentMediaEditions().isEmpty();
         return false;
     }
 
     public boolean haveChapter() {
-        //return !getCurrentMediaChapters().isEmpty();
         return false;
     }
 
@@ -236,7 +228,11 @@ public class PlayerManager implements ParseCallback {
     }
 
     public String getPositionTime(long delta) {
-        long position = getPosition() + delta;
+        return getPositionTime(getPosition(), delta);
+    }
+
+    public String getPositionTime(long position, long delta) {
+        position += delta;
         long duration = Math.max(0, getDuration());
         return Util.timeMs(Math.max(0, Math.min(position, duration)));
     }
@@ -259,14 +255,6 @@ public class PlayerManager implements ParseCallback {
         if (spec != null) spec.setFormat(format);
         startCurrent();
     }
-
-    /*public void selectChapter(MediaChapter chapter) {
-        player.selectChapter(chapter);
-    }
-
-    public void selectEdition(MediaEdition edition) {
-        player.selectEdition(edition);
-    }*/
 
     public String setSpeed(float speed) {
         if (!player.isCommandAvailable(Player.COMMAND_SET_SPEED_AND_PITCH)) return getSpeedText();
@@ -337,29 +325,28 @@ public class PlayerManager implements ParseCallback {
     }
 
     public long getTextOffsetMs() {
-        //return player.isCommandAvailable(Player.COMMAND_GET_TEXT_OFFSET) ? player.getTextOffsetMs() : 0;
         return 0;
     }
 
     public void setTextOffsetMs(long offsetMs) {
-        //if (player.isCommandAvailable(Player.COMMAND_SET_TEXT_OFFSET)) player.setTextOffsetMs(offsetMs);
     }
 
     public long getAudioOffsetMs() {
-        //return player.isCommandAvailable(Player.COMMAND_GET_AUDIO_OFFSET) ? player.getAudioOffsetMs() : 0;
         return 0;
     }
 
     public void setAudioOffsetMs(long offsetMs) {
-        //if (player.isCommandAvailable(Player.COMMAND_SET_AUDIO_OFFSET)) player.setAudioOffsetMs(offsetMs);
     }
 
     public void reset() {
+        android.util.Log.d("PlayerManager", "reset: removing all timer callbacks");
         App.removeCallbacks(runnable);
+        App.removeCallbacks(countdownRunnable);
         retry = 0;
     }
 
     public void clear() {
+        android.util.Log.d("PlayerManager", "clear: spec cleared");
         spec = null;
     }
 
@@ -405,7 +392,29 @@ public class PlayerManager implements ParseCallback {
 
     private void onPlayTimeout() {
         stop();
-        callback.onError(ResUtil.getString(R.string.error_play_timeout));
+        listener.onPlayerError(new PlaybackException(ResUtil.getString(R.string.error_play_timeout), null, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED));
+    }
+
+    public void startTimeout(long timeout) {
+        android.util.Log.d("PlayerManager", "startTimeout: " + timeout + "ms");
+        App.removeCallbacks(runnable);
+        App.removeCallbacks(countdownRunnable);
+        this.timeoutRemaining = timeout;
+        if (timeout > 0) {
+            App.post(runnable, timeout);
+            App.post(countdownRunnable, 0);
+        }
+    }
+
+    private void onCountdown() {
+        if (timeoutRemaining < 0) {
+            android.util.Log.d("PlayerManager", "onCountdown: stop (remaining < 0)");
+            callback.onTimeoutCountdown(-1);
+            return;
+        }
+        callback.onTimeoutCountdown(timeoutRemaining);
+        timeoutRemaining -= 100;
+        App.post(countdownRunnable, 100);
     }
 
     private void ensureEngine(PlaySpec spec) {
@@ -443,6 +452,7 @@ public class PlayerManager implements ParseCallback {
 
     public void parse(String key, Result result, boolean useParse, MediaMetadata metadata, long startPositionMs) {
         stopParse();
+        startTimeout(Constant.TIMEOUT_PLAY);
         pendingStartPositionMs = startPositionMs;
         spec = PlaySpec.fromParse(result, key, metadata);
         parseJob = ParseJob.create(this).start(result, useParse);
@@ -456,10 +466,10 @@ public class PlayerManager implements ParseCallback {
 
     private void setMediaItem(long timeout, long startPositionMs) {
         if (spec == null || spec.getUrl() == null) return;
-        android.util.Log.d("PlayerManager", "setMediaItem: " + spec.getUrl() + " pos: " + startPositionMs);
+        App.removeCallbacks(runnable);
         ensureEngine(spec.checkUa().checkProxy());
         engine.start(spec, startPositionMs);
-        App.post(runnable, timeout);
+        if (timeout > 0) App.post(runnable, timeout);
         callback.onPrepare();
         initTrack = false;
     }
@@ -501,13 +511,22 @@ public class PlayerManager implements ParseCallback {
         void onError(String msg);
 
         void onPlayerRebuild(Player newPlayer);
+
+        default void onTimeoutCountdown(long ms) {
+        }
     }
 
     private final Player.Listener listener = new Player.Listener() {
 
         @Override
         public void onPlaybackStateChanged(int state) {
-            if (state == Player.STATE_READY || state == Player.STATE_ENDED) App.removeCallbacks(runnable);
+            android.util.Log.d("PlayerManager", "onPlaybackStateChanged: " + state);
+            if (state == Player.STATE_READY || state == Player.STATE_ENDED) {
+                android.util.Log.d("PlayerManager", "onPlaybackStateChanged: removing timers due to READY/ENDED");
+                App.removeCallbacks(runnable);
+                App.removeCallbacks(countdownRunnable);
+                callback.onTimeoutCountdown(-1);
+            }
         }
 
         @Override
@@ -522,16 +541,6 @@ public class PlayerManager implements ParseCallback {
             callback.onTracksChanged();
             initTrack = true;
         }
-
-        /*@Override
-        public void onMediaChaptersChanged(@NonNull List<MediaChapter> chapters) {
-            callback.onMediaOptionsChanged();
-        }
-
-        @Override
-        public void onMediaEditionsChanged(@NonNull List<MediaEdition> editions) {
-            callback.onMediaOptionsChanged();
-        }*/
 
         @Override
         public void onPlayerError(@NonNull PlaybackException e) {

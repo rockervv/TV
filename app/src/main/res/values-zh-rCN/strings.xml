@@ -1,314 +1,397 @@
-<resources xmlns:xliff="http://schemas.android.com/apk/res-auto">
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
 
     <!-- App -->
     <string name="app_name">OK影视</string>
     <string name="app_exit">再按一次返回键退出</string>
 
     <!-- Vod -->
-    <string name="vod_last">上次看到<xliff:g name="name">%s</xliff:g></string>
-    <string name="home_loading">正在加载「%1$s」的内容&#8230;</string>
+    <string name="vod_last">上次看到%1$s</string>
+    <string name="error_site_empty">站点数据为空</string>
+    <string name="home_loading">正在加载“%1$s”的内容&#8230;</string>
 
     <!-- Live -->
     <string name="live_pass">密码</string>
-    <string name="live_line">线路 <xliff:g name="name">%s</xliff:g></string>
+    <string name="live_refresh">刷新</string>
+    <string name="live_line">线路 %1$s</string>
 
     <!-- Detail -->
-    <string name="detail_title"><xliff:g name="name">%s</xliff:g>：<xliff:g name="name">%s</xliff:g></string>
-    <string name="detail_site">站源：<xliff:g name="name">%s</xliff:g></string>
-    <string name="detail_year">年份：<xliff:g name="name">%s</xliff:g></string>
-    <string name="detail_area">地区：<xliff:g name="name">%s</xliff:g></string>
-    <string name="detail_type">类型：<xliff:g name="name">%s</xliff:g></string>
-    <string name="detail_director">导演：<xliff:g name="name">%s</xliff:g></string>
-    <string name="detail_actor">演员：<xliff:g name="name">%s</xliff:g></string>
-    <string name="detail_content">简介：<xliff:g name="name">%s</xliff:g></string>
+    <string name="detail_title">%1$s : %2$s</string>
+    <string name="detail_site">站源：%1$s</string>
+    <string name="detail_year">年份：%1$s</string>
+    <string name="detail_area">地区：%1$s</string>
+    <string name="detail_type">类型：%1$s</string>
+    <string name="detail_director">导演：%1$s</string>
+    <string name="detail_actor">演员：%1$s</string>
+    <string name="detail_content">简介：%1$s</string>
     <string name="detail_desc">简介</string>
 
     <!-- Keep -->
     <string name="keep">收藏</string>
-    <string name="keep_add">已加入收藏</string>
-    <string name="keep_del">已取消收藏</string>
+    <string name="keep_add">已收藏</string>
+    <string name="keep_del">已取消</string>
 
     <!-- Play -->
     <string name="play">播放</string>
+    <string name="pause">暂停</string>
     <string name="play_op">片头</string>
     <string name="play_ed">片尾</string>
     <string name="play_exo">EXO</string>
     <string name="play_mpv">MPV</string>
-    <string name="play_other">其它</string>
-    <string name="play_next">下集</string>
-    <string name="play_prev">上集</string>
+    <string name="play_other">其他</string>
+    <string name="play_next">下一集</string>
+    <string name="play_prev">上一集</string>
     <string name="play_stop">停止</string>
-    <string name="play_repeat">循环</string>
+    <string name="play_repeat">重播</string>
     <string name="play_reset">重播</string>
-    <string name="play_episodes">选集</string>
+    <string name="play_scale">默认</string>
+    <string name="play_episodes">剧集</string>
     <string name="play_loop">循环</string>
     <string name="play_timer">定时</string>
     <string name="play_time">时间</string>
     <string name="play_netspeed">网速</string>
-    <string name="play_duration">进度</string>
+    <string name="play_duration">时长</string>
     <string name="play_mini_progress">迷你</string>
     <string name="play_video_title">标题</string>
 
-    <string name="play_display">屏显</string>
+    <string name="play_save">保存 M3U8</string>
+    <string name="play_save_success">M3U8 已保存至：%1$s</string>
+    <string name="play_display">显示</string>
     <string name="play_speed">倍速</string>
-    <string name="play_change">换源</string>
-    <string name="play_forward">→</string>
-    <string name="play_backward">←</string>
+    <string name="play_change">切换</string>
+    <string name="play_forward">正序</string>
+    <string name="play_backward">倒序</string>
     <string name="play_invert">反转</string>
-    <string name="play_across">跨类</string>
-    <string name="play_reverse">倒序</string>
+    <string name="play_across">跨屏</string>
+    <string name="play_reverse">反向</string>
     <string name="play_track_text">字幕</string>
-    <string name="play_track_audio">音轨</string>
-    <string name="play_track_video">视轨</string>
-    <string name="play_forward_hint">已切换正序播放</string>
-    <string name="play_backward_hint">已切换倒序播放</string>
-    <string name="play_now">正在播放：%s</string>
-    <string name="play_resume">接续上次观看记录 %s</string>
-    <string name="play_skip_op">已跳过片头 %s</string>
+    <string name="play_track_audio">音频</string>
+    <string name="play_track_video">视频</string>
+    <string name="play_config">配置</string>
+    <string name="play_decode">硬解</string>
+    <string name="offset_text">字幕偏移</string>
+    <string name="offset_audio">音频偏移</string>
+    <string name="offset_setting">偏移设置</string>
+    <string name="danmaku_reset">重置</string>
+    <string name="play_forward_hint">正序播放</string>
+    <string name="play_backward_hint">倒序播放</string>
+    <string name="play_now">正在播放：%1$s</string>
+    <string name="play_resume">续播自 %1$s</string>
+    <string name="play_skip_op">跳过片头 %1$s</string>
     <string name="play_ready">准备播放：%s</string>
-    <string name="play_switch_parse">正在切换解析至「<xliff:g name="name">%s</xliff:g>」</string>
-    <string name="play_switch_flag">正在切换线路至「<xliff:g name="name">%s</xliff:g>」</string>
-    <string name="play_switch_site">正在切换站源至「<xliff:g name="name">%s</xliff:g>」</string>
+    <string name="play_switch_parse">正在切换解析为：%1$s</string>
+    <string name="play_switch_flag">正在切换线路为：%1$s</string>
+    <string name="play_switch_site">正在切换源为：%1$s</string>
 
     <!-- Parse -->
     <string name="parse">解析</string>
-    <string name="parse_god">超级解析</string>
-    <string name="parse_from">解析来自：<xliff:g name="name">%s</xliff:g></string>
+    <string name="parse_god">超解</string>
+    <string name="parse_from">解析来自：%1$s</string>
+
+    <!-- Collect -->
+    <string name="collect_result">“%1$s”的搜索结果</string>
 
     <!-- Push -->
     <string name="push">推送</string>
+    <string name="push_clip">推送剪贴板内容</string>
+    <string name="push_info">使用手机扫描二维码，或于浏览器访问地址\n%1$s</string>
+    <string name="push_image" translatable="false">data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCADwAPADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACvN7bxhffFCaRPB+oWZ8KSQX1h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GK7r4M/DHWJtcufiT8QVSXxzqkXl29mDui0W0OSttF6Ngnew6knnlifZq7qcfYx5U7vq/M8WvV+sT52rJaJdktvn5nzldt8avhYpTVdMsvjD4bj4FzZKLTV4155MfSQ9OFyT61e8F/GTwF8Rbo2Onay2h68p2yaF4gQ2tyj4GVG7hjz0BNe/wBcZ8RPg74M+K1mbfxR4fs9UYLtS5ZNlxH/ALkq4dfoDitbp7mFmtjGvNNudPbbcQtH6NjIP41518fo5NY8G+FfAFsxS88da3DaTbSQy2ULCWdwRzwFX8GNTyfBX4nfCdd/w38bf8JHoqf8yx4w/ertzkrFcDkdwAQoHcml+F9n4v8AiP8AHCLxZ4w8H3Xg6Hwxop020sZ3WSF7yaQmWWGQcOvlhVyOOcZOKaVtbkt30seofFbVo/C/gCS2s9Y07w3dXTRabp9xqUBmt/NcgLEYwDuDKGXFdhptmun6fa2qrGiwRLEFhQRoAoAwqjhRxwB0p11ZW98ipcwRXCK6yKsqBgGByGGe4PQ1PUFhRRRSGFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAVhePP+RH8Rf9g64/9FNW7WD483HwN4i2RvK/9nXOI413Mx8puAO5NNbgfB/jX4kWV58A/hN8NZdQaw0u40+PVvEl1Dy0NjHI2yMdi7sPlU9XEQ/ir6Q+DPw1vPGOt6f8RfGGljTBZ262/hTwww/d6LZgAK7L/wA92ULk/wAIAHYBfFf2N/2XJtelsfiN47tWeKIRjR9LuoyN4jUIk8in+EBRsB643dMZ+6K1m0tEYwTerCiiisTYKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Z</string>
 
     <!-- Setting -->
-    <string name="setting_vod">点播</string>
-    <string name="setting_live">直播</string>
-    <string name="setting_wall">壁纸</string>
-    <string name="setting_player">播放设置</string>
+    <string name="setting_vod">Vod</string>
+    <string name="setting_live">Live</string>
+    <string name="setting_wall">Wallpaper</string>
+    <string name="setting_player">Player setting</string>
 
-    <string name="setting_custom">个性设置</string>
-    <string name="setting_config_cache">接口缓存</string>
-    <string name="setting_cache_dir">迅雷缓存</string>
-    <string name="setting_reset">重置App</string>
-    <string name="setting_quality">图片品质</string>
-    <string name="setting_size">图片尺寸</string>
-    <string name="setting_aggregated_search">聚合搜索</string>
-    <string name="setting_language">语言设置</string>
-    <string name="setting_dlna">投屏设置</string>
-    <string name="setting_parse_webview">嗅探内核</string>
-    <string name="setting_fullscreen_menu_key">全屏菜单键</string>
-    <string name="setting_home_menu_key">首页菜单键</string>
-    <string name="setting_home_site_lock">首页源锁定</string>
-    <string name="setting_incognito">无痕模式</string>
-    <string name="setting_site_search">站源搜索</string>
-    <string name="setting_remove_ad">AI去广告</string>
-    <string name="setting_small_window_back_key">小窗返回键</string>
-    <string name="setting_home_display_name">首页显示站源</string>
-    <string name="setting_home_ui">首页UI</string>
-    <string name="setting_home_buttons">首页按钮</string>
+    <string name="setting_custom">Custom setting</string>
+    <string name="setting_config_cache">Config cache</string>
+    <string name="setting_cache_dir">Thunder cache</string>
+    <string name="setting_reset">Reset app</string>
+    <string name="setting_quality">Image quality</string>
+    <string name="setting_size">Image size</string>
+    <string name="setting_aggregated_search">Aggregated search</string>
+    <string name="setting_language">Lanuage setting</string>
+    <string name="setting_dlna">DLNA setting</string>
+    <string name="setting_parse_webview">Parse webview</string>
+    <string name="setting_fullscreen_menu_key">Fullscreen menu key</string>
+    <string name="setting_home_menu_key">Home menu key</string>
+    <string name="setting_home_site_lock">Home site lock</string>
+    <string name="setting_incognito">Incognito mode</string>
+    <string name="setting_site_search">Site search</string>
+    <string name="setting_remove_ad">Remove ads</string>
+    <string name="setting_small_window_back_key">Small window back key</string>
+    <string name="setting_home_display_name">Home display name</string>
+    <string name="setting_home_ui">Home ui style</string>
+    <string name="setting_home_buttons">Home buttons</string>
     <string name="setting_doh">DoH</string>
     <string name="setting_proxy">Proxy</string>
-    <string name="setting_cache">缓存</string>
-    <string name="setting_backup">备份</string>
-    <string name="setting_restore">恢复</string>
-    <string name="setting_version">版本</string>
-    <string name="setting_about">关于</string>
-    <string name="setting_netflix">启用遥控器 Netflix 快捷键</string>
-    <string name="setting_storage">权限</string>
-    <string name="setting_off">关闭</string>
-    <string name="setting_on">开启</string>
+    <string name="setting_cache">Cache</string>
+    <string name="setting_backup">Backup</string>
+    <string name="setting_restore">Restore</string>
+    <string name="setting_version">Version</string>
+    <string name="setting_about">About</string>
+    <string name="setting_netflix">Enable Remote Netflix Button</string>
+    <string name="setting_storage">Permission</string>
+    <string name="setting_normalize">Audio Normalization</string>
+    <string name="setting_off">Off</string>
+    <string name="setting_on">On</string>
 
     <!-- Player -->
-    <string name="player">播放核心</string>
-    <string name="player_engine">播放引擎</string>
-    <string name="player_debug">调试</string>
-    <string name="player_decode">解码方式</string>
-    <string name="player_render">渲染方式</string>
-    <string name="player_scale">缩放比例</string>
-    <string name="player_caption">字幕样式</string>
-    <string name="player_play_with_others">同时播放</string>
+    <string name="player">Player</string>
+    <string name="player_engine">Engine</string>
+    <string name="player_debug">Debug</string>
+    <string name="player_decode">Decode</string>
+    <string name="player_render">Render</string>
+    <string name="player_scale">Scale</string>
+    <string name="player_caption">Caption style</string>
+    <string name="player_play_with_others">Play with others</string>
 
-    <string name="player_background">后台播放</string>
-    <string name="player_flag">线路播放</string>
-    <string name="player_episode">选集样式</string>
-    <string name="player_exo_tunnel">隧道模式</string>
-    <string name="player_exo_http">连线方式</string>
-    <string name="player_exo_buffer">缓冲时间</string>
-    <string name="player_rtsp">RTSP 通道</string>
+    <string name="player_background">Background play</string>
+    <string name="player_flag">Flag play</string>
+    <string name="player_episode">Episode style</string>
+    <string name="player_exo_tunnel">Tunnel mode</string>
+    <string name="player_exo_http">HTTP method</string>
+    <string name="player_exo_buffer">Buffer time</string>
+    <string name="player_rtsp">RTSP channel</string>
+    <string name="player_adblock">Remove ads</string>
+    <string name="player_speed">Press speed</string>
+    <string name="player_decode_setting">Decode setting</string>
+    <string name="player_preload_setting">Preload setting</string>
+    <string name="player_mpv_conf">mpv.conf</string>
+    <string name="player_mpv_hwdec">mpv HWDEC</string>
+    <string name="player_mpv_gpu_api">mpv GPU API</string>
+    <string name="player_mpv_fbo_format">mpv FBO Format</string>
+    <string name="player_mpv_gpu_next">gpu-next</string>
+    <string name="player_mpv_vulkan">vulkan</string>
+    <string name="player_preload">Preload</string>
+    <string name="player_preload_threads">Preload threads</string>
+    <string name="player_preload_threads_value">%1$d threads</string>
+    <string name="player_preload_size">Preload size</string>
+    <string name="player_preload_time">Preload time</string>
+    <string name="player_preload_time_value">%1$d seconds</string>
+    <string name="player_audio_pass_through">Audio passthrough</string>
+    <string name="player_audio_decode">Audio software decode</string>
+    <string name="player_video_decode">Video software decode</string>
+    <string name="player_aac_track">Prefer aac track</string>
+    <string name="player_dv7_fallback">DV7 fallback</string>
+    <string name="player_tunnel">Tunnel mode</string>
     <string name="player_ua">User-Agent</string>
 
     <!-- Search -->
-    <string name="search_keyword">关键字…</string>
-    <string name="search_record">历史</string>
-    <string name="search_suggest">建议</string>
-    <string name="search_hot">热搜</string>
+    <string name="search_keyword">Keywords…</string>
+    <string name="search_record">History</string>
+    <string name="search_suggest">Suggest</string>
+    <string name="search_hot">Hot</string>
 
     <!-- Dialog -->
-    <string name="dialog_edit">修改</string>
-    <string name="dialog_positive">确定</string>
-    <string name="dialog_negative">取消</string>
-    <string name="dialog_config_hint">请输入接口…</string>
-    <string name="dialog_config_name">请输入名称…</string>
-    <string name="dialog_config_url">请输入地址…</string>
-    <string name="dialog_delete_record">删除全部纪录？</string>
-    <string name="dialog_delete_keep">收藏纪录将会全部删除。</string>
-    <string name="dialog_delete_history">观看纪录将会全部删除。</string>
-    <string name="dialog_reset_app">重置App?</string>
-    <string name="dialog_reset_app_data">所有数据将会被重置，App即将被关闭.</string>
-    <string name="dialog_restore">还原备份数据？</string>
-    <string name="dialog_restore_msg">将会还原配置、观看纪录及各项设置。</string>
+    <string name="dialog_edit">Edit</string>
+    <string name="dialog_positive">OK</string>
+    <string name="dialog_negative">Cancel</string>
+    <string name="dialog_config_hint">Please enter the config…</string>
+    <string name="dialog_config_name">Please enter the name…</string>
+    <string name="dialog_config_url">Please enter the url…</string>
+    <string name="dialog_delete_record">Delete all records?</string>
+    <string name="dialog_delete_keep">All keep records will be removed.</string>
+    <string name="dialog_delete_history">All history records will be removed.</string>
+    <string name="dialog_reset_app">Reset app?</string>
+    <string name="dialog_reset_app_data">All app data will be reset, and app will be shutdown.</string>
+    <string name="dialog_restore">Restore backup data?</string>
+    <string name="dialog_restore_msg">Config, history and setting will be restored.</string>
 
     <!-- Error -->
-    <string name="error_config_get">配置取得失败</string>
-    <string name="error_config_parse">配置解析失败</string>
-    <string name="error_play_next">已经是最后一集了！</string>
-    <string name="error_play_prev">已经是第一集了！</string>
-    <string name="error_play_parse">播放地址解析失败</string>
-    <string name="error_play_url">播放地址加载失败\n错误代码：<xliff:g name="name">%s</xliff:g></string>
-    <string name="error_play_flag">暂无线路数据</string>
-    <string name="error_play_timeout">连接超时</string>
-    <string name="error_detail">暂无播放数据</string>
-    <string name="error_empty">找不到数据</string>
+    <string name="error_config_get">Configuration get failed</string>
+    <string name="error_config_parse">Configuration parse failed</string>
+    <string name="error_play_next">It\'s the last episode!</string>
+    <string name="error_play_prev">It\'s the first episode!</string>
+    <string name="error_play_parse">Unable to parse url</string>
+    <string name="error_play_url">Unable to load url\nError code: %1$s</string>
+    <string name="error_play_drm">DRM not supported</string>
+    <string name="error_play_tvbus">TVBus error: %1$s</string>
+    <string name="error_play_flag">No flag data</string>
+    <string name="error_play_timeout">播放超时</string>
+    <string name="play_status_countdown">资料取得倒数：%1$d</string>
+    <string name="play_status_reading">线路资料读取中…%1$.1f秒</string>
+    <string name="play_status_data_success">线路资料取得成功</string>
+    <string name="play_status_data_timeout">线路资料读取超时</string>
+    <string name="play_status_success">资料取得成功</string>
+    <string name="play_status_preparing">串流缓存准备中</string>
+    <string name="error_decode_fallback">硬解失败，已回退至软解</string>
+    <string name="error_detail">No play data</string>
+    <string name="error_empty">Not found</string>
 
     <!-- Update -->
-    <string name="update_version">发现新版本 <xliff:g name="name">%s</xliff:g></string>
-    <string name="update_check">正在检测更新…</string>
-    <string name="update_confirm">更新</string>
+    <string name="update_version">New version %1$s</string>
+    <string name="update_check">Checking for updates…</string>
+    <string name="update_confirm">Update</string>
 
     <!-- Crash -->
-    <string name="crash_info">发生意外错误\n抱歉给您带来不便</string>
-    <string name="crash_restart">重新启动</string>
-    <string name="crash_details">错误信息</string>
-    <string name="crash_details_title">错误信息</string>
-    <string name="crash_details_close">关闭</string>
+    <string name="crash_info">An unexpected error occurred.\nSorry for the inconvenience.</string>
+    <string name="crash_restart">Restart app</string>
+    <string name="crash_details">Error details</string>
+    <string name="crash_details_title">Error details</string>
+    <string name="crash_details_close">Close</string>
 
     <!-- Hint -->
-    <string name="copied">已复制</string>
-    <string name="backed">备份成功</string>
-    <string name="config_refreshed">接口已刷新</string>
+    <string name="copied">Copied</string>
+    <string name="backed">Backup successful</string>
+    <string name="restored">Restore successful</string>
+    <string name="config_refreshed">Config rereshed</string>
 
     <!-- UNIT -->
-    <string name="all">全部</string>
-    <string name="times">倍</string>
-    <string name="lines">行</string>
+    <string name="all">All</string>
+    <string name="times">times</string>
+    <string name="lines">lines</string>
 
     <string-array name="select_backup">
-        <item>自动</item>
-        <item>手动</item>
+        <item>Auto</item>
+        <item>Manual</item>
     </string-array>
 
     <string-array name="select_decode">
-        <item>软解</item>
-        <item>硬解</item>
+        <item>Soft</item>
+        <item>Hard</item>
+    </string-array>
+
+    <string-array name="select_engine">
+        <item>EXO</item>
+        <item>MPV</item>
     </string-array>
 
     <string-array name="select_player">
-        <item>系统</item>
+        <item>System</item>
         <item>EXO</item>
     </string-array>
 
 
 
+    <string-array name="select_render">
+        <item>Surface</item>
+        <item>Texture</item>
+    </string-array>
+
     <string-array name="select_quality">
-        <item>低</item>
-        <item>中</item>
-        <item>高</item>
+        <item>Low</item>
+        <item>Medium</item>
+        <item>High</item>
     </string-array>
 
     <string-array name="select_size">
-        <item>小</item>
-        <item>中</item>
-        <item>大</item>
-        <item>特大</item>
+        <item>Small</item>
+        <item>Medium</item>
+        <item>Large</item>
+        <item>Extra</item>
     </string-array>
 
     <string-array name="select_scale">
-        <item>原始</item>
+        <item>Default</item>
         <item>16:9</item>
         <item>4:3</item>
-        <item>填充</item>
-        <item>裁剪</item>
+        <item>Fill</item>
+        <item>Zoom</item>
     </string-array>
 
     <string-array name="select_reset">
-        <item>刷新</item>
-        <item>重播</item>
+        <item>Reset</item>
+        <item>Replay</item>
     </string-array>
 
     <string-array name="select_exo_http">
-        <item>预设</item>
+        <item>Default</item>
         <item>OkHttp</item>
     </string-array>
 
     <string-array name="select_flag">
-        <item>自动</item>
-        <item>手动</item>
+        <item>Auto</item>
+        <item>Manual</item>
     </string-array>
 
     <string-array name="select_episode">
-        <item>单行</item>
-        <item>多行</item>
+        <item>Single</item>
+        <item>Multiple</item>
     </string-array>
 
     <string-array name="select_fullscreen_menu_key">
-        <item>控制栏</item>
-        <item>选集</item>
-    </string-array>
-
-    <string-array name="select_small_window_back_key">
-        <item>返回</item>
-        <item>焦点移动</item>
+        <item>Control</item>
+        <item>Episodes</item>
     </string-array>
 
     <string-array name="select_home_menu_key">
-        <item>选项弹窗</item>
-        <item>切换站源</item>
-        <item>切换线路</item>
-        <item>直播页面</item>
-        <item>历史页面</item>
-        <item>搜索页面</item>
-        <item>推送页面</item>
-        <item>收藏页面</item>
-        <item>设置页面</item>
+        <item>Select dialog</item>
+        <item>Change site</item>
+        <item>Change config</item>
+        <item>Live page</item>
+        <item>History page</item>
+        <item>Search page</item>
+        <item>Push page</item>
+        <item>Keep page</item>
+        <item>Setting page</item>
     </string-array>
 
     <string-array name="select_language">
-        <item>英文</item>
-        <item>简体中文</item>
-        <item>繁体中文</item>
+        <item>English</item>
+        <item>Simplified Chinese</item>
+        <item>Traditional Chinese</item>
     </string-array>
 
     <string-array name="select_parse_webview">
-        <item>系统</item>
+        <item>System</item>
         <item>X5 WebView</item>
     </string-array>
 
+    <string-array name="select_small_window_back_key">
+        <item>Back</item>
+        <item>Focus move</item>
+    </string-array>
+
     <string-array name="select_home_recommend">
-        <item>播放历史</item>
-        <item>站点推荐</item>
+        <item>History</item>
+        <item>Site recommend</item>
     </string-array>
 
     <string-array name="select_home_ui">
-        <item>简洁风格</item>
-        <item>TVBox风格</item>
+        <item>Simple style</item>
+        <item>TVBox style</item>
     </string-array>
 
     <string-array name="select_config_cache">
-        <item>关闭</item>
-        <item>12小时</item>
-        <item>24小时</item>
+        <item>Close</item>
+        <item>12 Hour</item>
+        <item>24 Hour</item>
     </string-array>
 
     <string-array name="select_caption">
-        <item>预设</item>
-        <item>系统</item>
+        <item>Default</item>
+        <item>System</item>
     </string-array>
 
     <string-array name="select_track">
-        <item>选择音轨</item>
-        <item>选择视轨</item>
-        <item>选择字幕</item>
+        <item>Select audio track</item>
+        <item>Select video track</item>
+        <item>Select subtitle track</item>
     </string-array>
 
-    <string name="site_blacklist_confirm">确定要将「%s」加入黑名单吗？</string>
-    <string name="site_blacklist_remove_confirm">确定要将「%s」从黑名单移除吗？</string>
-    <string name="db_upgrading">正在升级数据库: %1$d -> %2$d</string>
+    <string-array name="select_rtsp" translatable="false">
+        <item>UDP</item>
+        <item>TCP</item>
+    </string-array>
+
+    <string-array name="select_mpv_hwdec">
+        <item>no</item>
+        <item>mediacodec</item>
+        <item>mediacodec-copy</item>
+    </string-array>
+
+    <string-array name="select_mpv_gpu_api">
+        <item>auto</item>
+        <item>opengl</item>
+        <item>vulkan</item>
+    </string-array>
+
+    <string-array name="select_mpv_fbo_format">
+        <item>auto</item>
+        <item>rgba8</item>
+    </string-array>
+
+    <string name="site_blacklist_confirm">Are you sure to add \"%1$s\" to the blacklist?</string>
+    <string name="site_blacklist_remove_confirm">Are you sure to remove \"%1$s\" from the blacklist?</string>
+    <string name="db_upgrading">Upgrading Database: %1$d -> %2$d</string>
 </resources>

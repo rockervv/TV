@@ -210,6 +210,10 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
     protected void onEpisodeChanged(Episode item) {
     }
 
+    @Override
+    public void onTimeoutCountdown(long ms) {
+    }
+
     protected void onQualityChanged(Result result) {
     }
 
@@ -240,6 +244,7 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
 
     @Override
     public void onIsPlayingChanged(boolean isPlaying) {
+        if (isPlaying) hideProgress();
         super.onIsPlayingChanged(isPlaying);
     }
 
@@ -282,8 +287,6 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
             onError(result.getMsg());
             return;
         }
-        if (result.getUrl().isEmpty()) return;
-        android.util.Log.d("BaseVideoActivity", "onPlayerObserved: " + result.getUrl());
         if (service() == null) {
             android.util.Log.w("BaseVideoActivity", "onPlayerObserved: service is null!");
             return;

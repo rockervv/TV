@@ -65,6 +65,7 @@ public class VodFallbackPolicy {
     }
 
     private boolean fallbackToNextLineOrSource() {
+        android.util.Log.d("Fallback", "fallbackToNextLineOrSource() - changeable: " + host.isSiteChangeable());
         if (!host.isSiteChangeable()) return false;
         if (fallbackToNextLine()) return true;
         return fallbackToNextSource(false);
@@ -72,6 +73,7 @@ public class VodFallbackPolicy {
 
     private boolean fallbackToNextLine() {
         int position = state.getFlagPosition() + 1;
+        android.util.Log.d("Fallback", "fallbackToNextLine() - next pos: " + position + " total flags: " + state.getFlags().size());
         if (position >= state.getFlags().size()) return false;
         Flag flag = state.getFlags().get(position);
         host.showSwitchLine(flag);
@@ -80,6 +82,7 @@ public class VodFallbackPolicy {
     }
 
     private boolean fallbackToNextSource(boolean force) {
+        android.util.Log.d("Fallback", "fallbackToNextSource() - hasSources: " + state.hasSources() + " auto: " + state.isAutoFallback() + " force: " + force);
         if (!state.hasSources()) {
             search(host.getVodName(), true);
             return true;

@@ -75,6 +75,7 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
     public static void backup(com.fongmi.android.tv.impl.Callback callback) {
+        android.util.Log.d("Backup", "backup() called - Setting.getBackupMode(): " + Setting.getBackupMode());
         if (backingUp || restoring) {
             Logger.t(NAME).w("backup skipped: backingUp=" + backingUp + " restoring=" + restoring);
             return;

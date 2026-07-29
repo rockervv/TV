@@ -10,15 +10,22 @@ import java.util.List;
 @Keep
 public final class MPVLib {
 
+    private static boolean mLoaded = false;
+
     static {
         String[] libs = {"avutil", "swresample", "avcodec", "swscale", "avformat", "avfilter", "avdevice", "mpv", "player"};
-        for (String lib : libs) {
-            try {
+        try {
+            for (String lib : libs) {
                 System.loadLibrary(lib);
-            } catch (Throwable e) {
-                android.util.Log.e("MPVLib", "Failed to load library: " + lib + " - " + e.getMessage());
             }
+            mLoaded = true;
+        } catch (Throwable e) {
+            android.util.Log.e("MPVLib", "Failed to load library: " + e.getMessage());
         }
+    }
+
+    public static boolean isLoaded() {
+        return mLoaded;
     }
 
     public static native void create(Context context);

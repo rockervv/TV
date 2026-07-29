@@ -184,6 +184,15 @@ public class Result implements Parcelable {
         this.list = list;
     }
 
+    public boolean isSameList(Result result) {
+        if (getList().size() != result.getList().size()) return false;
+        for (int i = 0; i < getList().size(); i++) {
+            if (!getList().get(i).isSameItem(result.getList().get(i))) return false;
+            if (!getList().get(i).isSameContent(result.getList().get(i))) return false;
+        }
+        return true;
+    }
+
     public LinkedHashMap<String, List<Filter>> getFilters() {
         return filters == null ? new LinkedHashMap<>() : filters;
     }

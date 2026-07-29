@@ -14,7 +14,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.os.HandlerCompat;
 
-import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.player.util.ADFilter;
 import com.fongmi.android.tv.ui.activity.CrashActivity;
@@ -37,7 +36,7 @@ import java.util.concurrent.Executors;
 
 import cat.ereza.customactivityoncrash.config.CaocConfig;
 
-public class App extends Application  implements Application.ActivityLifecycleCallbacks {
+public class App extends Application implements Application.ActivityLifecycleCallbacks {
 
     static {
         System.setProperty("java.net.preferIPv4Stack", "true");
@@ -56,7 +55,6 @@ public class App extends Application  implements Application.ActivityLifecycleCa
     private final Gson gson;
     private Hook hook;
     private final long time;
-
 
     public App() {
         instance = this;
@@ -106,6 +104,7 @@ public class App extends Application  implements Application.ActivityLifecycleCa
     public void setHook(Hook hook) {
         this.hook = hook;
     }
+
     private LogAdapter getLogAdapter() {
         return new AndroidLogAdapter(PrettyFormatStrategy.newBuilder().methodCount(0).showThreadInfo(false).tag("").build()) {
             @Override
@@ -117,35 +116,25 @@ public class App extends Application  implements Application.ActivityLifecycleCa
 
     @Override
     protected void attachBaseContext(Context base) {
-        android.util.Log.e("App", "attachBaseContext started");
         super.attachBaseContext(base);
         Init.set(base);
     }
 
-
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.d("TV_FATAL", "App.onCreate() START");
-        android.util.Log.e("TV_DEBUG", "App.onCreate() START");
         Monitor.start("App_onCreate");
         setupExceptionHandler();
-
         Notify.createChannel();
         LanguageUtil.init(this);
         registerActivityLifecycleCallbacks(this);
-
         try {
-            Log.d("TV_FATAL", "Initializing Tools...");
             initTools();
         } catch (Throwable e) {
             Log.d("TV_FATAL", "initTools Error: " + e.getMessage());
         }
-        
         Monitor.end("App_onCreate");
-        Log.d("TV_FATAL", "App.onCreate() END");
     }
-
 
     private void setupExceptionHandler() {
         Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
@@ -153,30 +142,17 @@ public class App extends Application  implements Application.ActivityLifecycleCa
             if (isSpiderError(e)) {
                 Log.e("SpiderWatcher", "Intercepted external spider error on thread [" + t.getName() + "]: " + e.getMessage());
             } else if (defaultHandler != null && !defaultHandler.getClass().getName().startsWith("cat.ereza.customactivityoncrash")) {
-                // 如果是 spider error，我們自己吞掉不崩潰
-                // 如果不是，交給系統或是 Caoc 處理
                 defaultHandler.uncaughtException(t, e);
             }
         });
         CaocConfig.Builder.create().backgroundMode(CaocConfig.BACKGROUND_MODE_SHOW_CUSTOM).errorActivity(CrashActivity.class).apply();
-
     }
 
     private void initTools() {
         Logger.addLogAdapter(getLogAdapter());
-        // 網路初始化
         OkHttp.get().setProxy(Setting.getProxy());
         OkHttp.get().setDoh(Doh.objectFrom(Setting.getDoh()));
         ADFilter.initListener();
-
-    }
-
-    private void asyncTasks() {
-        // 將 HistorySyncManager 的初始化與同步移到這裡
-        // 或是更好的做法是移到 HomeActivity 的首頁加載完成後
-        HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword(), Setting.isUseFtp());
-        HistorySyncManager.initGist(Setting.getGistUrl(), Setting.getGistToken(), Setting.isUseGist());
-        HistorySyncManager.SyncAll();
     }
 
     private boolean isSpiderError(Throwable e) {

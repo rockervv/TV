@@ -37,7 +37,7 @@ public class Json {
             }
         } else if (text.startsWith("[") && text.endsWith("]")) {
             try {
-                new org.json.JSONArray(text);
+                new JSONArray(text);
                 return true;
             } catch (Exception e) {
                 return false;
@@ -116,11 +116,11 @@ public class Json {
         }
     }
 
-    public static org.json.JSONArray safeJSONArray(String text) {
+    public static JSONArray safeJSONArray(String text) {
         try {
-            return valid(text) ? new org.json.JSONArray(text) : new org.json.JSONArray();
+            return valid(text) ? new JSONArray(text) : new JSONArray();
         } catch (Exception e) {
-            return new org.json.JSONArray();
+            return new JSONArray();
         }
     }
 

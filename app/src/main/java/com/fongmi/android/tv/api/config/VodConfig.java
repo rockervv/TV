@@ -17,6 +17,7 @@ import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.bean.Doh;
 import com.github.catvod.bean.Header;
@@ -148,7 +149,11 @@ public class VodConfig extends BaseConfig {
         String json = Decoder.getJson(url, TAG);
         if (json.equals(config.getJson()) && isLoaded()) return;
         config.setJson(json);
-        checkJson(config, Json.parse(json).getAsJsonObject());
+        try {
+            checkJson(config, Json.parse(json).getAsJsonObject());
+        } catch (Exception e) {
+            throw new Exception(ResUtil.getString(R.string.error_config_parse) + ": " + e.getMessage());
+        }
     }
 
 

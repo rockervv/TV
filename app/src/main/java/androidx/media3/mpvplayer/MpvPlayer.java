@@ -30,8 +30,6 @@ import androidx.media3.exoplayer.ExoPlayer;
 
 import is.xyz.mpv.MPVLib;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,23 +50,26 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
     private String vo;
     private final MpvPlayerConfig config;
 
+    private int videoWidth;
+    private int videoHeight;
+    private long manualDuration = -1;
+    private long manualPosition = -1;
+    private long seekPosition = -1;
+    private long lastTimePosPost;
+
     public MpvPlayer(Context context) {
         this(context, null);
     }
-
-    private int videoWidth;
-    private int videoHeight;
 
     public MpvPlayer(Context context, @Nullable MpvPlayerConfig config) {
         super(new ExoPlayer.Builder(context).build());
         this.context = context;
         this.config = config;
-        this.decode = 0; // Default
+        this.decode = 0;
         this.vo = (config != null && config.vo != null) ? config.vo : "gpu";
         MPVLib.create(context);
         MPVLib.addObserver(this);
         
-        // 核心參數統一由 MpvUtil 設定，構造函數僅保留最低限度穩定性參數
         MPVLib.setOptionString("tls-verify", "no");
         MPVLib.setOptionString("tls-verify-peer", "no");
         MPVLib.setOptionString("cache", "yes");
@@ -95,6 +96,8 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
         MPVLib.observeProperty("metadata", 1);
         MPVLib.observeProperty("video-out-params", 1);
         MPVLib.observeProperty("hwdec-current", 1);
+        MPVLib.observeProperty("eof-reached", 3);
+        MPVLib.observeProperty("speed", 5);
     }
 
     private void applyConfig(MpvPlayerConfig config) {
@@ -108,7 +111,6 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
         }
         if (config.vo != null) MPVLib.setOptionString("vo", config.vo);
         if (config.defaultUserAgent != null) MPVLib.setOptionString("user-agent", config.defaultUserAgent);
-        
         MPVLib.setOptionString("hls-http-persistent", config.hlsHttpPersistent ? "yes" : "no");
 
         if (config.diskCacheDir != null) {
@@ -116,40 +118,24 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
             MPVLib.setOptionString("cache-on-disk", "yes");
             if (config.diskCacheSize > 0) MPVLib.setOptionString("demuxer-max-disk-cache", config.diskCacheSize + "MiB");
         }
-        
         setSubtitleOptions(config);
     }
 
     public void setSubtitleOptions(MpvPlayerConfig config) {
         if (released) return;
-        MPVLib.setOptionString("sub-visibility", config.isCaption ? "yes" : "no");
-        MPVLib.setOptionString("sub-pos", String.valueOf(config.subPos));
-        MPVLib.setOptionString("sub-scale", String.valueOf(config.subScale));
-        // Also set as properties for runtime changes
         MPVLib.setPropertyString("sub-visibility", config.isCaption ? "yes" : "no");
         MPVLib.setPropertyDouble("sub-pos", config.subPos);
         MPVLib.setPropertyDouble("sub-scale", config.subScale);
     }
 
     public static boolean isAvailable() {
-        try {
-            Class.forName("is.xyz.mpv.MPVLib");
-            return true;
-        } catch (Throwable e) {
-            return false;
-        }
+        return MPVLib.isLoaded();
     }
 
     public void setDecode(int decode) {
         if (released) return;
         this.decode = decode;
-        if (decode == 1) {
-            MPVLib.setPropertyString("hwdec", "mediacodec");
-        } else if (decode == 2) {
-            MPVLib.setPropertyString("hwdec", "mediacodec-copy");
-        } else {
-            MPVLib.setPropertyString("hwdec", "no");
-        }
+        MPVLib.setPropertyString("hwdec", decode == 1 ? "mediacodec" : decode == 2 ? "mediacodec-copy" : "no");
     }
 
     public void addSubtitle(SubtitleConfiguration config) {
@@ -160,92 +146,112 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
     @Override
     public void eventProperty(String property) {
         if (released) return;
-        if ("metadata".equals(property)) {
+        if ("time-pos".equals(property)) {
+            long now = System.currentTimeMillis();
+            if (now - lastTimePosPost < 200) return;
+            lastTimePosPost = now;
+        }
+        if ("metadata".equals(property) || "video-out-params".equals(property) || "time-pos".equals(property) || "duration".equals(property) || "pause".equals(property) || "speed".equals(property)) {
             mainHandler.post(() -> {
                 if (released) return;
-                playbackState = STATE_READY;
-                for (Listener listener : listeners) listener.onPlaybackStateChanged(playbackState);
-                for (Listener listener : listeners) listener.onIsPlayingChanged(isPlaying());
+                if ("metadata".equals(property)) {
+                    playbackState = STATE_READY;
+                    for (Listener listener : listeners) {
+                        listener.onPlaybackStateChanged(playbackState);
+                        listener.onIsPlayingChanged(isPlaying());
+                        listener.onTimelineChanged(getCurrentTimeline(), Player.TIMELINE_CHANGE_REASON_SOURCE_UPDATE);
+                    }
+                } else if ("video-out-params".equals(property)) {
+                    Double w = MPVLib.getPropertyDouble("video-out-params/w");
+                    Double h = MPVLib.getPropertyDouble("video-out-params/h");
+                    if (w != null && h != null) {
+                        videoWidth = w.intValue();
+                        videoHeight = h.intValue();
+                        for (Listener listener : listeners) {
+                            listener.onVideoSizeChanged(new VideoSize(videoWidth, videoHeight));
+                            listener.onTracksChanged(getCurrentTracks());
+                            listener.onTimelineChanged(getCurrentTimeline(), Player.TIMELINE_CHANGE_REASON_SOURCE_UPDATE);
+                        }
+                    }
+                } else if ("time-pos".equals(property)) {
+                    Double value = MPVLib.getPropertyDouble("time-pos");
+                    if (value != null) {
+                        this.manualPosition = (long) (value * 1000);
+                        if (seekPosition != -1 && Math.abs(manualPosition - seekPosition) < 2000) seekPosition = -1;
+                        if (playbackState == STATE_BUFFERING) {
+                            playbackState = STATE_READY;
+                            for (Listener listener : listeners) {
+                                listener.onPlaybackStateChanged(playbackState);
+                                listener.onIsPlayingChanged(isPlaying());
+                                listener.onRenderedFirstFrame();
+                            }
+                        }
+                    }
+                } else if ("duration".equals(property)) {
+                    Double value = MPVLib.getPropertyDouble("duration");
+                    if (value != null) {
+                        this.manualDuration = (long) (value * 1000);
+                        for (Listener listener : listeners) {
+                            listener.onPlaybackStateChanged(playbackState);
+                            listener.onTimelineChanged(getCurrentTimeline(), Player.TIMELINE_CHANGE_REASON_SOURCE_UPDATE);
+                        }
+                    }
+                } else if ("pause".equals(property)) {
+                    Boolean value = MPVLib.getPropertyBoolean("pause");
+                    if (value != null) {
+                        playWhenReady = !value;
+                        for (Listener listener : listeners) {
+                            listener.onPlayWhenReadyChanged(playWhenReady, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST);
+                            listener.onIsPlayingChanged(isPlaying());
+                        }
+                    }
+                } else if ("speed".equals(property)) {
+                    Double value = MPVLib.getPropertyDouble("speed");
+                    if (value != null) {
+                        for (Listener listener : listeners) listener.onPlaybackParametersChanged(new PlaybackParameters(value.floatValue()));
+                    }
+                }
             });
-        } else if ("video-out-params".equals(property)) {
-            Double w = MPVLib.getPropertyDouble("video-out-params/w");
-            Double h = MPVLib.getPropertyDouble("video-out-params/h");
-            if (w != null && h != null) {
-                videoWidth = w.intValue();
-                videoHeight = h.intValue();
-                mainHandler.post(() -> {
-                    if (released) return;
-                    for (Listener listener : listeners) listener.onVideoSizeChanged(new VideoSize(videoWidth, videoHeight));
-                });
-            }
         }
     }
 
     @Override public void eventProperty(String property, long value) {}
-    @Override
-    public void eventProperty(String property, boolean value) {
-        if ("pause".equals(property)) {
-            mainHandler.post(() -> {
-                playWhenReady = !value;
-                for (Listener listener : listeners) listener.onPlayWhenReadyChanged(playWhenReady, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST);
-                for (Listener listener : listeners) listener.onIsPlayingChanged(isPlaying());
-            });
-        }
-    }
-    @Override
-    public void eventProperty(String property, String value) {
+    @Override public void eventProperty(String property, boolean value) { eventProperty(property); }
+    @Override public void eventProperty(String property, String value) {
         if ("hwdec-current".equals(property)) {
             if ("no".equals(value) && "mediacodec".equals(MPVLib.getPropertyString("hwdec"))) {
-                android.util.Log.w("MpvPlayer", "Hardware decoding failed, falling back to software.");
-                // Optional: show a message to the user if needed
+                android.util.Log.w("MpvPlayer", "Hardware decoding failed.");
             }
-        }
+        } else eventProperty(property);
     }
-    @Override
-    public void eventProperty(String property, double value) {
-        if ("time-pos".equals(property)) {
-            this.manualPosition = (long) (value * 1000);
-        } else if ("duration".equals(property)) {
-            this.manualDuration = (long) (value * 1000);
-            mainHandler.post(() -> {
-                if (released) return;
-                for (Listener listener : listeners) listener.onPlaybackStateChanged(playbackState);
-            });
-        }
-    }
+    @Override public void eventProperty(String property, double value) { eventProperty(property); }
+
     @Override public void event(int eventId) {
-        final String reason = eventId == 7 ? MPVLib.getPropertyString("finished-data/reason") : null;
+        final String reasonStr = eventId == 7 ? MPVLib.getPropertyString("finished-data/reason") : null;
         mainHandler.post(() -> {
             switch (eventId) {
-                case 4: // MPV_EVENT_PLAYBACK_RESTART
-                case 8: // MPV_EVENT_FILE_LOADED
+                case 8: // FILE_LOADED
                     playbackState = STATE_READY;
+                    seekPosition = -1;
+                    for (Listener listener : listeners) listener.onTimelineChanged(getCurrentTimeline(), Player.TIMELINE_CHANGE_REASON_SOURCE_UPDATE);
                     break;
-                case 7: // MPV_EVENT_END_FILE
-                    // 強化錯誤判定，防止下載失敗時誤判為「播放結束」而導致自動切換下一集
-                    if ("error".equals(reason)) {
-                        playbackState = STATE_IDLE;
-                        for (Listener listener : listeners) {
-                            listener.onPlayerError(new PlaybackException("MPV Network Error", null, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED));
-                        }
-                    } else if ("eof".equals(reason)) {
+                case 18: // SEEK
+                    break;
+                case 19: // PLAYBACK_RESTART (Seek finished)
+                    seekPosition = -1;
+                    break;
+                case 7: // END_FILE
+                    Boolean eofReached = MPVLib.getPropertyBoolean("eof-reached");
+                    if (Boolean.TRUE.equals(eofReached) || "0".equals(reasonStr) || "eof".equals(reasonStr)) {
                         playbackState = STATE_ENDED;
-                    } else {
-                        // 其他情況（如被 Stop 或是還沒播就掛了）不輕易發送 ENDED
-                        playbackState = STATE_IDLE;
-                    }
+                    } else playbackState = STATE_IDLE;
                     break;
-                case 20: // MPV_EVENT_START_FILE
-                    playbackState = STATE_BUFFERING;
-                    break;
+                case 20: playbackState = STATE_BUFFERING; break;
             }
             for (Listener listener : listeners) listener.onPlaybackStateChanged(playbackState);
             for (Listener listener : listeners) listener.onIsPlayingChanged(isPlaying());
         });
     }
-
-    private long manualDuration = -1;
-    private long manualPosition = -1;
 
     public void setManualMetadata(long positionMs, long durationMs) {
         this.manualPosition = positionMs;
@@ -256,10 +262,21 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
     public void setMediaItems(List<MediaItem> mediaItems, int startIndex, long startPositionMs) {
         if (released || mediaItems.isEmpty()) return;
         this.currentMediaItem = mediaItems.get(startIndex);
+        this.manualPosition = startPositionMs != C.TIME_UNSET ? startPositionMs : 0;
+        this.manualDuration = -1;
+        this.seekPosition = -1;
+
+        mainHandler.post(() -> {
+            if (released) return;
+            for (Listener listener : listeners) {
+                listener.onMediaItemTransition(currentMediaItem, Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED);
+                listener.onTimelineChanged(getCurrentTimeline(), Player.TIMELINE_CHANGE_REASON_SOURCE_UPDATE);
+            }
+        });
+
         if (currentMediaItem.localConfiguration != null) {
             String url = currentMediaItem.localConfiguration.uri.toString();
             synchronized (this) {
-                // 1. 設置 Header (User-Agent / Referer)
                 StringBuilder headerStr = new StringBuilder();
                 if (currentMediaItem.localConfiguration.tag instanceof Map) {
                     Map<?, ?> headers = (Map<?, ?>) currentMediaItem.localConfiguration.tag;
@@ -268,8 +285,7 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
                     }
                 }
                 if (headerStr.length() > 0) MPVLib.setOptionString("headers", headerStr.toString());
-
-                // 2. 加載影片
+                if (startPositionMs > 0) MPVLib.setOptionString("start", String.valueOf(startPositionMs / 1000.0));
                 MPVLib.command(new String[]{"loadfile", url, "replace"});
             }
         }
@@ -281,74 +297,69 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
     @Override public void setMediaItems(List<MediaItem> mediaItems) { setMediaItems(mediaItems, 0, C.TIME_UNSET); }
     @Override public void setMediaItems(List<MediaItem> mediaItems, boolean resetPosition) { setMediaItems(mediaItems, 0, C.TIME_UNSET); }
 
-    @Override
-    public void prepare() {
+    @Override public void prepare() {
         playbackState = STATE_BUFFERING;
         for (Listener listener : listeners) listener.onPlaybackStateChanged(playbackState);
     }
 
-    @Override
-    public void play() {
+    @Override public void play() {
         if (released) return;
         playWhenReady = true;
         MPVLib.setPropertyBoolean("pause", false);
         for (Listener listener : listeners) listener.onPlayWhenReadyChanged(true, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST);
     }
 
-    @Override
-    public void pause() {
+    @Override public void pause() {
         if (released) return;
         playWhenReady = false;
         MPVLib.setPropertyBoolean("pause", true);
         for (Listener listener : listeners) listener.onPlayWhenReadyChanged(false, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST);
     }
 
-    @Override
-    public void setPlayWhenReady(boolean playWhenReady) { if (playWhenReady) play(); else pause(); }
-    @Override
-    public boolean getPlayWhenReady() { return playWhenReady; }
+    @Override public void setPlayWhenReady(boolean playWhenReady) { if (playWhenReady) play(); else pause(); }
+    @Override public boolean getPlayWhenReady() { return playWhenReady; }
 
-    @Override
-    public synchronized void release() {
+    @Override public synchronized void release() {
         if (released) return;
         released = true;
-        if (currentHolder != null) {
-            currentHolder.removeCallback(surfaceCallback);
-            currentHolder = null;
-        }
+        if (currentHolder != null) currentHolder.removeCallback(surfaceCallback);
         MPVLib.command(new String[]{"stop"});
         detachSurface();
         MPVLib.removeObserver(this);
         MPVLib.destroy();
     }
 
-    @Override
-    public int getPlaybackState() {
-        return released ? STATE_IDLE : playbackState;
-    }
-
-    @Override
-    public long getDuration() {
-        return manualDuration > 0 ? manualDuration : 0;
-    }
-
-    @Override
-    public synchronized long getCurrentPosition() {
+    @Override public int getPlaybackState() { return released ? STATE_IDLE : playbackState; }
+    @Override public long getDuration() { return manualDuration > 0 ? manualDuration : 0; }
+    @Override public synchronized long getCurrentPosition() {
+        if (seekPosition != -1) return seekPosition;
         return manualPosition > 0 ? manualPosition : 0;
     }
 
-    @Override
-    public void seekTo(int windowIndex, long positionMs) {
+    @Override public void seekTo(int windowIndex, long positionMs) {
         if (released) return;
-        MPVLib.setPropertyDouble("time-pos", positionMs / 1000.0);
+        this.seekPosition = positionMs;
+        this.manualPosition = positionMs;
+        this.lastTimePosPost = 0;
+        android.util.Log.d("MpvPlayer", "seekTo: " + positionMs + "ms (" + (positionMs / 1000.0) + "s)");
+        MPVLib.setPropertyBoolean("pause", false);
+        MPVLib.command(new String[]{"seek", String.valueOf(positionMs / 1000.0), "absolute+exact"});
+        for (Listener listener : listeners) listener.onPositionDiscontinuity(Player.DISCONTINUITY_REASON_SEEK);
     }
 
     @Override public void seekTo(long positionMs) { seekTo(0, positionMs); }
-
     @Override public Looper getApplicationLooper() { return Looper.getMainLooper(); }
     @Override public void addListener(Listener listener) { listeners.add(listener); }
     @Override public void removeListener(Listener listener) { listeners.remove(listener); }
     @Override public boolean isPlaying() { return !released && playbackState == STATE_READY && playWhenReady; }
+    @Override public void setPlaybackParameters(PlaybackParameters playbackParameters) {
+        if (released) return;
+        MPVLib.setPropertyDouble("speed", playbackParameters.speed);
+    }
+    @Override public PlaybackParameters getPlaybackParameters() {
+        Double speed = MPVLib.getPropertyDouble("speed");
+        return new PlaybackParameters(speed != null ? speed.floatValue() : 1.0f);
+    }
     @Override public void stop() { if (!released) MPVLib.command(new String[]{"stop"}); }
 
     @Override public Timeline getCurrentTimeline() {
@@ -367,10 +378,20 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
         };
     }
 
-    @Override public Tracks getCurrentTracks() { return Tracks.EMPTY; }
+    @Override public Tracks getCurrentTracks() {
+        if (videoWidth > 0 && videoHeight > 0) {
+            androidx.media3.common.Format videoFormat = new androidx.media3.common.Format.Builder()
+                    .setSampleMimeType(androidx.media3.common.MimeTypes.VIDEO_RAW)
+                    .setWidth(videoWidth).setHeight(videoHeight).build();
+            androidx.media3.common.TrackGroup group = new androidx.media3.common.TrackGroup(videoFormat);
+            return new Tracks(com.google.common.collect.ImmutableList.of(new Tracks.Group(group, false, new int[]{C.FORMAT_HANDLED}, new boolean[]{true})));
+        }
+        return Tracks.EMPTY;
+    }
+
     @Override public MediaMetadata getMediaMetadata() { return currentMediaItem == null ? MediaMetadata.EMPTY : currentMediaItem.mediaMetadata; }
     @Override public VideoSize getVideoSize() { return new VideoSize(videoWidth, videoHeight); }
-
+    @Override @Nullable public MediaItem getCurrentMediaItem() { return currentMediaItem; }
     @Override public int getCurrentMediaItemIndex() { return 0; }
     @Override public int getMediaItemCount() { return currentMediaItem == null ? 0 : 1; }
     @Override public MediaItem getMediaItemAt(int index) { return currentMediaItem; }
@@ -399,52 +420,14 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
     @Override public AudioAttributes getAudioAttributes() { return AudioAttributes.DEFAULT; }
     @Override public void setVolume(float audioVolume) { if (!released) MPVLib.setPropertyDouble("volume", audioVolume * 100); }
     @Override public float getVolume() { if (released) return 1f; Double d = MPVLib.getPropertyDouble("volume"); return d != null ? d.floatValue() / 100f : 1f; }
-
-    @Override public boolean isCommandAvailable(int command) {
-        return getAvailableCommands().contains(command);
-    }
-
+    @Override public boolean isCommandAvailable(int command) { return getAvailableCommands().contains(command); }
     @Override public Commands getAvailableCommands() {
-        return new Commands.Builder()
-                .add(COMMAND_PLAY_PAUSE)
-                .add(COMMAND_PREPARE)
-                .add(COMMAND_STOP)
-                .add(COMMAND_SEEK_TO_DEFAULT_POSITION)
-                .add(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-                .add(COMMAND_SEEK_TO_NEXT)
-                .add(COMMAND_SEEK_TO_PREVIOUS)
-                .add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-                .add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-                .add(COMMAND_SEEK_BACK)
-                .add(COMMAND_SEEK_FORWARD)
-                .add(COMMAND_SET_SPEED_AND_PITCH)
-                .add(COMMAND_SET_SHUFFLE_MODE)
-                .add(COMMAND_SET_REPEAT_MODE)
-                .add(COMMAND_GET_CURRENT_MEDIA_ITEM)
-                .add(COMMAND_GET_METADATA)
-                .add(COMMAND_GET_TIMELINE)
-                .add(COMMAND_GET_TRACKS)
-                .add(COMMAND_SET_VIDEO_SURFACE)
-                .add(COMMAND_GET_AUDIO_ATTRIBUTES)
-                .add(COMMAND_GET_DEVICE_VOLUME)
-                .add(COMMAND_GET_VOLUME)
-                .add(COMMAND_SET_VOLUME)
-                .add(COMMAND_SET_MEDIA_ITEM)
-                .add(COMMAND_CHANGE_MEDIA_ITEMS)
-                .build();
+        return new Commands.Builder().add(COMMAND_PLAY_PAUSE).add(COMMAND_PREPARE).add(COMMAND_STOP).add(COMMAND_SEEK_TO_DEFAULT_POSITION).add(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM).add(COMMAND_SEEK_TO_NEXT).add(COMMAND_SEEK_TO_PREVIOUS).add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM).add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM).add(COMMAND_SEEK_BACK).add(COMMAND_SEEK_FORWARD).add(COMMAND_SET_SPEED_AND_PITCH).add(COMMAND_SET_SHUFFLE_MODE).add(COMMAND_SET_REPEAT_MODE).add(COMMAND_GET_CURRENT_MEDIA_ITEM).add(COMMAND_GET_METADATA).add(COMMAND_GET_TIMELINE).add(COMMAND_GET_TRACKS).add(COMMAND_SET_VIDEO_SURFACE).add(COMMAND_GET_AUDIO_ATTRIBUTES).add(COMMAND_GET_DEVICE_VOLUME).add(COMMAND_GET_VOLUME).add(COMMAND_SET_VOLUME).add(COMMAND_SET_MEDIA_ITEM).add(COMMAND_CHANGE_MEDIA_ITEMS).add(COMMAND_SET_TRACK_SELECTION_PARAMETERS).build();
     }
 
-    @Override
-    public void setVideoSurface(@Nullable Surface surface) {
-        if (surface != null) attachSurface(surface);
-        else detachSurface();
-    }
-
-    @Override
-    public void setVideoSurfaceHolder(@Nullable SurfaceHolder surfaceHolder) {
-        if (currentHolder != null) {
-            currentHolder.removeCallback(surfaceCallback);
-        }
+    @Override public void setVideoSurface(@Nullable Surface surface) { if (surface != null) attachSurface(surface); else detachSurface(); }
+    @Override public void setVideoSurfaceHolder(@Nullable SurfaceHolder surfaceHolder) {
+        if (currentHolder != null) currentHolder.removeCallback(surfaceCallback);
         currentHolder = surfaceHolder;
         if (currentHolder != null) {
             currentHolder.setFormat(PixelFormat.RGBA_8888);
@@ -454,34 +437,22 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
                 android.graphics.Rect rect = currentHolder.getSurfaceFrame();
                 attachSurface(surface, rect.width(), rect.height());
             }
-        } else {
-            detachSurface();
-        }
+        } else detachSurface();
     }
 
-    private synchronized void attachSurface(Surface surface) {
-        attachSurface(surface, -1, -1);
-    }
-
+    private synchronized void attachSurface(Surface surface) { attachSurface(surface, -1, -1); }
     private synchronized void attachSurface(Surface surface, int width, int height) {
         if (released) return;
         if (surface != null && surface.isValid()) {
             if (surface == lastSurface && surfaceAttached) return;
-            android.util.Log.i("MpvPlayer", "attachSurface: " + surface + " (" + width + "x" + height + ")");
-            
             MPVLib.setPropertyString("vo", "null");
             MPVLib.detachSurface();
-            
             MPVLib.attachSurface(surface);
             surfaceAttached = true;
             lastSurface = surface;
-
             MPVLib.setPropertyString("gpu-context", "android");
             MPVLib.setPropertyString("vo", this.vo);
-
-            if (width > 0 && height > 0) {
-                MPVLib.setPropertyString("android-surface-size", width + "x" + height);
-            }
+            if (width > 0 && height > 0) MPVLib.setPropertyString("android-surface-size", width + "x" + height);
         }
     }
 
@@ -492,51 +463,29 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
         lastSurface = null;
     }
 
-    @Override
-    public void setVideoSurfaceView(@Nullable SurfaceView surfaceView) {
+    @Override public void setVideoSurfaceView(@Nullable SurfaceView surfaceView) {
         if (surfaceView != null) {
             surfaceView.getHolder().setFormat(PixelFormat.RGBA_8888);
-            surfaceView.setZOrderOnTop(true);
+            surfaceView.setZOrderMediaOverlay(true);
             setVideoSurfaceHolder(surfaceView.getHolder());
-        } else {
-            setVideoSurfaceHolder(null);
-        }
+        } else setVideoSurfaceHolder(null);
     }
 
-    @Override
-    public void setVideoTextureView(@Nullable TextureView textureView) {
-        if (textureView != null) {
-            attachSurface(new Surface(textureView.getSurfaceTexture()), textureView.getWidth(), textureView.getHeight());
-        } else {
-            setVideoSurface(null);
-        }
+    @Override public void setVideoTextureView(@Nullable TextureView textureView) {
+        if (textureView != null) attachSurface(new Surface(textureView.getSurfaceTexture()), textureView.getWidth(), textureView.getHeight());
+        else setVideoSurface(null);
     }
     @Override public void clearVideoSurface() { setVideoSurface(null); }
     @Override public void setPlaybackSpeed(float speed) { if (!released) MPVLib.setPropertyDouble("speed", speed); }
 
     private final SurfaceHolder.Callback surfaceCallback = new SurfaceHolder.Callback() {
-        @Override
-        public void surfaceCreated(@NonNull SurfaceHolder holder) {
-            if (released) return;
-            attachSurface(holder.getSurface());
-        }
-
-        @Override
-        public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
-            if (released) return;
-            if (width > 0 && height > 0) {
-                synchronized (MpvPlayer.this) {
-                    // Standard way to handle resize in mpv-android: update this property.
-                    // Calling replaceSurface here often causes "already connected" EGL errors.
-                    MPVLib.setPropertyString("android-surface-size", width + "x" + height);
-                }
+        @Override public void surfaceCreated(@NonNull SurfaceHolder holder) { if (!released) attachSurface(holder.getSurface()); }
+        @Override public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
+            if (!released && width > 0 && height > 0) {
+                synchronized (MpvPlayer.this) { MPVLib.setPropertyString("android-surface-size", width + "x" + height); }
             }
         }
-
-        @Override
-        public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
-            detachSurface();
-        }
+        @Override public void surfaceDestroyed(@NonNull SurfaceHolder holder) { detachSurface(); }
     };
 
     public static class Builder {

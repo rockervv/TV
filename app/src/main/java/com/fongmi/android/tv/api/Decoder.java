@@ -37,6 +37,9 @@ public class Decoder {
 
     private static String verify(String url, String data) throws Exception {
         if (data.isEmpty()) throw new Exception();
+        data = data.trim();
+        if (data.startsWith("<")) throw new Exception("URL redirected to HTML content instead of JSON.");
+        if (!Json.isObj(data) && !data.startsWith("[") && !data.contains("**") && !data.startsWith("2423")) throw new Exception("Invalid JSON format or URL redirected.");
         if (Json.isObj(data)) return fix(url, data);
         if (data.contains("**")) data = base64(data);
         if (data.startsWith("2423")) data = cbc(data.replaceAll("\\s+", ""));
@@ -45,8 +48,10 @@ public class Decoder {
     public static String getJson(String url) throws Exception {
         String key = url.contains(";") ? url.split(";")[2] : "";
         url = url.contains(";") ? url.split(";")[0] : url;
-        String data = getData(url);
+        String data = getData(url).trim();
         if (data.isEmpty()) throw new Exception();
+        if (data.startsWith("<")) throw new Exception("URL redirected to HTML content instead of JSON.");
+        if (!Json.isObj(data) && !data.startsWith("[") && !data.contains("**") && !data.startsWith("2423") && key.isEmpty()) throw new Exception("Invalid JSON format or URL redirected.");
         if (Json.isObj(data)) return fix(url, data);
         if (data.contains("**")) data = base64(data);
         if (data.startsWith("2423")) data = cbc(data);

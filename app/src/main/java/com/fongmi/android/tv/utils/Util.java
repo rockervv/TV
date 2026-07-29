@@ -20,7 +20,6 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.BuildConfig;
 import com.fongmi.android.tv.R;
 import com.github.catvod.utils.Shell;
 
@@ -70,7 +69,11 @@ public class Util {
     public static void showKeyboard(View view) {
         if (!view.requestFocus()) return;
         InputMethodManager imm = (InputMethodManager) App.get().getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (imm != null) view.postDelayed(() -> imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT), 250);
+        if (imm == null) return;
+        view.postDelayed(() -> {
+            imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) imm.showSoftInput(view, InputMethodManager.SHOW_FORCED);
+        }, 250);
     }
 
     public static void hideKeyboard(View view) {
@@ -171,11 +174,11 @@ public class Util {
     }
 
     public static boolean isLeanback() {
-        return "leanback".equals(BuildConfig.FLAVOR_mode);
+        return true;
     }
 
     public static boolean isMobile() {
-        return "mobile".equals(BuildConfig.FLAVOR_mode);
+        return false;
     }
 
     public static boolean isFullscreen(Activity activity) {

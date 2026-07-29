@@ -2,6 +2,7 @@ package com.fongmi.android.tv.playback.vod;
 
 import androidx.media3.common.C;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Episode;
 import com.fongmi.android.tv.bean.Flag;
@@ -10,6 +11,7 @@ import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.db.AppDatabase;
+import com.fongmi.android.tv.utils.ResUtil;
 
 import java.util.Collections;
 import java.util.List;
@@ -59,8 +61,10 @@ public class VodPlaybackController {
         android.util.Log.d("TV_FATAL", "VodPlaybackController.onDetailResult: " + (result != null ? "list size " + result.getList().size() + " Msg: " + result.getMsg() : "null"));
         if (result == null) return;
         if (result.getList().isEmpty()) detailEmpty(result.hasMsg());
-        else detailLoaded(result.getVod());
-        host.showDetailMessage(result.getMsg());
+        else {
+            detailLoaded(result.getVod());
+            host.showDetailMessage(result.getMsg());
+        }
     }
 
     public void onPlayerResult(Result result) {
@@ -68,6 +72,10 @@ public class VodPlaybackController {
         VodPlayRequest request = state.getPendingRequest();
         if (request == null) request = currentRequest();
         if (cannotApply(result, request)) return;
+        if (result.getUrl().isEmpty()) {
+            playbackError(ResUtil.getString(R.string.error_play_parse));
+            return;
+        }
         applyPlayerResult(result, request);
     }
 
@@ -111,12 +119,13 @@ public class VodPlaybackController {
         Flag selected = resolveFlag(item);
         if (!force && selected.isSelected()) return;
         for (Flag flag : state.getFlags()) flag.setSelected(selected);
+        state.setRecovering(false); // 🛠️ 重置恢復狀態，防止誤判
         if (viewModel != null) {
             viewModel.setFlag(selected);
             viewModel.setEpisodes(selected.getEpisodes());
             viewModel.setQualityVisible(false);
         }
-        seamless(selected);
+        if (!seamless(selected)) refresh();
     }
 
     public void selectEpisode(Episode item) {
@@ -336,13 +345,14 @@ public class VodPlaybackController {
         host.requestPlayer(request);
     }
 
-    private void seamless(Flag flag) {
+    private boolean seamless(Flag flag) {
         History history = state.getHistory();
         Episode episode = history == null ? null : flag.find(history.getVodRemarks(), host.getVodMark().isEmpty());
         if (viewModel != null) viewModel.setQualityVisible(episode != null && episode.isSelected() && state.getQuality().getUrl().isMulti());
-        if (episode == null || episode.isSelected()) return;
+        if (episode == null || episode.isSelected()) return false;
         history.setVodRemarks(episode.getName());
         selectEpisode(episode);
+        return true;
     }
 
     private void mergeFlag(Flag activated, Flag item) {

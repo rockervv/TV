@@ -206,20 +206,29 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     protected void onReclaim() {
     }
 
+    public void onTimeoutCountdown(long ms) {
+    }
+
     protected long startPositionMs() {
         return C.TIME_UNSET;
     }
 
     protected void seekTo(long deltaMs) {
-        mController.seekTo(resolveSeekPositionMs(deltaMs));
-        mController.play();
+        long positionMs = resolveSeekPositionMs(deltaMs);
+        if (mController != null) {
+            mController.seekTo(positionMs);
+            mController.play();
+        } else if (player() != null) {
+            player().seekTo(positionMs);
+            player().play();
+        }
     }
 
     private long resolveSeekPositionMs(long deltaMs) {
-        PlayerManager player = player();
-        long targetMs = Math.max(0, player.getPosition() + deltaMs);
-        long durationMs = player.getDuration();
-        return durationMs > 0 ? Math.min(targetMs, durationMs) : targetMs;
+        long currentMs = mController != null ? mController.getCurrentPosition() : player().getPosition();
+        long targetMs = Math.max(0, currentMs + deltaMs);
+        long durationMs = mController != null ? mController.getDuration() : player().getDuration();
+        return (durationMs > 0 && targetMs > durationMs) ? durationMs : targetMs;
     }
 
     protected void startPlayer(String key, Result result, boolean useParse, long timeout, MediaMetadata metadata) {
@@ -361,6 +370,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
 
     private void configurePlayerView() {
         PlayerView playerView = getPlayerView();
+        playerView.setShutterBackgroundColor(Color.TRANSPARENT);
         if (playerView.getSubtitleView() != null) {
             playerView.getSubtitleView().setStyle(getCaptionStyle());
             playerView.getSubtitleView().setApplyEmbeddedStyles(true);
@@ -448,6 +458,11 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
         @Override
         public void onPlayerRebuild(Player player) {
             if (isOwner()) setRender();
+        }
+
+        @Override
+        public void onTimeoutCountdown(long ms) {
+            if (isOwner()) PlaybackActivity.this.onTimeoutCountdown(ms);
         }
     };
 

@@ -519,6 +519,11 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         playerCallbacks.forEach(callback -> callback.onPlayerRebuild(newPlayer));
     }
 
+    @Override
+    public void onTimeoutCountdown(long ms) {
+        playerCallbacks.forEach(callback -> callback.onTimeoutCountdown(ms));
+    }
+
     private final Player.Listener listener = new Player.Listener() {
         @Override
         public void onPlaybackStateChanged(int state) {
@@ -599,6 +604,9 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         }
 
         default void onPlayerRebuild(Player player) {
+        }
+
+        default void onTimeoutCountdown(long ms) {
         }
     }
 

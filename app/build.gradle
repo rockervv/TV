@@ -12,7 +12,7 @@ android {
     namespace = 'com.fongmi.android.tv'
     compileSdk libs.versions.compileSdk.get().toInteger()
 
-    flavorDimensions = ["mode", "api", "abi"]
+    flavorDimensions = ["api", "abi"]
 
     defaultConfig {
         applicationId "com.fongmi.android.tv"
@@ -39,9 +39,6 @@ android {
     }
 
     productFlavors {
-        mobile {
-            dimension 'mode'
-        }
         java {
             dimension "api"
         }
@@ -55,9 +52,6 @@ android {
         armeabi_v7a {
             dimension "abi"
             ndk { abiFilters "armeabi-v7a" }
-        }
-        leanback {
-            dimension 'mode'
         }
         x86 {
             dimension 'abi'
@@ -178,6 +172,7 @@ apply from: '../gradle/scripts/publishing.gradle'
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.aar'], exclude: ['hook-release.aar'])
     implementation project(':catvod')
+    implementation project(':common')
     implementation project(':chaquo')
     implementation project(':quickjs')
     implementation project(':youtube')
@@ -223,12 +218,9 @@ dependencies {
     implementation libs.media3.database
     implementation files('libs/commons-net-3.11.1.jar')
 
-    leanbackImplementation libs.leanback
-    leanbackImplementation libs.android.file.chooser
-    leanbackImplementation libs.androidautosize
-    mobileImplementation libs.swiperefreshlayout
-    mobileImplementation libs.flexbox
-    mobileImplementation libs.zxing.android.embedded
+    implementation libs.leanback
+    implementation libs.android.file.chooser
+    implementation libs.androidautosize
 
     annotationProcessor libs.room.compiler
     annotationProcessor libs.glide.compiler

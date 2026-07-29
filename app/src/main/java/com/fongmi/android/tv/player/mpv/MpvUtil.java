@@ -80,6 +80,9 @@ public final class MpvUtil {
                 .addPreInitStringOption("network-timeout", "20")
                 .addPreInitStringOption("hls-bitrate", "max")
                 .addPreInitStringOption("dns-cache-timeout", "300")
+                .addPreInitStringOption("osd-level", "0")
+                .addPreInitStringOption("input-default-bindings", "no")
+                .addPreInitStringOption("input-vo-keyboard", "no")
                 .addPreInitStringOption("vd-lavc-fast", "yes")
                 .addPreInitStringOption("vd-lavc-dr", "no")
                 .addPreInitStringOption("demuxer-lavf-o", "protocol_whitelist=file,http,https,tcp,tls,crypto,ffmpeg,rtp,udp");

@@ -1318,15 +1318,13 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (mBinding == null) return false;
-        if (isFullscreen() && KeyUtil.isBackKey(event) && event.getAction() == KeyEvent.ACTION_UP) {
-            if (isVisible(mBinding.control.getRoot())) {
-                hideControl();
-                return true;
+        if (isFullscreen() && KeyUtil.isBackKey(event)) {
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                if (isVisible(mBinding.control.getRoot())) hideControl();
+                else if (isVisible(mBinding.widget.center)) hideCenter();
+                else exitFullscreen();
             }
-            if (isVisible(mBinding.widget.center)) {
-                hideCenter();
-                return true;
-            }
+            return true;
         }
         if (!isFullscreen() && isVisible(mBinding.control.getRoot())) hideControl();
         if (isVisible(mBinding.control.getRoot())) setR1Callback();
@@ -1338,10 +1336,6 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
                 return true;
             }
             if (isGone(mBinding.control.getRoot())) {
-                if (KeyUtil.isBackKey(event)) {
-                    if (event.getAction() == KeyEvent.ACTION_UP) exitFullscreen();
-                    return true;
-                }
                 if (mKeyDown.hasEvent(event)) {
                     if (event.getAction() == KeyEvent.ACTION_DOWN && !KeyUtil.isEnterKey(event) && !KeyUtil.isLeftKey(event) && !KeyUtil.isRightKey(event)) {
                         showControl(getFocus2());
@@ -1543,7 +1537,11 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     protected void onBackPress() {
-        if (isFullscreen()) {
+        if (isVisible(mBinding.control.getRoot())) {
+            hideControl();
+        } else if (isVisible(mBinding.widget.center)) {
+            hideCenter();
+        } else if (isFullscreen()) {
             mViewModel.setFullscreen(false);
         } else {
             mViewModel.stopSearch();

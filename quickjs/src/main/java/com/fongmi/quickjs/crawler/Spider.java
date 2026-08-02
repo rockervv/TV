@@ -188,6 +188,10 @@ public class Spider extends com.github.catvod.crawler.Spider {
         String spider = "__JS_SPIDER__";
         String globalName = "globalThis." + spider;
         String content = Module.get().fetch(api);
+        if (content == null) {
+            android.util.Log.e("Spider", "Failed to fetch content for API: " + api);
+            return;
+        }
         cat = content.contains("__jsEvalReturn");
         ctx.evaluateModule(content.replace(spider, globalName), api);
         ctx.evaluateModule(String.format(Asset.read("js/lib/spider.js"), api));

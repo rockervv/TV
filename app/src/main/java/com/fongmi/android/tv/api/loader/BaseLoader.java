@@ -36,7 +36,7 @@ public class BaseLoader {
     }
 
     private static boolean isJs(String api) {
-        return api.contains(".js");
+        return api.contains(".js") || api.contains("drpy");
     }
 
     private static boolean isPy(String api) {
@@ -44,7 +44,7 @@ public class BaseLoader {
     }
 
     private static boolean isCsp(String api) {
-        return api.startsWith("csp_");
+        return api.startsWith("csp_") || api.contains("js_");
     }
 
     public void clear() {

@@ -71,9 +71,23 @@ public final class MpvUtil {
                 .addPreInitStringOption("hwdec", getHwdec())
                 .addPreInitStringOption("hwdec-codecs", "all")
                 .addPreInitStringOption("gpu-context", "android")
+                .addPreInitStringOption("vd-lavc-dr", "yes")
                 .addPreInitStringOption("cache", "yes")
-                .addPreInitStringOption("demuxer-max-bytes", "150MiB")
-                .addPreInitStringOption("demuxer-readahead-secs", "30")
+                .addPreInitStringOption("demuxer-max-bytes", "48MiB")
+                .addPreInitStringOption("demuxer-readahead-secs", "5")
+                .addPreInitStringOption("vd-lavc-threads", String.valueOf(PlayerSetting.getMpvThreads()))
+                .addPreInitStringOption("vd-lavc-fast", PlayerSetting.isMpvFast() ? "yes" : "no")
+                .addPreInitStringOption("framedrop", PlayerSetting.getMpvFramedrop())
+                .addPreInitStringOption("video-sync", PlayerSetting.getMpvVideoSync())
+                .addPreInitStringOption("autosync", "30")
+                .addPreInitStringOption("opengl-pbo", PlayerSetting.isMpvPbo() ? "yes" : "no")
+                .addPreInitStringOption("vd-lavc-skiploopfilter", PlayerSetting.isMpvSkipLoop() ? "all" : "default")
+                .addPreInitStringOption("audio-buffer", String.valueOf(PlayerSetting.getMpvAudioBuffer() / 1000.0))
+                .addPreInitStringOption("scale", "bilinear")
+                .addPreInitStringOption("cscale", "bilinear")
+                .addPreInitStringOption("dscale", "bilinear")
+                .addPreInitStringOption("scale-antiring", "0")
+                .addPreInitStringOption("hdr-compute-peak", "no")
                 .addPreInitStringOption("ytdl", "no")
                 .addPreInitStringOption("tls-verify", "no")
                 .addPreInitStringOption("tls-verify-peer", "no")
@@ -84,7 +98,8 @@ public final class MpvUtil {
                 .addPreInitStringOption("input-default-bindings", "no")
                 .addPreInitStringOption("input-vo-keyboard", "no")
                 .addPreInitStringOption("vd-lavc-fast", "yes")
-                .addPreInitStringOption("vd-lavc-dr", "no")
+                .addPreInitStringOption("vd-lavc-dr", "yes")
+                .addPreInitStringOption("osd-level", "1")
                 .addPreInitStringOption("demuxer-lavf-o", "protocol_whitelist=file,http,https,tcp,tls,crypto,ffmpeg,rtp,udp");
 
         if (PlayerSetting.isMpvGpuNext()) {
@@ -102,18 +117,34 @@ public final class MpvUtil {
     }
 
     private static String getHwdec() {
-        return ResUtil.getStringArray(R.array.select_mpv_hwdec)[PlayerSetting.getMpvHwdec()];
+        int index = PlayerSetting.getMpvHwdec();
+        String[] values = ResUtil.getStringArray(R.array.select_mpv_hwdec_value);
+        if (index >= values.length) return "no";
+        return values[index];
     }
 
     private static String getGpuApi() {
-        return ResUtil.getStringArray(R.array.select_mpv_gpu_api)[PlayerSetting.getMpvGpuApi()];
+        return ResUtil.getStringArray(R.array.select_mpv_gpu_api_value)[PlayerSetting.getMpvGpuApi()];
     }
 
     private static String getFboFormat() {
-        return ResUtil.getStringArray(R.array.select_mpv_fbo_format)[PlayerSetting.getMpvFboFormat()];
+        String[] values = ResUtil.getStringArray(R.array.select_mpv_fbo_format_value);
+        int index = PlayerSetting.getMpvFboFormat();
+        String format = values[index];
+        if (format.equals("auto")) {
+            if (com.fongmi.android.tv.utils.Util.getTotalMem() <= 2048 * 1024 * 1024L) {
+                return "rgba8";
+            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                return "rgb10_a2";
+            }
+        }
+        return format;
     }
 
     private static void addAndroidOptions(MpvPlayerConfig.Builder builder) {
+        if (com.fongmi.android.tv.utils.Util.getTotalMem() <= 2048 * 1024 * 1024L) {
+            builder.addPreInitStringOption("gpu-dumb-mode", "yes");
+        }
         addAndroidDefaultOptions(builder);
         addPreloadOptions(builder);
         addTlsCaFile(builder);

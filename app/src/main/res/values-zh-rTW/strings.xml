@@ -241,4 +241,27 @@
     <string name="times">次</string>
     <string name="lines">行</string>
 
+    <string-array name="select_mpv_hwdec">
+        <item>關閉</item>
+        <item>mediacodec</item>
+        <item>mediacodec-copy</item>
+        <item>ndk (推薦)</item>
+        <item>自動</item>
+    </string-array>
+
+    <string-array name="select_mpv_gpu_api">
+        <item>自動</item>
+        <item>opengl</item>
+        <item>vulkan</item>
+    </string-array>
+
+    <string-array name="select_mpv_fbo_format">
+        <item>自動</item>
+        <item>rgba8</item>
+        <item>rgb10_a2</item>
+        <item>rgba16f</item>
+        <item>rgba16</item>
+        <item>rgba32f</item>
+    </string-array>
+    <string name="play_fbo_auto">已自動為您選擇「%1$s」模式</string>
 </resources>

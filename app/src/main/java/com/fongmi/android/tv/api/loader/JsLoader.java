@@ -35,13 +35,20 @@ public class JsLoader {
 
     public Spider getSpider(String key, String api, String ext, String jar) {
         return spiders.computeIfAbsent(key, k -> {
+            if (api == null || (!api.startsWith("http") && !api.startsWith("assets") && !api.contains("/"))) {
+                android.util.Log.w("JsLoader", "Invalid JS API path, skipping initialization: " + api);
+                return new SpiderNull();
+            }
+            android.util.Log.d("JsLoader", "Initializing JS Spider: " + key + " (API: " + api + ")");
             Monitor.start("Spider_Init_JS_" + key);
             try {
                 Spider spider = loader.spider(api, BaseLoader.get().dex(jar));
                 spider.siteKey = key;
                 spider.init(App.get(), ext);
+                android.util.Log.d("JsLoader", "Successfully initialized JS Spider: " + key);
                 return spider;
             } catch (Throwable e) {
+                android.util.Log.e("JsLoader", "Failed to initialize JS Spider: " + key, e);
                 SpiderDebug.log(e);
                 return new SpiderNull();
             } finally {

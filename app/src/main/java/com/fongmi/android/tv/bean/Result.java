@@ -355,7 +355,7 @@ public class Result implements Parcelable {
     }
 
     public Result clear() {
-        getList().clear();
+        if (list != null) getList().clear();
         return this;
     }
 

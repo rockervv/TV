@@ -335,7 +335,13 @@ public class VodConfig extends BaseConfig {
     }
 
     public Site getSite(String key) {
-        return getSites().stream().filter(item -> item.getKey().equals(key)).findFirst().orElse(new Site());
+        Site site = getSites().stream().filter(item -> item.getKey().equals(key)).findFirst().orElse(null);
+        if (site == null) {
+            site = new Site();
+            site.setKey(key);
+            // 只有在真的有資料時才設定 API，否則保持為空以便 SiteApi 識別
+        }
+        return site;
     }
 
     private void setParse(Config config, Parse parse, boolean save) {

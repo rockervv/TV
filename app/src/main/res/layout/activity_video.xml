@@ -51,6 +51,14 @@
 
     </FrameLayout>
 
+    <include
+        android:id="@+id/tuning"
+        layout="@layout/view_mpv_tuning"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentEnd="true"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/name"
         android:layout_width="wrap_content"

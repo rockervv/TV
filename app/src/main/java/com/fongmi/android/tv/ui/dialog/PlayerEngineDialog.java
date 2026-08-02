@@ -54,6 +54,7 @@ public final class PlayerEngineDialog extends BaseBottomSheetDialog {
     @Override
     protected void initView() {
         setSelected();
+        binding.mpvConf.setVisibility(getCurrentEngine(player) == PlayerSetting.ENGINE_MPV ? View.VISIBLE : View.GONE);
         getSelectedView().requestFocus();
     }
 
@@ -61,8 +62,14 @@ public final class PlayerEngineDialog extends BaseBottomSheetDialog {
     protected void initEvent() {
         binding.debug.setOnClickListener(this::selectDebug);
         binding.other.setOnClickListener(this::selectOther);
+        binding.mpvConf.setOnClickListener(this::selectMpvConf);
         binding.exo.setOnClickListener(view -> selectEngine(PlayerSetting.ENGINE_EXO));
         binding.mpv.setOnClickListener(view -> selectEngine(PlayerSetting.ENGINE_MPV));
+    }
+
+    private void selectMpvConf(View view) {
+        dismiss();
+        MpvSettingDialog.show(getActivity());
     }
 
     private void selectDebug(View view) {

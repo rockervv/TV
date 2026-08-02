@@ -34,6 +34,9 @@ public interface PlayerEngine {
     default void setSubtitleStyle() {
     }
 
+    default void setStats(boolean stats) {
+    }
+
     default boolean addSubtitle(Sub sub) {
         return false;
     }

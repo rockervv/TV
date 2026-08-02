@@ -30,6 +30,8 @@ import androidx.media3.exoplayer.ExoPlayer;
 
 import is.xyz.mpv.MPVLib;
 
+import com.fongmi.android.tv.App;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -135,7 +137,22 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
     public void setDecode(int decode) {
         if (released) return;
         this.decode = decode;
-        MPVLib.setPropertyString("hwdec", decode == 1 ? "mediacodec" : decode == 2 ? "mediacodec-copy" : "no");
+        String hwdec = switch (decode) {
+            case 1 -> "mediacodec";
+            case 2 -> "mediacodec-copy";
+            case 3 -> "android-media-ndk";
+            case 4 -> "auto";
+            default -> "no";
+        };
+        MPVLib.setPropertyString("hwdec", hwdec);
+    }
+
+    public void setStats(boolean stats) {
+        if (released) return;
+        MPVLib.command(new String[]{"script-binding", "stats/display-stats-toggle"});
+        if (stats) {
+            MPVLib.command(new String[]{"script-binding", "stats/display-page-2"});
+        }
     }
 
     public void addSubtitle(SubtitleConfiguration config) {
@@ -217,10 +234,27 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
 
     @Override public void eventProperty(String property, long value) {}
     @Override public void eventProperty(String property, boolean value) { eventProperty(property); }
+    private String lastHwdecError = "";
+
+    public String getLastHwdecError() {
+        return lastHwdecError;
+    }
+
+    public String getHwdec() {
+        return MPVLib.getPropertyString("hwdec");
+    }
+
+    public String getVo() {
+        return MPVLib.getPropertyString("vo");
+    }
+
     @Override public void eventProperty(String property, String value) {
         if ("hwdec-current".equals(property)) {
-            if ("no".equals(value) && "mediacodec".equals(MPVLib.getPropertyString("hwdec"))) {
+            if ("no".equals(value) && !"no".equals(MPVLib.getPropertyString("hwdec"))) {
+                lastHwdecError = "硬體解碼失敗，已回退至軟解";
                 android.util.Log.w("MpvPlayer", "Hardware decoding failed.");
+            } else if (!"no".equals(value)) {
+                lastHwdecError = "";
             }
         } else eventProperty(property);
     }
@@ -323,10 +357,13 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
         if (released) return;
         released = true;
         if (currentHolder != null) currentHolder.removeCallback(surfaceCallback);
-        MPVLib.command(new String[]{"stop"});
-        detachSurface();
-        MPVLib.removeObserver(this);
-        MPVLib.destroy();
+        mainHandler.removeCallbacksAndMessages(null);
+        App.execute(() -> {
+            MPVLib.command(new String[]{"stop"});
+            detachSurface();
+            MPVLib.removeObserver(this);
+            MPVLib.destroy();
+        });
     }
 
     @Override public int getPlaybackState() { return released ? STATE_IDLE : playbackState; }

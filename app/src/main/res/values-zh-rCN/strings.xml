@@ -375,22 +375,29 @@
     </string-array>
 
     <string-array name="select_mpv_hwdec">
-        <item>no</item>
+        <item>关闭</item>
         <item>mediacodec</item>
         <item>mediacodec-copy</item>
+        <item>ndk (推荐)</item>
+        <item>自动</item>
     </string-array>
 
     <string-array name="select_mpv_gpu_api">
-        <item>auto</item>
+        <item>自动</item>
         <item>opengl</item>
         <item>vulkan</item>
     </string-array>
 
     <string-array name="select_mpv_fbo_format">
-        <item>auto</item>
+        <item>自动</item>
         <item>rgba8</item>
+        <item>rgb10_a2</item>
+        <item>rgba16f</item>
+        <item>rgba16</item>
+        <item>rgba32f</item>
     </string-array>
 
+    <string name="play_fbo_auto">已自动为您选择「%1$s」模式</string>
     <string name="site_blacklist_confirm">Are you sure to add \"%1$s\" to the blacklist?</string>
     <string name="site_blacklist_remove_confirm">Are you sure to remove \"%1$s\" from the blacklist?</string>
     <string name="db_upgrading">Upgrading Database: %1$d -> %2$d</string>

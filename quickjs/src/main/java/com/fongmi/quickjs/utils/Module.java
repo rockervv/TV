@@ -37,9 +37,20 @@ public class Module {
     public String fetch(String name) {
         String content = cache.get(name);
         if (!TextUtils.isEmpty(content)) return content;
-        if (name.startsWith("http")) cache.put(name, content = OkHttp.string(name));
-        else if (name.startsWith("assets")) cache.put(name, content = Asset.read(name));
-        else if (name.startsWith("lib/")) cache.put(name, content = Asset.read("js/" + name));
+        android.util.Log.d("Module", "Fetching JS from: " + name);
+        if (name.startsWith("http")) {
+            content = OkHttp.string(name);
+            if (TextUtils.isEmpty(content)) {
+                android.util.Log.e("Module", "FAILED to fetch JS from URL (EMPTY response): " + name);
+            } else {
+                android.util.Log.d("Module", "Successfully fetched JS from URL, length: " + content.length());
+                cache.put(name, content);
+            }
+        } else if (name.startsWith("assets")) {
+            cache.put(name, content = Asset.read(name));
+        } else if (name.startsWith("lib/")) {
+            cache.put(name, content = Asset.read("js/" + name));
+        }
         return content;
     }
 

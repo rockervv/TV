@@ -77,11 +77,9 @@ public class Path {
 
     public static File tv() {
         File dir = new File(root() + File.separator + "TV");
-        if (!dir.exists()) {
-            dir.mkdirs();
-            Shell.exec("chmod 777 " + dir);
-        }
-        return dir;
+        if (!dir.exists()) dir.mkdirs();
+        if (dir.exists() && dir.canWrite()) return dir;
+        return mkdir(new File(files(), "TV"));
     }
 
     public static File so() {

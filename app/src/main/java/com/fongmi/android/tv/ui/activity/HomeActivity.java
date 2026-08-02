@@ -400,6 +400,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void setHomeType() {
+        for (int i = 0; i < mAdapter.size(); i++) if (((Class) mAdapter.get(i)).getTypeId().equals("home")) return;
         Class home = new Class();
         home.setTypeId("home");
         home.setTypeName(ResUtil.getString(R.string.home));
@@ -408,7 +409,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     public void homeContent() {
         if (mBinding == null || getHome() == null) return;
-        mResult = Result.empty();
+        if (!getKey().equals(mResult.getKey())) mResult = Result.empty();
         String title = getHome().getName();
         mBinding.title.setText(title.isEmpty() ? ResUtil.getString(R.string.app_name) : title);
         if (getHome().getKey().isEmpty()) return;
@@ -454,7 +455,12 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             android.util.Log.w("HomeActivity", "setTypes() ABORTED - Result is EMPTY (likely a spider error)");
             return;
         }
-        mCache.put(getKey(), result);
+
+        if (result.getKey().isEmpty()) result.setKey(getKey());
+
+        List<Class> types = new ArrayList<>(getTypes(result));
+        types.removeIf(item -> item.getTypeName().equals(ResUtil.getString(R.string.home)));
+
         View current = getCurrentFocus();
         int sideMenuPos = Math.max(0, mBinding.recycler.getSelectedPosition());
         int pagerPos = Math.max(0, mBinding.pager.getCurrentItem());
@@ -465,29 +471,36 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
         android.util.Log.d("HomeFocus", "setTypes() START - Current: " + getResName(current) + " [SidePos: " + sideMenuPos + ", Pager: " + pagerPos + ", Row: " + fragmentRowPos + ", Item: " + itemPos + ", PagerFocused: " + pagerFocused + "]");
 
-        List<Class> types = getTypes(result);
-        boolean typesChanged = true;
-        if (mAdapter.size() == types.size() + 1) {
-            boolean same = true;
-            for (int i = 0; i < types.size(); i++) {
-                Class oldType = (Class) mAdapter.get(i + 1);
-                Class newType = types.get(i);
-                if (!oldType.isSameItem(newType) || !oldType.isSameContent(newType)) {
-                    same = false;
-                    break;
+        boolean siteChanged = !getKey().equals(mResult.getKey());
+        boolean listChanged = !result.isSameList(mResult);
+        boolean typesChanged = false;
+
+        if (!types.isEmpty()) {
+            typesChanged = true;
+            if (mAdapter.size() == types.size() + 1) {
+                boolean same = true;
+                for (int i = 0; i < types.size(); i++) {
+                    Class oldType = (Class) mAdapter.get(i + 1);
+                    Class newType = types.get(i);
+                    if (!oldType.isSameItem(newType) || !oldType.isSameContent(newType)) {
+                        same = false;
+                        break;
+                    }
                 }
+                if (same) typesChanged = false;
             }
-            if (same) typesChanged = false;
+        } else if (mAdapter.size() > 1 && siteChanged) {
+            typesChanged = true;
+        } else {
+            android.util.Log.d("HomeActivity", "setTypes() - Result has NO types, skipping category update");
         }
 
-        boolean listChanged = !result.isSameList(mResult);
         if (typesChanged) {
             updating = true;
-            result.setTypes(types);
             for (Map.Entry<String, List<Filter>> entry : result.getFilters().entrySet()) Prefers.put("filter_" + getKey() + "_" + entry.getKey(), App.gson().toJson(entry.getValue()));
-            for (Class item : result.getTypes()) item.setFilters(getFilter(item.getTypeId()));
+            for (Class item : types) item.setFilters(getFilter(item.getTypeId()));
             if (mAdapter.size() > 1) mAdapter.removeItems(1, mAdapter.size() - 1);
-            if (!result.getTypes().isEmpty()) mAdapter.addAll(1, result.getTypes());
+            if (!types.isEmpty()) mAdapter.addAll(1, types);
             setPager();
             if (mPageAdapter != null) mPageAdapter.notifyDataSetChanged();
             mBinding.recycler.setSelectedPosition(sideMenuPos);
@@ -501,48 +514,56 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             if (homeFragment.mBinding != null) homeFragment.mBinding.progressLayout.showContent();
         }
 
+        if (result.getTypes().isEmpty() && !mResult.getTypes().isEmpty() && !siteChanged) {
+            result.setTypes(mResult.getTypes());
+        }
+
+        mResult = result;
+        mCache.put(getKey(), mResult);
         if (!typesChanged && !listChanged) return;
 
         if (recyclerFocused) {
             App.post(() -> {
+                if (isFinishing() || mBinding == null) return;
                 android.util.Log.d("HomeFocus", "Restoring Side Menu focus to Pos: " + sideMenuPos);
                 mBinding.recycler.setSelectedPosition(sideMenuPos);
-                mBinding.recycler.post(() -> mBinding.recycler.requestFocus());
+                mBinding.recycler.post(() -> {
+                    if (isFinishing() || mBinding == null) return;
+                    mBinding.recycler.requestFocus();
+                });
             }, 400);
         } else if (pagerFocused) {
             App.post(() -> {
-                View currentFocus = getCurrentFocus();
-                if (currentFocus != null && currentFocus != mBinding.recycler && viewAncestor(currentFocus, mBinding.recycler)) {
+                if (isFinishing() || mBinding == null) return;
+                View focus = getCurrentFocus();
+                if (focus != null && focus != mBinding.recycler && viewAncestor(focus, mBinding.recycler)) {
                     int currentSidePos = mBinding.recycler.getSelectedPosition();
-                    if (currentSidePos != sideMenuPos) {
-                        android.util.Log.d("HomeFocus", "Restoration ABORTED: User manually moved side menu to Pos: " + currentSidePos);
-                        return;
-                    }
+                    if (currentSidePos != sideMenuPos) return;
                 }
                 VerticalGridView gridView = getRecyclerView();
                 if (gridView != null) {
-                    android.util.Log.d("HomeFocus", "Restoring Pager Row focus to Pos: " + fragmentRowPos + " Item: " + itemPos);
                     gridView.setSelectedPosition(fragmentRowPos);
-                    App.post(() -> {
+                    gridView.post(() -> {
+                        if (isFinishing() || mBinding == null) return;
                         RecyclerView.ViewHolder holder = gridView.findViewHolderForAdapterPosition(fragmentRowPos);
                         if (holder != null) {
                             RecyclerView inner = findInnerRecycler(holder.itemView);
                             if (inner != null) {
-                                if (inner instanceof HorizontalGridView) {
-                                    ((HorizontalGridView) inner).setSelectedPosition(itemPos);
-                                    inner.post(inner::requestFocus);
-                                } else {
-                                    inner.scrollToPosition(itemPos);
-                                    inner.post(inner::requestFocus);
-                                }
+                                if (inner instanceof HorizontalGridView) ((HorizontalGridView) inner).setSelectedPosition(itemPos);
+                                else inner.scrollToPosition(itemPos);
+                                inner.post(() -> {
+                                    if (isFinishing()) return;
+                                    inner.requestFocus();
+                                });
                             } else {
                                 holder.itemView.requestFocus();
                             }
                         }
-                    }, 400);
+                    });
                 }
             }, 800);
-        } else {
+        }
+else {
             App.post(this::setFocus, 1000);
         }
         mResult = result;
@@ -854,6 +875,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 RefreshEvent.history();
                 RefreshEvent.home();
                 setLogo();
+                // 如果目前是空站點，或者是因為同步問題導致沒分類，才嘗試刷新
+                if (mAdapter.size() == 0 || getHome().getApi().isEmpty()) {
+                    setHomeType();
+                    homeContent();
+                }
                 break;
             case WALL:
                 RefreshEvent.wall();

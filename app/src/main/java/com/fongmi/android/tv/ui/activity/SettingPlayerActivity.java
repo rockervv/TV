@@ -18,7 +18,9 @@ import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.MpvConfDialog;
 import com.fongmi.android.tv.ui.dialog.SpeedDialog;
 import com.fongmi.android.tv.ui.dialog.UaDialog;
+import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Util;
 
 import java.text.DecimalFormat;
 
@@ -131,6 +133,10 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
         int index = PlayerSetting.getMpvFboFormat();
         PlayerSetting.putMpvFboFormat(index = index == mpvFboFormat.length - 1 ? 0 : ++index);
         mBinding.mpvFboFormatText.setText(mpvFboFormat[index]);
+        if (index == 0) {
+            int recommendedIndex = Util.getTotalMem() <= 2048 * 1024 * 1024L ? 1 : 2;
+            Notify.show(ResUtil.getString(R.string.play_fbo_auto, mpvFboFormat[recommendedIndex]));
+        }
     }
 
     private void setMpvGpuNext(View view) {

@@ -581,12 +581,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     public void onBackPressed() {
-        if (isFullscreen()) {
-            exitFullscreen();
-        } else {
-            setStop(true);
-            super.onBackPressed();
-        }
+        onBackPress();
     }
 
     private void checkCast() {
@@ -715,10 +710,67 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         return enter;
     }
 
+    private boolean tuning;
+
+    @Override
+    public boolean isDebugViewVisible() {
+        return tuning;
+    }
+
+    @Override
+    public void toggleDebugView() {
+        tuning = !tuning;
+        updateTuningLayout();
+    }
+
+    @Override
+    public void hideDebugView() {
+        tuning = false;
+        updateTuningLayout();
+    }
+
+    private void updateTuningLayout() {
+        if (tuning && isFullscreen()) {
+            int width = ResUtil.getScreenWidth() / 2;
+            mBinding.video.setLayoutParams(new RelativeLayout.LayoutParams(width, RelativeLayout.LayoutParams.MATCH_PARENT));
+            RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(width, RelativeLayout.LayoutParams.MATCH_PARENT);
+            params.addRule(RelativeLayout.ALIGN_PARENT_END);
+            mBinding.tuning.getRoot().setLayoutParams(params);
+            mBinding.tuning.getRoot().setVisibility(View.VISIBLE);
+            refreshTuningInfo();
+        } else {
+            if (isFullscreen()) {
+                mBinding.video.setLayoutParams(new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT));
+            }
+            mBinding.tuning.getRoot().setVisibility(View.GONE);
+        }
+    }
+
+    private void refreshTuningInfo() {
+        if (!tuning || player() == null || isDestroyed()) return;
+        Player p = player().getPlayer();
+        if (p instanceof androidx.media3.mpvplayer.MpvPlayer mpv) {
+            mBinding.tuning.tuningState.setText(getString(mpv.isPlaying() ? R.string.play_ready : R.string.play_buffering));
+            mBinding.tuning.tuningHwdec.setText("hwdec: " + mpv.getHwdec());
+            mBinding.tuning.tuningError.setText(mpv.getLastHwdecError());
+            mBinding.tuning.tuningInfo.setText(String.format("VO: %s\nGPU API: %s\nThreads: %d\nFast: %b\nVideo Sync: %s",
+                    mpv.getVo(),
+                    ResUtil.getStringArray(R.array.select_mpv_gpu_api)[PlayerSetting.getMpvGpuApi()],
+                    PlayerSetting.getMpvThreads(),
+                    PlayerSetting.isMpvFast(),
+                    PlayerSetting.getMpvVideoSync()
+            ));
+        }
+        App.post(this::refreshTuningInfo, 1000);
+    }
+
     @Override
     protected void onFullscreenChanged(boolean fullscreen) {
+        if (this.fullscreen == fullscreen) return;
+        android.util.Log.d("TV_UI", "onFullscreenChanged: " + fullscreen);
         if (fullscreen) enterFullscreen();
         else exitFullscreen();
+        updateTuningLayout();
     }
 
     private void enterFullscreen() {
@@ -728,23 +780,26 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBinding.video.setForeground(null);
         mBinding.video.setLayoutParams(new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT));
         mBinding.video.setTranslationZ(0f);
-        mBinding.exo.setTranslationZ(-100f);
-        mBinding.exo.setFocusable(false);
+        mBinding.exo.setTranslationZ(0f);
         mBinding.flag.setSelectedPosition(mFlagAdapter.getPosition());
         mKeyDown.setFull(true);
         this.fullscreen = true;
         mFocus2 = null;
+        mViewModel.setFullscreen(true);
     }
 
     private void exitFullscreen() {
+        android.util.Log.d("TV_UI", "exitFullscreen() START");
         mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         mBinding.video.setForeground(ResUtil.getDrawable(R.drawable.selector_video));
         mBinding.video.setLayoutParams(mFrameParams);
-        getFocus1().requestFocus();
         mKeyDown.setFull(false);
         this.fullscreen = false;
         mFocus2 = null;
+        hideControl();
         hideInfo();
+        mBinding.video.requestFocus();
+        mViewModel.setFullscreen(false);
     }
 
     private void onContent() {
@@ -967,19 +1022,24 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private void hideInfo() {
+        android.util.Log.d("TV_UI", "hideInfo() called, isFullscreen=" + isFullscreen());
         mBinding.widget.info.setVisibility(View.GONE);
         mBinding.widget.center.setVisibility(View.GONE);
     }
 
     private void showControl(View view) {
-        if (player() == null || player().getPlayer() == null) return;
+        if (player() == null || player().getPlayer() == null || !isFullscreen()) {
+            android.util.Log.d("TV_UI", "showControl() ABORTED - isFullscreen=" + isFullscreen());
+            return;
+        }
+        android.util.Log.d("TV_UI", "showControl() START");
         mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         mBinding.control.getRoot().setVisibility(View.VISIBLE);
         mBinding.widget.getRoot().setVisibility(View.VISIBLE);
         mBinding.widget.info.setVisibility(View.VISIBLE);
         mBinding.control.getRoot().setTranslationZ(2000f);
         mBinding.widget.getRoot().setTranslationZ(2000f);
-        mBinding.exo.setTranslationZ(-100f);
+        mBinding.exo.setTranslationZ(0f);
         mBinding.control.getRoot().bringToFront();
         mBinding.widget.getRoot().bringToFront();
         mBinding.control.getRoot().requestLayout();
@@ -991,10 +1051,16 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     protected void hideControl() {
         if (mBinding == null) return;
-        if (isFullscreen()) mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        android.util.Log.d("TV_UI", "hideControl() START, isFullscreen=" + isFullscreen());
+        mBinding.video.setDescendantFocusability(isFullscreen() ? ViewGroup.FOCUS_BLOCK_DESCENDANTS : ViewGroup.FOCUS_AFTER_DESCENDANTS);
         mBinding.control.getRoot().setVisibility(View.GONE);
+        mBinding.widget.getRoot().setVisibility(View.GONE);
+        mBinding.widget.center.setVisibility(View.GONE);
+        mBinding.widget.info.setVisibility(View.GONE);
+        mBinding.control.getRoot().setTranslationZ(-1000f);
+        mBinding.widget.getRoot().setTranslationZ(-1000f);
+        mBinding.exo.setTranslationZ(0f);
         hideInfo();
-        if (player() != null && player().isPlaying() && !isPaused()) mBinding.widget.info.setVisibility(View.GONE);
         App.removeCallbacks(mR1);
     }
 
@@ -1266,6 +1332,15 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (mBinding == null) return false;
+        if (isFullscreen() && KeyUtil.isBackKey(event)) {
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                if (isVisible(mBinding.control.getRoot())) hideControl();
+                else if (isVisible(mBinding.widget.center)) hideCenter();
+                else exitFullscreen();
+            }
+            return true;
+        }
+        if (!isFullscreen() && isVisible(mBinding.control.getRoot())) hideControl();
         if (isVisible(mBinding.control.getRoot())) setR1Callback();
         if (isVisible(mBinding.control.getRoot())) mFocus2 = getCurrentFocus();
 
@@ -1275,10 +1350,6 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
                 return true;
             }
             if (isGone(mBinding.control.getRoot())) {
-                if (KeyUtil.isBackKey(event)) {
-                    if (event.getAction() == KeyEvent.ACTION_UP) exitFullscreen();
-                    return true;
-                }
                 if (mKeyDown.hasEvent(event)) {
                     if (event.getAction() == KeyEvent.ACTION_DOWN && !KeyUtil.isEnterKey(event) && !KeyUtil.isLeftKey(event) && !KeyUtil.isRightKey(event)) {
                         showControl(getFocus2());
@@ -1351,7 +1422,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mKeyDown.resetTime();
         player().seekTo(finalPos);
         mBasePosition = finalPos;
-        App.post(mHideCenter, 500);
+        if (player().isPlaying()) App.post(mHideCenter, 500);
         App.post(mSeekReset, 2500);
     }
 
@@ -1390,7 +1461,9 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     public void onKeyCenter() {
-        if (player().isPlaying() || player().getPlayer().getPlayWhenReady()) {
+        if (!isFullscreen()) {
+            enterFullscreen();
+        } else if (player().isPlaying() || player().getPlayer().getPlayWhenReady()) {
             onPaused();
         } else if (player().isEmpty()) {
             onRefresh();

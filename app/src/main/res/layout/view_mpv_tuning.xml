@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/tuning_panel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#BB000000"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="MPV 調適控制台"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[ 當前狀態 ]"
+            android:textColor="@color/grey_500"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tuning_state"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="16dp"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            tools:text="播放中 (Playing)" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[ 硬體解碼器 ]"
+            android:textColor="@color/grey_500"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tuning_hwdec"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="16dp"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            tools:text="hwdec: android-media-ndk" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[ 錯誤/警告 ]"
+            android:textColor="@color/grey_500"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tuning_error"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="16dp"
+            android:textColor="@color/red_500"
+            android:textSize="14sp"
+            tools:text="[vd:warn] Unsupported hwdec: mediacodec" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[ 其它資訊 ]"
+            android:textColor="@color/grey_500"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tuning_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            tools:text="VO: gpu-next\nGPU API: opengl\nFBO: auto" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

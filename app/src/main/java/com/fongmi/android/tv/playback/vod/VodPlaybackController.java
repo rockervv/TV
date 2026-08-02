@@ -129,7 +129,7 @@ public class VodPlaybackController {
     }
 
     public void selectEpisode(Episode item) {
-        if (!state.hasFlags()) return;
+        if (item == null || !state.hasFlags()) return;
         Flag selected = state.getFlag();
         for (Flag flag : state.getFlags()) flag.toggle(flag == selected, item);
         historyPolicy.updateEpisode(state.getHistory(), state.getFlag(), item);
@@ -226,20 +226,26 @@ public class VodPlaybackController {
     private void nextEpisode(boolean notify, boolean reversed) {
         if (!state.hasEpisode()) return;
         Episode item = getRelativeEpisode(1);
-        if (!item.isSelected()) selectEpisode(item);
+        android.util.Log.d("VodController", "nextEpisode: current=" + state.getFlag().getPosition() + " next=" + (item == null ? "null" : item.getName()) + " selected=" + (item != null && item.isSelected()));
+        if (item != null && !item.isSelected()) selectEpisode(item);
         else if (notify) host.showNoNext(reversed);
     }
 
     private void prevEpisode(boolean notify, boolean reversed) {
         if (!state.hasEpisode()) return;
         Episode item = getRelativeEpisode(-1);
-        if (!item.isSelected()) selectEpisode(item);
+        android.util.Log.d("VodController", "prevEpisode: current=" + state.getFlag().getPosition() + " prev=" + (item == null ? "null" : item.getName()) + " selected=" + (item != null && item.isSelected()));
+        if (item != null && !item.isSelected()) selectEpisode(item);
         else if (notify) host.showNoPrev(reversed);
     }
 
     public void reverseEpisode(boolean scroll) {
         if (!state.hasFlags()) return;
-        for (Flag flag : state.getFlags()) Collections.reverse(flag.getEpisodes());
+        Episode current = state.getEpisode();
+        for (Flag flag : state.getFlags()) {
+            Collections.reverse(flag.getEpisodes());
+            flag.setPosition(flag.getEpisodes().indexOf(current));
+        }
         host.renderReverseEpisodes(state.getFlag().getEpisodes(), scroll);
     }
 
@@ -321,7 +327,10 @@ public class VodPlaybackController {
         item.checkPic(host.getVodPic());
         item.checkName(host.getVodName());
         state.setFlags(item.getFlags());
-        state.setHistory(historyPolicy.findOrCreate(host.getHistoryKey(), host.getVodMark(), item));
+        History history = historyPolicy.findOrCreate(host.getHistoryKey(), host.getVodMark(), item);
+        if (history.getOpening() < 0 || history.getOpening() > 600000) history.setOpening(0);
+        if (history.getEnding() < 0 || history.getEnding() > 600000) history.setEnding(0);
+        state.setHistory(history);
         lastHistory = state.getHistory();
         if (viewModel != null) {
             viewModel.setVod(item);

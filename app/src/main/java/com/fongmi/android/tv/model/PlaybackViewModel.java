@@ -258,6 +258,7 @@ public class PlaybackViewModel extends SiteViewModel {
     }
 
     public void setFullscreen(boolean fullscreen) {
+        if (Boolean.valueOf(fullscreen).equals(this.fullscreen.getValue())) return;
         this.fullscreen.setValue(fullscreen);
     }
 

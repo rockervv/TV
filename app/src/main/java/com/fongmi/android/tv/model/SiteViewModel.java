@@ -73,10 +73,18 @@ public class SiteViewModel extends ViewModel {
     }
 
     public void homeContent() {
+        if (!VodConfig.get().isLoaded()) {
+            android.util.Log.w("SiteViewModel", "homeContent [ABORTED]: VodConfig not loaded yet!");
+            return;
+        }
         execute(TaskType.RESULT, result, () -> SiteApi.homeContent(VodConfig.get().getHome()));
     }
 
     public void categoryContent(String key, String tid, String page, boolean filter, HashMap<String, String> extend) {
+        if (!VodConfig.get().isLoaded()) {
+            android.util.Log.w("SiteViewModel", "categoryContent [ABORTED]: VodConfig not loaded yet!");
+            return;
+        }
         android.util.Log.d("SiteViewModel", "categoryContent: tid=" + tid + " page=" + page);
         execute(TaskType.RESULT, result, () -> SiteApi.categoryContent(key, tid, page, filter, extend));
     }

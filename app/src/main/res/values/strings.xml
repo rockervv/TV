@@ -419,6 +419,16 @@
         <item>關閉</item>
         <item>mediacodec</item>
         <item>mediacodec-copy</item>
+        <item>ndk (推薦)</item>
+        <item>自動</item>
+    </string-array>
+
+    <string-array name="select_mpv_hwdec_value" translatable="false">
+        <item>no</item>
+        <item>mediacodec</item>
+        <item>mediacodec-copy</item>
+        <item>android-media-ndk</item>
+        <item>auto</item>
     </string-array>
 
     <string-array name="select_mpv_gpu_api">
@@ -427,11 +437,31 @@
         <item>vulkan</item>
     </string-array>
 
+    <string-array name="select_mpv_gpu_api_value" translatable="false">
+        <item>auto</item>
+        <item>opengl</item>
+        <item>vulkan</item>
+    </string-array>
+
     <string-array name="select_mpv_fbo_format">
         <item>自動</item>
         <item>rgba8</item>
+        <item>rgb10_a2</item>
+        <item>rgba16f</item>
+        <item>rgba16</item>
+        <item>rgba32f</item>
     </string-array>
 
+    <string-array name="select_mpv_fbo_format_value" translatable="false">
+        <item>auto</item>
+        <item>rgba8</item>
+        <item>rgb10_a2</item>
+        <item>rgba16f</item>
+        <item>rgba16</item>
+        <item>rgba32f</item>
+    </string-array>
+
+    <string name="play_fbo_auto">已自動為您選擇「%1$s」模式</string>
     <string name="site_blacklist_confirm">確定要將「%1$s」加入黑名單嗎？</string>
     <string name="site_blacklist_remove_confirm">確定要將「%1$s」從黑名單移除嗎？</string>
     <string name="db_upgrading">正在升級資料庫：%1$d -> %2$d</string>

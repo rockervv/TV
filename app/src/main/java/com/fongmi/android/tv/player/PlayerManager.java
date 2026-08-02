@@ -289,6 +289,10 @@ public class PlayerManager implements ParseCallback {
         if (engine != null) engine.setSubtitleStyle();
     }
 
+    public void setStats(boolean stats) {
+        if (engine != null) engine.setStats(stats);
+    }
+
     public void play() {
         player.play();
     }
@@ -553,6 +557,11 @@ public class PlayerManager implements ParseCallback {
                 case RETRY -> startCurrent(getPosition());
                 case FATAL -> callback.onError(engine.getErrorMessage(e));
             }
+        }
+
+        @Override
+        public void onRenderedFirstFrame() {
+            if (PlayerSetting.isMpvStats()) setStats(true);
         }
     };
 

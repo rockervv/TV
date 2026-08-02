@@ -215,4 +215,68 @@ public class PlayerSetting {
     public static void putMpvFboFormat(int format) {
         Prefers.put("mpv_fbo_format", format);
     }
+
+    public static int getMpvThreads() {
+        return Prefers.getInt("mpv_threads", com.fongmi.android.tv.utils.Util.getTotalMem() <= 2048 * 1024 * 1024L ? 1 : 0);
+    }
+
+    public static void putMpvThreads(int threads) {
+        Prefers.put("mpv_threads", threads);
+    }
+
+    public static boolean isMpvFast() {
+        return Prefers.getBoolean("mpv_fast", true);
+    }
+
+    public static void putMpvFast(boolean fast) {
+        Prefers.put("mpv_fast", fast);
+    }
+
+    public static String getMpvVideoSync() {
+        return Prefers.getString("mpv_video_sync", "audio");
+    }
+
+    public static void putMpvVideoSync(String sync) {
+        Prefers.put("mpv_video_sync", sync);
+    }
+
+    public static boolean isMpvPbo() {
+        return Prefers.getBoolean("mpv_pbo", false);
+    }
+
+    public static void putMpvPbo(boolean pbo) {
+        Prefers.put("mpv_pbo", pbo);
+    }
+
+    public static String getMpvFramedrop() {
+        return Prefers.getString("mpv_framedrop", "vo");
+    }
+
+    public static void putMpvFramedrop(String framedrop) {
+        Prefers.put("mpv_framedrop", framedrop);
+    }
+
+    public static boolean isMpvSkipLoop() {
+        return Prefers.getBoolean("mpv_skip_loop", false);
+    }
+
+    public static void putMpvSkipLoop(boolean skip) {
+        Prefers.put("mpv_skip_loop", skip);
+    }
+
+    public static int getMpvAudioBuffer() {
+        return Prefers.getInt("mpv_audio_buffer", 200);
+    }
+
+    public static void putMpvAudioBuffer(int ms) {
+        Prefers.put("mpv_audio_buffer", ms);
+    }
+
+    public static boolean isMpvStats() {
+        return Prefers.getBoolean("mpv_stats", false);
+    }
+
+    public static void putMpvStats(boolean stats) {
+        Prefers.put("mpv_stats", stats);
+    }
 }

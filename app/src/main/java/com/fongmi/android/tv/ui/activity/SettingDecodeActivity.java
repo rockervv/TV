@@ -39,6 +39,7 @@ public class SettingDecodeActivity extends BaseActivity {
         mBinding.videoPrefer.setOnClickListener(this::setVideoPrefer);
         mBinding.dv7Fallback.setOnClickListener(this::setDv7HevcFallback);
         mBinding.audioPassThrough.setOnClickListener(this::setAudioPassThrough);
+        mBinding.mpvSetting.setOnClickListener(view -> com.fongmi.android.tv.ui.dialog.MpvSettingDialog.show(this));
     }
 
     private void refresh() {

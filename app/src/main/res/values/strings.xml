@@ -466,4 +466,8 @@
     <string name="site_blacklist_remove_confirm">確定要將「%1$s」從黑名單移除嗎？</string>
     <string name="db_upgrading">正在升級資料庫：%1$d -> %2$d</string>
 
+    <!-- Test -->
+    <string name="test_site_list">站點列表</string>
+    <string name="test_result_title">測試結果 (JSON):</string>
+
 </resources>

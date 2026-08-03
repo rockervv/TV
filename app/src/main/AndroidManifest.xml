@@ -237,6 +237,12 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"
             android:screenOrientation="sensorLandscape" />
 
+        <activity
+            android:name=".ui.activity.SiteTestActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|orientation"
+            android:screenOrientation="sensorLandscape"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustPan" />
+
         <service
             android:name=".service.PlaybackService"
             android:exported="true"

@@ -157,14 +157,14 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     protected void initView() {
         android.util.Log.d("TV_FATAL", "HomeActivity.initView() START");
         Monitor.start("HomeActivity_initView");
+        setViewModel();
+        initConfig();
         mResult = Result.empty();
         mClock = Clock.create(mBinding.clock);
         PermissionUtil.requestFile(this, (allGranted, grantedList, deniedList) -> { });
         DLNARendererService.start(this);
         Updater.get().release().start(this);
         setRecyclerView();
-        setViewModel();
-        initConfig();
 
         App.execute(() -> Server.get().start());
         checkStoragePermission();
@@ -714,7 +714,9 @@ else {
                 Config vod = Config.vod();
                 Config live = Config.live();
                 if (vod != null && !vod.getJson().isEmpty()) {
+                    android.util.Log.d("TV_FATAL", "initConfig [CACHE]: Loading local JSON cache...");
                     VodConfig.get().config(vod).cache();
+                    android.util.Log.d("TV_FATAL", "initConfig [CACHE]: Loaded, isLoaded=" + VodConfig.get().isLoaded());
                     if (VodConfig.get().isLoaded()) {
                         App.post(() -> {
                             showContent();

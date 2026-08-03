@@ -1,6 +1,7 @@
 package com.fongmi.android.tv;
 
 import android.app.Activity;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -32,6 +33,8 @@ Updater implements Download.Callback {
     private AlertDialog dialog;
     private boolean dev;
 
+    private String md5;
+
     private static class Loader {
         static volatile Updater INSTANCE = new Updater();
     }
@@ -41,17 +44,17 @@ Updater implements Download.Callback {
     }
 
     private File getFile() {
-        return Path.externalCache("update.apk");
+        File file = Path.externalCache("update.apk");
+        if (file.exists()) file.delete();
+        return file;
     }
 
     private String getJson() {
-        return Github.getJson(dev, "leanback"); //leanback
+        return Github.getJson(dev, "leanback"); 
     }
 
     private String getApk() {
-        return Github.getApk(dev, "leanback-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi); //leanback-python-x86_64-release
-
-        //return Github.getApk(dev, BuildConfig.FLAVOR); //leanbackPythonX86_64
+        return Github.getApk(dev, "leanback-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi); 
     }
 
     public Updater force() {
@@ -80,8 +83,6 @@ Updater implements Download.Callback {
     }
 
 
-    //VERSION_CODE = 258;
-    //VERSION_NAME = "Rocker-2.5.8";
     private boolean need(int code, String name) {
         Log.d("Updater", name + " code: " + code );
         return Setting.getUpdate() && (dev ? !name.equals(BuildConfig.VERSION_NAME) && code >= BuildConfig.VERSION_CODE : code > BuildConfig.VERSION_CODE);
@@ -103,7 +104,8 @@ Updater implements Download.Callback {
             String name = object.optString("name");
             String desc = object.optString("desc");
             int code = object.optInt("code");
-            Log.d ("Updater", "URL: " + Github.URL + " name:[" + name + "] code: " + code + ", desc:\n" + desc + "\n");
+            this.md5 = object.optString("md5");
+            Log.d ("Updater", "URL: " + Github.URL + " name:[" + name + "] code: " + code + " MD5: " + md5 + ", desc:\n" + desc + "\n");
             if (need(code, name)) App.post(() -> show(activity, name, desc));
         } catch (Exception e) {
             Log.d("Updater", url + " error: " + e);
@@ -130,6 +132,7 @@ Updater implements Download.Callback {
 
     private void confirm(View view) {
         binding.confirm.setEnabled(false);
+        binding.cancel.setVisibility(View.GONE);
         Download.create(getApk(), getFile(), this).start();
     }
 
@@ -153,6 +156,13 @@ Updater implements Download.Callback {
 
     @Override
     public void success(File file) {
+        if (!TextUtils.isEmpty(md5) && !com.github.catvod.utils.Util.md5(file).equalsIgnoreCase(md5)) {
+            android.util.Log.e("Updater", "MD5 mismatch! Downloaded: " + com.github.catvod.utils.Util.md5(file) + " Expected: " + md5);
+            Notify.show("檔案驗證失敗，請重試");
+            file.delete();
+            dismiss();
+            return;
+        }
         FileUtil.openFile(file);
         dismiss();
     }

@@ -14,6 +14,7 @@ import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.exception.ExtractException;
 import com.fongmi.android.tv.utils.Monitor;
+import com.fongmi.android.tv.utils.Notify;
 import com.github.catvod.utils.Trans;
 
 import java.util.HashMap;
@@ -77,7 +78,13 @@ public class SiteViewModel extends ViewModel {
             android.util.Log.w("SiteViewModel", "homeContent [ABORTED]: VodConfig not loaded yet!");
             return;
         }
-        execute(TaskType.RESULT, result, () -> SiteApi.homeContent(VodConfig.get().getHome()));
+        Site site = VodConfig.get().getHome();
+        if (!site.getCache().isEmpty()) {
+            android.util.Log.d("SiteViewModel", "homeContent [CACHE]: Found cached data for site: " + site.getName());
+            App.post(() -> Notify.showTop("使用快取資料"));
+            result.postValue(Result.fromJson(site.getCache()));
+        }
+        execute(TaskType.RESULT, result, () -> SiteApi.homeContent(site));
     }
 
     public void categoryContent(String key, String tid, String page, boolean filter, HashMap<String, String> extend) {

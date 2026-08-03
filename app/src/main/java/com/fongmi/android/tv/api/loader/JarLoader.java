@@ -138,13 +138,19 @@ public class JarLoader {
 
     public Spider getSpider(String key, String api, String ext, String jar) {
         String jaKey = Util.md5(jar);
-        if (failures.containsKey(jaKey)) return new SpiderNull();
+        if (failures.get(jaKey) instanceof VerifyError) {
+            android.util.Log.e("JarLoader", "VerifyError detected for JAR, skipping load. [Key: " + key + ", API: " + api + ", EXT: " + ext + ", JAR: " + jar + "]");
+            return new SpiderNull();
+        }
         String spKey = jaKey + key;
         return spiders.computeIfAbsent(spKey, k -> {
             Monitor.start("Spider_Init_CSP_" + key);
             try {
                 parseJar(jaKey, jar);
-                if (failures.containsKey(jaKey)) return new SpiderNull();
+                if (failures.get(jaKey) instanceof VerifyError) {
+                    android.util.Log.e("JarLoader", "VerifyError detected during parseJar, skipping initialization. [Key: " + key + ", API: " + api + ", EXT: " + ext + ", JAR: " + jar + "]");
+                    return new SpiderNull();
+                }
                 DexClassLoader loader = loaders.get(jaKey);
                 if (loader == null) return new SpiderNull();
                 String apiName = api.split("csp_").length > 1 ? api.split("csp_")[1] : api;
@@ -153,6 +159,9 @@ public class JarLoader {
                 spider.init(App.get(), ext);
                 return spider;
             } catch (Throwable e) {
+                if (e instanceof VerifyError) {
+                    android.util.Log.e("JarLoader", "VerifyError caught during class load/init. [Key: " + key + ", API: " + api + ", EXT: " + ext + ", JAR: " + jar + "]", e);
+                }
                 failures.put(jaKey, e);
                 SpiderDebug.log(e);
                 return new SpiderNull();

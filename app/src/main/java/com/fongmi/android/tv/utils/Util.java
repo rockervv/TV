@@ -79,8 +79,7 @@ public class Util {
         InputMethodManager imm = (InputMethodManager) App.get().getSystemService(Context.INPUT_METHOD_SERVICE);
         if (imm == null) return;
         view.postDelayed(() -> {
-            imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) imm.showSoftInput(view, InputMethodManager.SHOW_FORCED);
+            imm.showSoftInput(view, InputMethodManager.SHOW_FORCED);
         }, 250);
     }
 

@@ -133,6 +133,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         mBinding.wallDefault.setOnClickListener(this::setWallDefault);
         mBinding.wallRefresh.setOnClickListener(this::setWallRefresh);
         mBinding.custom.setOnClickListener(this::onCustom);
+        mBinding.custom.setOnLongClickListener(this::onCustomLongClick);
         mBinding.doh.setOnClickListener(this::setDoh);
         mBinding.about.setOnClickListener(this::onAbout);
         mBinding.syncSetting.setOnClickListener(this::onSyncSetting);
@@ -277,6 +278,11 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
 
     private void onCustom(View view) {
         SettingCustomActivity.start(this);
+    }
+
+    private boolean onCustomLongClick(View view) {
+        SiteTestActivity.start(this);
+        return true;
     }
 
     private void onAbout(View view) {

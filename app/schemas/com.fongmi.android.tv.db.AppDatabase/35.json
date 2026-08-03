@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 35,
-    "identityHash": "1dd158f9d7543dde0f79306dd88d975a",
+    "identityHash": "0cd6283aeae7f726a648ed8de43abb7c",
     "entities": [
       {
         "tableName": "Keep",
@@ -62,7 +62,7 @@
       },
       {
         "tableName": "Site",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `searchable` INTEGER, `changeable` INTEGER, `blacklist` INTEGER NOT NULL, `failures` INTEGER NOT NULL, PRIMARY KEY(`key`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `searchable` INTEGER, `changeable` INTEGER, `blacklist` INTEGER NOT NULL, `failures` INTEGER NOT NULL, `cache` TEXT, PRIMARY KEY(`key`))",
         "fields": [
           {
             "fieldPath": "key",
@@ -93,6 +93,12 @@
             "columnName": "failures",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "cache",
+            "columnName": "cache",
+            "affinity": "TEXT",
+            "notNull": false
           }
         ],
         "primaryKey": {
@@ -562,7 +568,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1dd158f9d7543dde0f79306dd88d975a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0cd6283aeae7f726a648ed8de43abb7c')"
     ]
   }
 }

@@ -6,6 +6,7 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
@@ -91,6 +92,9 @@ public class Site implements Parcelable {
 
     @SerializedName("failures")
     private int failures;
+
+    @ColumnInfo(name = "cache")
+    private String cache;
 
     @Ignore
     @SerializedName("quickSearch")
@@ -341,6 +345,14 @@ public class Site implements Parcelable {
         this.failures = failures;
     }
 
+    public String getCache() {
+        return TextUtils.isEmpty(cache) ? "" : cache;
+    }
+
+    public void setCache(String cache) {
+        this.cache = cache;
+    }
+
     public Site setChangeable(boolean changeable) {
         if (getChangeable() != 0) setChangeable(changeable ? 1 : 2);
         return this;
@@ -374,6 +386,7 @@ public class Site implements Parcelable {
 
     public Site sync(Site item) {
         if (item == null) return this;
+        setCache(item.getCache());
         if (getChangeable() != 0) setChangeable(Math.max(1, item.getChangeable()));
         if (getSearchable() != 0) setSearchable(Math.max(1, item.getSearchable()));
         return this;

@@ -51,7 +51,7 @@ import java.util.Locale;
 @Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class}, version = AppDatabase.VERSION)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public static final int VERSION = 35;
+    public static final int VERSION = 36;
     public static final String NAME = "tv";
     public static final String SYMBOL = "@@@";
     public static final String BACKUP_SUFFIX = "bk.gz";
@@ -178,6 +178,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 .addMigrations(wrap(MIGRATION_32_33))
                 .addMigrations(wrap(MIGRATION_33_34))
                 .addMigrations(wrap(MIGRATION_34_35))
+                .addMigrations(wrap(MIGRATION_35_36))
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
     }
 
@@ -399,6 +400,13 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("INSERT INTO `History_New` (`key`, `vodPic`, `vodName`, `vodFlag`, `vodRemarks`, `episodeUrl`, `revSort`, `revPlay`, `createTime`, `opening`, `ending`, `position`, `duration`, `speed`, `scale`, `cid`, `lastUpdated`, `deleted`) SELECT `key`, `vodPic`, `vodName`, `vodFlag`, `vodRemarks`, `episodeUrl`, `revSort`, `revPlay`, `createTime`, `opening`, `ending`, `position`, `duration`, `speed`, `scale`, `cid`, `lastUpdated`, `deleted` FROM `History` ");
             database.execSQL("DROP TABLE `History` ");
             database.execSQL("ALTER TABLE `History_New` RENAME TO `History` ");
+        }
+    };
+
+    static final Migration MIGRATION_35_36 = new Migration(35, 36) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE Site ADD COLUMN cache TEXT DEFAULT NULL");
         }
     };
 }

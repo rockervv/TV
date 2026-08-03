@@ -8,9 +8,10 @@ androidComponents {
             def flavorNames = variant.productFlavors.collect { it.second }
             def flavorFileName = flavorNames.join("-")
 
-            output.outputFileName.set("${flavorFileName}-${buildType}.apk")
+            output.outputFileName.set("leanback-${flavorFileName}-${buildType}.apk")
             if (buildType == 'release') {
                 output.versionName.set(project.autoVersionName)
+                output.versionCode.set(project.autoVersionCode.toInteger())
             }
         }
 
@@ -32,18 +33,33 @@ androidComponents {
                     task.doLast {
                         // 動態寫入 JSON 內容
                         def commitMessage = project.getLastCommitMessage()
+                        def apkDir = apkDirProvider.get().asFile
+                        def apkFile = new File(apkDir, variant.outputs.first().outputFileName.get())
+
+                        // 計算 APK 的 MD5
+                        def md5 = ""
+                        if (apkFile.exists()) {
+                            def messageDigest = java.security.MessageDigest.getInstance("MD5")
+                            apkFile.eachByte(4096) { buffer, length ->
+                                messageDigest.update(buffer, 0, length)
+                            }
+                            md5 = new BigInteger(1, messageDigest.digest()).toString(16).padLeft(32, '0')
+                        }
+
                         def jsonContent = """{
     "name": "${project.autoVersionName}",
     "desc": "${commitMessage}",
-    "code": "${project.autoVersionCode}"
+    "code": "${project.autoVersionCode}",
+    "md5": "${md5}"
 }"""
                         targetOutputDir.mkdirs()
                         jsonFile.text = jsonContent
 
+                        println "DEBUG: Generated MD5: ${md5}"
                         println "DEBUG: json:\n-------------\n ${jsonContent} \n--------------\n"
 
                         // 使用 Provider 獲取目錄
-                        def apkDir = apkDirProvider.get().asFile
+                        // def apkDir = apkDirProvider.get().asFile // 已在上方定義過
 
                         project.copy {
                             from jsonFile

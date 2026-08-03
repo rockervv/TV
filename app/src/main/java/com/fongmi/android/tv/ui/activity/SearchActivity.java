@@ -60,6 +60,7 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
 
     @Override
     protected void initView() {
+        mBinding.keyword.setShowSoftInputOnFocus(false);
         CustomKeyboard.init(this, mBinding);
         setRecyclerView();
         getHot();
@@ -185,6 +186,5 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
     protected void onResume() {
         super.onResume();
         mBinding.keyword.requestFocus();
-        Util.showKeyboard(mBinding.keyword);
     }
 }

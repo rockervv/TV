@@ -106,6 +106,7 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
     @Override
     protected void initData() {
         getHistory();
+        if (getHomeActicity().mResult != null) addVideo(getHomeActicity().mResult);
         refreshRecommond();
     }
 

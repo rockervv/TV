@@ -18,7 +18,7 @@ public class Value implements Parcelable, Diffable<Value> {
     private String n;
     @SerializedName("v")
     private String v;
-    private transient boolean selected;
+    private boolean selected;
 
     private Value(String v) {
         this.v = v;
@@ -64,9 +64,7 @@ public class Value implements Parcelable, Diffable<Value> {
     }
 
     public void setSelected(Value item) {
-        boolean equal = item.equals(this);
-        if (selected && equal) selected = false;
-        else selected = equal;
+        selected = item.equals(this);
     }
 
     public Value copy() {

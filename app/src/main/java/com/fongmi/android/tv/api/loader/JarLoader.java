@@ -1,9 +1,6 @@
 package com.fongmi.android.tv.api.loader;
 
-import android.content.Context;
-
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.utils.Monitor;
 import com.fongmi.android.tv.utils.Download;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.crawler.Spider;
@@ -30,7 +27,6 @@ public class JarLoader {
     private final ConcurrentHashMap<String, DexClassLoader> loaders;
     private final ConcurrentHashMap<String, Method> methods;
     private final ConcurrentHashMap<String, Spider> spiders;
-    private final ConcurrentHashMap<String, Object> locks;
     private final ConcurrentHashMap<String, Throwable> failures;
     private volatile String recent;
 
@@ -38,16 +34,14 @@ public class JarLoader {
         loaders = new ConcurrentHashMap<>();
         methods = new ConcurrentHashMap<>();
         spiders = new ConcurrentHashMap<>();
-        locks = new ConcurrentHashMap<>();
         failures = new ConcurrentHashMap<>();
     }
 
     public void clear() {
-        spiders.values().forEach(Spider::destroy);
+        for (Spider spider : spiders.values()) spider.destroy();
         loaders.clear();
         methods.clear();
         spiders.clear();
-        locks.clear();
         failures.clear();
         recent = null;
     }
@@ -58,7 +52,6 @@ public class JarLoader {
 
     private void load(String key, File file) {
         try {
-            if (Thread.interrupted()) return;
             if (!Path.exists(file) || !file.setReadOnly()) return;
             String cachePath = Path.jar().getAbsolutePath();
             DexClassLoader loader = new DexClassLoader(file.getAbsolutePath(), cachePath, cachePath, App.get().getClassLoader());
@@ -67,24 +60,29 @@ public class JarLoader {
             loaders.put(key, loader);
         } catch (Throwable e) {
             failures.put(key, e);
-            SpiderDebug.log(e);
-            Path.clear(file);
         }
     }
 
     private void invokeInit(DexClassLoader loader) {
-        // 🛠️ 方案 A 升級版：手動注入 Context 欄位，繞過 init() 方法中的殺手邏輯
         try {
             Class<?> clz = loader.loadClass("com.github.catvod.spider.Init");
-            Method getMethod = clz.getMethod("get");
+            java.lang.reflect.Method getMethod = clz.getMethod("get");
             Object instance = getMethod.invoke(null);
-            java.lang.reflect.Field contextField = clz.getDeclaredField("c");
-            contextField.setAccessible(true);
-            contextField.set(instance, App.get());
-            android.util.Log.d("JarLoader", "invokeInit() - Context injected manually. Init logic bypassed.");
-        } catch (Throwable e) {
-            android.util.Log.e("JarLoader", "Manual injection failed: " + e.getMessage());
-        }
+            try {
+                java.lang.reflect.Field f = clz.getDeclaredField("c");
+                f.setAccessible(true);
+                f.set(instance, App.get());
+                return;
+            } catch (Throwable ignored) {}
+            
+            for (java.lang.reflect.Field field : clz.getDeclaredFields()) {
+                if (field.getType().isAssignableFrom(android.app.Application.class)) {
+                    field.setAccessible(true);
+                    field.set(instance, App.get());
+                    return;
+                }
+            }
+        } catch (Throwable ignored) {}
     }
 
     private void invokeProxy(String key, DexClassLoader loader) {
@@ -92,64 +90,40 @@ public class JarLoader {
             Class<?> clz = loader.loadClass("com.github.catvod.spider.Proxy");
             Method method = clz.getMethod("proxy", Map.class);
             methods.put(key, method);
-        } catch (Throwable e) {
-            SpiderDebug.log(e);
-        }
+        } catch (Throwable ignored) {}
     }
 
     public void parseJar(String key, String jar) {
-        if (loaders.containsKey(key) || failures.containsKey(key)) return;
-        Monitor.start("Spider_ParseJar_" + key);
-        try {
-            if (jar.startsWith("assets")) jar = UrlUtil.convert(jar);
-            Object lock = locks.computeIfAbsent(key, k -> new Object());
-            synchronized (lock) {
-                if (loaders.containsKey(key) || failures.containsKey(key)) return;
+        if (loaders.containsKey(key)) return;
+        synchronized (key.intern()) {
+            if (loaders.containsKey(key)) return;
+            try {
+                if (jar.startsWith("assets")) jar = UrlUtil.convert(jar);
                 String[] texts = jar.split(";md5;");
-                String md5 = texts.length > 1 ? texts[1].trim() : "";
-                if (md5.startsWith("http")) md5 = OkHttp.string(md5).trim();
                 jar = texts[0];
-                if (!md5.isEmpty() && Util.equals(jar, md5)) {
-                    load(key, Path.jar(jar));
+                
+                File file = Path.jar(jar);
+                if (Path.exists(file)) {
+                    load(key, file);
                 } else if (jar.startsWith("http")) {
-                    File file = Path.jar(jar);
-                    if (Path.exists(file)) load(key, file);
-                    else load(key, Download.create(jar, file).get());
+                    load(key, Download.create(jar, file).get());
                 } else if (jar.startsWith("file")) {
                     load(key, Path.local(jar));
                 }
+            } catch (Throwable e) {
+                SpiderDebug.log(e);
             }
-        } catch (Throwable e) {
-            failures.put(key, e);
-            SpiderDebug.log(e);
-            if (e instanceof VerifyError) {
-                File file = Path.jar(jar);
-                if (file.exists()) file.delete();
-            }
-        } finally {
-            Monitor.end("Spider_ParseJar_" + key);
         }
     }
 
     public DexClassLoader dex(String jar) {
-        try {
-            String jaKey = Util.md5(jar);
-            parseJar(jaKey, jar);
-            return loaders.get(jaKey);
-        } catch (Throwable e) {
-            SpiderDebug.log(e);
-            return null;
-        }
+        String key = Util.md5(jar);
+        parseJar(key, jar);
+        return loaders.get(key);
     }
 
     public void setFailure(String jar, Throwable e) {
-        String jaKey = Util.md5(jar);
-        if (failures.containsKey(jaKey)) return;
-        failures.put(jaKey, e);
-        if (e instanceof VerifyError) {
-            android.util.Log.e("JarLoader", "Critical VerifyError reported for JAR: " + jar + ". Purging cached spiders.");
-            spiders.entrySet().removeIf(entry -> entry.getKey().startsWith(jaKey));
-        }
+        failures.put(Util.md5(jar), e);
     }
 
     public boolean isError(String jar) {
@@ -158,61 +132,49 @@ public class JarLoader {
 
     public Spider getSpider(String key, String api, String ext, String jar) {
         String jaKey = Util.md5(jar);
-        if (failures.get(jaKey) instanceof VerifyError) {
-            android.util.Log.e("JarLoader", "VerifyError detected for JAR, skipping load. [Key: " + key + ", API: " + api + ", EXT: " + ext + ", JAR: " + jar + "]");
-            return new SpiderNull();
-        }
         String spKey = jaKey + key;
-        return spiders.computeIfAbsent(spKey, k -> {
-            Monitor.start("Spider_Init_CSP_" + key);
+        
+        // 🛠️ 使用雙重檢查鎖 + intern()，避免 ConcurrentHashMap 的桶鎖卡死 UI 執行緒
+        Spider spider = spiders.get(spKey);
+        if (spider != null) return spider;
+
+        synchronized (spKey.intern()) {
+            spider = spiders.get(spKey);
+            if (spider != null) return spider;
+            
             try {
                 parseJar(jaKey, jar);
-                if (failures.get(jaKey) instanceof VerifyError) {
-                    android.util.Log.e("JarLoader", "VerifyError detected during parseJar, skipping initialization. [Key: " + key + ", API: " + api + ", EXT: " + ext + ", JAR: " + jar + "]");
-                    return new SpiderNull();
-                }
                 DexClassLoader loader = loaders.get(jaKey);
-                if (loader == null) return new SpiderNull("JAR 載入失敗 (Loader Null)");
-                String apiName = api.split("csp_").length > 1 ? api.split("csp_")[1] : api;
-                try {
-                    Spider spider = (Spider) loader.loadClass("com.github.catvod.spider." + apiName).newInstance();
-                    spider.siteKey = key;
-                    spider.init(App.get(), ext);
-                    return spider;
-                } catch (ClassNotFoundException e) {
-                    return new SpiderNull("類別未找到: " + apiName);
-                } catch (VerifyError e) {
-                    return new SpiderNull("系統不相容 (VerifyError)");
-                } catch (Throwable e) {
-                    return new SpiderNull("初始化崩潰: " + e.getMessage());
-                }
-            } catch (Throwable e) {
-                if (e instanceof VerifyError) {
-                    android.util.Log.e("JarLoader", "VerifyError caught during class load/init. [Key: " + key + ", API: " + api + ", EXT: " + ext + ", JAR: " + jar + "]", e);
-                }
-                failures.put(jaKey, e);
-                SpiderDebug.log(e);
-                return new SpiderNull("載入異常: " + e.getClass().getSimpleName());
-            } finally {
-                Monitor.end("Spider_Init_CSP_" + key);
-            }
-        });
-    }
+                if (loader == null) return new SpiderNull();
+                
+                String apiName = api.split(";")[0].trim();
+                if (apiName.startsWith("csp_")) apiName = apiName.substring(4);
 
-    private DexClassLoader requireRecentLoader() {
-        DexClassLoader loader = loaders.get(recent);
-        if (loader == null) throw new IllegalStateException("No jar loaded for recent key: " + recent);
-        return loader;
+                spider = (Spider) loader.loadClass("com.github.catvod.spider." + apiName).newInstance();
+                spider.siteKey = key;
+                spider.init(App.get(), ext);
+                spiders.put(spKey, spider);
+                return spider;
+            } catch (Throwable e) {
+                Spider error = new SpiderNull();
+                spiders.put(spKey, error);
+                return error;
+            }
+        }
     }
 
     public JSONObject jsonExt(String key, LinkedHashMap<String, String> jxs, String url) throws Throwable {
-        Class<?> clz = requireRecentLoader().loadClass("com.github.catvod.parser.Json" + key);
+        DexClassLoader loader = loaders.get(recent);
+        if (loader == null) return new JSONObject();
+        Class<?> clz = loader.loadClass("com.github.catvod.parser.Json" + key);
         Method method = clz.getMethod("parse", LinkedHashMap.class, String.class);
         return (JSONObject) method.invoke(null, jxs, url);
     }
 
     public JSONObject jsonExtMix(String flag, String key, String name, LinkedHashMap<String, HashMap<String, String>> jxs, String url) throws Throwable {
-        Class<?> clz = requireRecentLoader().loadClass("com.github.catvod.parser.Mix" + key);
+        DexClassLoader loader = loaders.get(recent);
+        if (loader == null) return new JSONObject();
+        Class<?> clz = loader.loadClass("com.github.catvod.parser.Mix" + key);
         Method method = clz.getMethod("parse", LinkedHashMap.class, String.class, String.class, String.class);
         return (JSONObject) method.invoke(null, jxs, name, flag, url);
     }
@@ -232,7 +194,6 @@ public class JarLoader {
         try {
             return method == null ? null : (Object[]) method.invoke(null, params);
         } catch (Throwable e) {
-            e.printStackTrace();
             return null;
         }
     }

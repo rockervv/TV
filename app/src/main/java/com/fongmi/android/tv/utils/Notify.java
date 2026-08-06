@@ -30,9 +30,9 @@ import android.view.WindowManager;
 
 public class Notify {
     private AlertDialog mTopDialog;
+    private Runnable mShowRunnable;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final Runnable mDismissRunnable = Notify::dismissTop;
-
 
     public static final String DEFAULT = "default";
     public static final int ID = 9527;
@@ -72,13 +72,13 @@ public class Notify {
 
 
     public static void showTop(Context context, String text) {
+        dismissTop();
         get().showDialog(context, text);
     }
 
     private void showDialog(Context context, String message) {
-        dismissTop();
         if (TextUtils.isEmpty(message) || !(context instanceof Activity)) return;
-        mHandler.post(() -> {
+        mHandler.post(mShowRunnable = () -> {
             try {
                 TextView tv = createView(message, 12, Color.parseColor("#66000000"));
                 mTopDialog = new MaterialAlertDialogBuilder(context).setView(tv).create();
@@ -102,6 +102,7 @@ public class Notify {
 
     public static void dismissTop() {
         try {
+            get().mHandler.removeCallbacks(get().mShowRunnable);
             get().mHandler.removeCallbacks(get().mDismissRunnable);
             if (get().mTopDialog != null && get().mTopDialog.isShowing()) {
                 get().mTopDialog.dismiss();

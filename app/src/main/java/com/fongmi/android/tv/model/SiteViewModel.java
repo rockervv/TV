@@ -129,11 +129,11 @@ public class SiteViewModel extends ViewModel {
     }
 
     public void searchContent(List<Site> sites, String keyword, boolean quick) {
-        List<Site> sorted = new ArrayList<>();
-        for (Site site : sites) if (site.getScore() >= 0) sorted.add(site);
+        List<Site> sorted = new ArrayList<>(sites);
         Collections.sort(sorted, (o1, o2) -> Integer.compare(o2.getScore(), o1.getScore()));
-        int limit = Math.min(sorted.size(), 10); // 🛠️ 將搜尋限制從 20 降至 10，減輕系統壓力
-        searches.start(sorted.subList(0, limit), site -> SearchTask.create(site, keyword, quick), result -> App.post(() -> search.setValue(result)));
+        searches.start(sorted, site -> SearchTask.create(site, keyword, quick), result -> {
+            if (result.getList().size() > 0) App.post(() -> search.setValue(result));
+        });
     }
 
     protected void execute(TaskType type, MutableLiveData<Result> liveData, Callable<Result> callable) {

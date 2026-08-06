@@ -45,6 +45,7 @@ import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class VodFragment extends BaseFragment implements CustomScroller.Callback, VodPresenter.OnClickListener {
@@ -151,6 +152,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         });
         mViewModel.getResult().observe(getViewLifecycleOwner(), result -> {
             if (!result.getTid().equals(getTypeId())) return;
+            if (result.getFilters().size() > 0) updateFilters(result.getFilters());
             boolean first = mScroller.first();
             int size = result.getList().size();
             if (size > 0) addVideo(result);
@@ -165,7 +167,34 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         for (Filter filter : mFilters) {
             if (mExtends.containsKey(filter.getKey())) {
                 filter.setSelected(mExtends.get(filter.getKey()));
+            } else {
+                for (Value value : filter.getValue()) {
+                    if (value.isSelected()) {
+                        mExtends.put(filter.getKey(), value.getV());
+                        break;
+                    }
+                }
             }
+        }
+    }
+
+    private void updateFilters(LinkedHashMap<String, List<Filter>> filters) {
+        if (!filters.containsKey(getTypeId())) return;
+        List<Filter> items = filters.get(getTypeId());
+        if (items.isEmpty()) return;
+        int oldSize = mFilters.size();
+        for (Filter filter : items) {
+            String currentV = mExtends.get(filter.getKey());
+            if (currentV != null) {
+                filter.setSelected(currentV);
+            }
+        }
+        mFilters.clear();
+        mFilters.addAll(items);
+        Prefers.put("filter_" + getKey() + "_" + getTypeId(), App.gson().toJson(mFilters));
+        if (mOpen) {
+            mAdapter.removeItems(0, oldSize);
+            showFilter();
         }
     }
 
@@ -174,6 +203,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         adapter.notifyArrayItemRangeChanged(0, adapter.size());
         if (item.isSelected()) mExtends.put(key, item.getV());
         else mExtends.remove(key);
+        Prefers.put("filter_" + getKey() + "_" + getTypeId(), App.gson().toJson(mFilters));
         onRefresh();
     }
 

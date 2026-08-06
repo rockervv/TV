@@ -45,11 +45,17 @@ public class SiteApi {
 
     private static boolean isSpider(@NonNull Site site) {
         String api = site.getApi();
-        String key = site.getKey();
         if (site.getType() == 3) return true;
-        if (api != null && (api.contains(".js") || api.contains(".py") || api.startsWith("csp_") || api.contains("drpy"))) return true;
-        if (key != null && (key.startsWith("drpy_") || key.contains("js_") || key.startsWith("csp_"))) return true;
-        return false;
+        if (TextUtils.isEmpty(api)) return false;
+        api = api.toLowerCase();
+        if (api.startsWith("csp_") || api.contains(".js") || api.contains(".py") || api.contains("drpy") || api.contains("js_") || api.contains("proxy://")) return true;
+        return site.getJar() != null && !site.getJar().isEmpty();
+    }
+
+    private static boolean isHtml(String content) {
+        if (TextUtils.isEmpty(content)) return false;
+        String check = content.toUpperCase();
+        return check.contains("<!DOCTYPE") || check.contains("<HTML") || check.contains("ACCESS DENIED");
     }
 
     private static String ac(int type) {
@@ -63,20 +69,12 @@ public class SiteApi {
 
     @NonNull
     public static Result homeContent(@NonNull Site site, boolean refresh) {
-        if (!VodConfig.get().isLoaded()) {
-            android.util.Log.w("SiteApi", "homeContent [ABORTED]: VodConfig not loaded yet!");
-            return Result.empty().setTid("");
-        }
-        if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty();
+        if (!VodConfig.get().isLoaded() || BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty().setTid("");
         if (site.getApi().isEmpty() || site.getType() == 0) {
             Site recovery = VodConfig.get().getSite(site.getKey());
-            if (recovery.getApi().isEmpty()) {
-                android.util.Log.e("SiteApi", "homeContent [ERROR]: Incomplete site info for " + site.getName());
-                return Result.empty();
-            }
+            if (recovery.getApi().isEmpty()) return Result.empty();
             site = recovery;
         }
-        android.util.Log.d("SiteApi", "homeContent [START] site: " + site.getName() + " (Key: " + site.getKey() + ", Type: " + site.getType() + ", API: " + site.getApi() + ")");
         try {
             if (isSpider(site)) {
                 if (!refresh) {
@@ -84,18 +82,15 @@ public class SiteApi {
                     if (cache != null) return cache;
                 }
                 Spider spider = site.recent().spider();
-                android.util.Log.d("SiteApi", "homeContent [Spider]: Initializing " + site.getApi() + " for site: " + site.getName());
                 String home = spider.homeContent(true);
-                android.util.Log.d("SiteApi", "homeContent [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (home == null ? "NULL" : home.isEmpty() ? "EMPTY" : home.length() > 500 ? home.substring(0, 500) + "..." : home));
+                if (isHtml(home)) return Result.empty();
                 Result result = Result.fromJson(home);
                 result.setKey(site.getKey());
                 if (result.getList().isEmpty()) {
                     String video = spider.homeVideoContent();
-                    android.util.Log.d("SiteApi", "homeVideoContent [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (video == null ? "NULL" : video.isEmpty() ? "EMPTY" : video.length() > 500 ? video.substring(0, 500) + "..." : video));
-                    result.setList(Result.fromJson(video).getList());
+                    if (video != null && !video.isEmpty()) result.setList(Result.fromJson(video).getList());
                 }
                 if (result.getTypes().isEmpty() && !site.getCategories().isEmpty()) {
-                    android.util.Log.d("SiteApi", "homeContent [INFO] site: " + site.getName() + ": Types empty, using site categories: " + site.getCategories());
                     for (String name : site.getCategories()) {
                         Class type = new Class();
                         type.setTypeName(name);
@@ -103,7 +98,6 @@ public class SiteApi {
                         result.getTypes().add(type);
                     }
                 }
-                android.util.Log.d("SiteApi", "homeContent [RESULT] site: " + site.getName() + ": list=" + result.getList().size() + ", types=" + result.getTypes().size());
                 for (Vod vod : result.getList()) vod.setSite(site);
                 setTypes(site, result);
                 site.resetFailures();
@@ -114,8 +108,6 @@ public class SiteApi {
                 ArrayMap<String, String> params = new ArrayMap<>();
                 params.put("filter", "true");
                 String homeContent = call(site, params);
-                android.util.Log.d("SiteApi", "homeContent Type4 [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (homeContent == null ? "NULL" : homeContent.isEmpty() ? "EMPTY" : homeContent.length() > 500 ? homeContent.substring(0, 500) + "..." : homeContent));
-                SpiderDebug.log(homeContent);
                 Result result = Result.fromJson(homeContent);
                 result.setKey(site.getKey());
                 result.setTid("");
@@ -126,7 +118,6 @@ public class SiteApi {
             } else {
                 try (Response response = OkHttp.newCall(site.getApi(), site.getHeader()).execute()) {
                     String homeContent = response.body().string();
-                    SpiderDebug.log(homeContent);
                     Result result = Result.fromType(site.getType(), homeContent);
                     result.setKey(site.getKey());
                     result.setTid("");
@@ -138,9 +129,6 @@ public class SiteApi {
                 }
             }
         } catch (Throwable e) {
-            BaseLoader.get().setFailure(site.getJar(), e);
-            SpiderDebug.log(site.getName());
-            SpiderDebug.log(e);
             return Result.empty().setTid("");
         }
     }
@@ -152,24 +140,15 @@ public class SiteApi {
 
     @NonNull
     public static Result categoryContent(@NonNull String key, @NonNull String tid, @NonNull String page, boolean filter, @NonNull HashMap<String, String> extend, boolean refresh) {
-        if (!VodConfig.get().isLoaded()) {
-            android.util.Log.w("SiteApi", "categoryContent [ABORTED]: VodConfig not loaded yet! (Key: " + key + ")");
-            return Result.empty().setTid(tid);
-        }
+        if (!VodConfig.get().isLoaded()) return Result.empty().setTid(tid);
         Site site = VodConfig.get().getSite(key);
-        if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty().setTid(tid);
-        if (site.getApi().isEmpty()) {
-            android.util.Log.e("SiteApi", "categoryContent [ERROR]: Site not found or API empty for key: " + key);
-            return Result.empty().setTid(tid);
-        }
-        android.util.Log.d("SiteApi", "categoryContent [START] site: " + site.getName() + " (Key: " + key + "), tid: " + tid + ", page: " + page + ", type: " + site.getType() + ", API: " + site.getApi());
+        if (BaseLoader.get().getJarLoader().isError(site.getJar()) || site.getApi().isEmpty()) return Result.empty().setTid(tid);
         try {
             if (isSpider(site)) {
                 if (!refresh) {
                     Result cache = CacheManager.get(site, tid, page);
                     if (cache != null) return cache.setTid(tid);
                 }
-                android.util.Log.d("SiteApi", "categoryContent [Spider] site: " + site.getName() + " plugin: " + site.getApi() + ": tid=" + tid + " key=" + key);
                 String categoryContent = site.recent().spider().categoryContent(tid, page, filter, extend);
                 if (TextUtils.isEmpty(categoryContent)) return Result.empty().setTid(tid);
                 Result result = Result.fromJson(categoryContent);
@@ -185,36 +164,23 @@ public class SiteApi {
                 params.put("t", tid);
                 params.put("pg", page);
                 String categoryContent = call(site, params);
-                android.util.Log.d("SiteApi", "categoryContent Non-Spider [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (categoryContent == null ? "NULL" : categoryContent.isEmpty() ? "EMPTY" : categoryContent.length() > 500 ? categoryContent.substring(0, 500) + "..." : categoryContent));
-                SpiderDebug.log(categoryContent);
                 Result result = Result.fromType(site.getType(), categoryContent);
                 result.setKey(key);
                 result.setTid(tid);
                 return result;
             }
         } catch (Throwable e) {
-            android.util.Log.e("SiteApi", "categoryContent [ERROR] site: " + site.getName() + " (Key: " + key + "): " + e.getMessage(), e);
-            SpiderDebug.log(key);
-            SpiderDebug.log(e);
             return Result.empty().setTid(tid);
         }
     }
 
     @NonNull
     public static Result detailContent(@NonNull String key, @NonNull String id) {
-        if (!VodConfig.get().isLoaded()) {
-            android.util.Log.w("SiteApi", "detailContent [ABORTED]: VodConfig not loaded yet! (Key: " + key + ")");
-            return Result.empty();
-        }
+        if (!VodConfig.get().isLoaded()) return Result.empty();
         Site site = VodConfig.get().getSite(key);
         if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty();
-        if (site.getApi().isEmpty() && !PUSH.equals(key)) {
-            android.util.Log.e("SiteApi", "detailContent [ERROR]: Site not found or API empty for key: " + key);
-            return Result.empty();
-        }
-        android.util.Log.d("SiteApi", "detailContent [START] site: " + site.getName() + " (Key: " + key + "), id: " + id + ", type: " + site.getType() + ", API: " + site.getApi());
+        if (site.getApi().isEmpty() && !PUSH.equals(key)) return Result.empty();
         try {
-            // if (site.isBlacklist()) return Result.empty();
             if (site.isEmpty() && PUSH.equals(key)) {
                 Vod vod = new Vod();
                 vod.setId(id);
@@ -226,24 +192,18 @@ public class SiteApi {
                 Source.get().parse(vod);
                 return Result.vod(vod);
             } else if (isSpider(site)) {
-                android.util.Log.d("SiteApi", "detailContent [Spider] site: " + site.getName() + " plugin: " + site.getApi() + ": Calling JS/CSP fetch...");
                 String detailContent = site.recent().spider().detailContent(Arrays.asList(id));
-                android.util.Log.d("SiteApi", "detailContent [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (detailContent == null ? "NULL" : detailContent.isEmpty() ? "EMPTY" : detailContent.length() > 500 ? detailContent.substring(0, 500) + "..." : detailContent));
-                SpiderDebug.log(detailContent);
+                if (isHtml(detailContent)) return Result.empty();
                 Result result = Result.fromJson(detailContent);
                 result.setKey(key);
                 if (!result.getList().isEmpty()) result.getVod().setFlags();
                 Source.get().parse(result.getVod());
-                android.util.Log.d("SiteApi", "detailContent [RESULT] site: " + site.getName() + ": name=" + (result.getList().isEmpty() ? "EMPTY" : result.getVod().getName()));
                 return result;
             } else {
                 ArrayMap<String, String> params = new ArrayMap<>();
                 params.put("ac", ac(site.getType()));
                 params.put("ids", id);
-                android.util.Log.d("SiteApi", "detailContent [Non-Spider] site: " + site.getName() + ": Calling external API: " + site.getApi() + " with params: " + params);
                 String detailContent = call(site, params);
-                android.util.Log.d("SiteApi", "detailContent Non-Spider [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (detailContent == null ? "NULL" : detailContent.isEmpty() ? "EMPTY" : detailContent.length() > 500 ? detailContent.substring(0, 500) + "..." : detailContent));
-                SpiderDebug.log(detailContent);
                 Result result = Result.fromType(site.getType(), detailContent);
                 result.setKey(key);
                 if (!result.getList().isEmpty()) result.getVod().setFlags();
@@ -251,10 +211,6 @@ public class SiteApi {
                 return result;
             }
         } catch (Throwable e) {
-            android.util.Log.e("SiteApi", "detailContent [ERROR] site: " + site.getName() + " (Key: " + key + "): " + e.getMessage(), e);
-            SpiderDebug.log(key);
-            SpiderDebug.log(e);
-            // site.setBlacklist();
             return Result.empty();
         }
     }
@@ -262,28 +218,22 @@ public class SiteApi {
     @NonNull
     public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id) {
         Site site = VodConfig.get().getSite(key);
-        android.util.Log.d("SiteApi", "playerContent [START] site: " + site.getName() + " (Key: " + key + "), flag: " + flag + ", id: " + id + ", API: " + site.getApi());
         try {
-            // if (site.isBlacklist()) return Result.empty();
             Source.get().stop();
-            if (site.getType() == 3) {
+            if (isSpider(site)) {
                 String playerContent = site.recent().spider().playerContent(flag, id, VodConfig.get().getFlags());
-                android.util.Log.d("SiteApi", "playerContent [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (playerContent == null ? "NULL" : playerContent.isEmpty() ? "EMPTY" : playerContent.length() > 500 ? playerContent.substring(0, 500) + "..." : playerContent));
-                SpiderDebug.log(playerContent);
+                if (isHtml(playerContent)) return Result.empty();
                 Result result = Result.fromJson(playerContent);
                 if (result.getFlag().isEmpty()) result.setFlag(flag);
                 if (result.getHeader().isEmpty()) result.setHeader(site.getHeader());
                 result.setUrl(Source.get().fetch(result));
                 result.setKey(key);
-                android.util.Log.d("SiteApi", "playerContent [RESULT] site: " + site.getName() + ": url=" + result.getUrl().v());
                 return result;
             } else if (site.getType() == 4) {
                 ArrayMap<String, String> params = new ArrayMap<>();
                 params.put("play", id);
                 params.put("flag", flag);
                 String playerContent = call(site, params);
-                android.util.Log.d("SiteApi", "playerContent Type4 [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (playerContent == null ? "NULL" : playerContent.isEmpty() ? "EMPTY" : playerContent.length() > 500 ? playerContent.substring(0, 500) + "..." : playerContent));
-                SpiderDebug.log(playerContent);
                 Result result = Result.fromJson(playerContent);
                 if (result.getFlag().isEmpty()) result.setFlag(flag);
                 result.setUrl(Source.get().fetch(result));
@@ -295,7 +245,6 @@ public class SiteApi {
                 result.setParse(0);
                 result.setFlag(flag);
                 result.setUrl(Source.get().fetch(result));
-                SpiderDebug.log(result.toString());
                 return result;
             } else {
                 Result result = new Result();
@@ -305,14 +254,9 @@ public class SiteApi {
                 result.setPlayUrl(site.getPlayUrl());
                 result.setParse(Sniffer.isVideoFormat(id) && result.getPlayUrl().isEmpty() ? 0 : 1);
                 result.setUrl(Source.get().fetch(result));
-                SpiderDebug.log(result.toString());
                 return result;
             }
         } catch (Throwable e) {
-            BaseLoader.get().setFailure(VodConfig.get().getSite(key).getJar(), e);
-            SpiderDebug.log(key);
-            SpiderDebug.log(e);
-            // site.setBlacklist();
             return Result.empty();
         }
     }
@@ -320,24 +264,15 @@ public class SiteApi {
     @NonNull
     public static Result searchContent(@NonNull Site site, @NonNull String keyword, boolean quick, @NonNull String page) {
         if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty();
-        android.util.Log.d("SiteApi", "searchContent [START] site: " + site.getName() + " (Key: " + site.getKey() + "), keyword: " + keyword + ", API: " + site.getApi());
         try {
             boolean hasPage = !page.equals("1");
             if (isSpider(site)) {
                 String searchContent = hasPage ? site.spider().searchContent(keyword, quick, page) : site.spider().searchContent(keyword, quick);
-                android.util.Log.d("SiteApi", "searchContent [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (searchContent == null ? "NULL" : searchContent.isEmpty() ? "EMPTY" : searchContent.length() > 500 ? searchContent.substring(0, 500) + "..." : searchContent));
-                if (TextUtils.isEmpty(searchContent) || searchContent.trim().equals("{}")) {
-                    site.decrementScore();
-                    return Result.empty();
-                }
-                if (searchContent.contains("500") || searchContent.contains("503") || searchContent.contains("3003") || searchContent.toLowerCase().contains("authentication")) {
-                    site.setErrorScore();
-                    return Result.empty();
-                }
+                if (isHtml(searchContent)) return Result.empty();
+                if (TextUtils.isEmpty(searchContent) || searchContent.trim().equals("{}")) return Result.empty();
                 Result result = Result.fromJson(searchContent);
                 result.setKey(site.getKey());
                 for (Vod vod : result.getList()) vod.setSite(site);
-                android.util.Log.d("SiteApi", "searchContent [RESULT] site: " + site.getName() + ": list=" + result.getList().size());
                 site.incrementScore();
                 return result;
             } else {
@@ -346,13 +281,9 @@ public class SiteApi {
                 params.put("quick", String.valueOf(quick));
                 if (hasPage) params.put("pg", page);
                 String searchContent = call(site, params);
-                android.util.Log.d("SiteApi", "searchContent Non-Spider [RAW] site: " + site.getName() + " plugin: " + site.getApi() + ": " + (searchContent == null ? "NULL" : searchContent.isEmpty() ? "EMPTY" : searchContent.length() > 500 ? searchContent.substring(0, 500) + "..." : searchContent));
+                if (searchContent != null && (searchContent.contains("<!DOCTYPE") || searchContent.contains("<HTML") || searchContent.contains("Access Denied"))) return Result.empty();
                 if (TextUtils.isEmpty(searchContent) || searchContent.trim().equals("{}")) {
                     site.decrementScore();
-                    return Result.empty();
-                }
-                if (searchContent.contains("500") || searchContent.contains("503") || searchContent.contains("3003") || searchContent.toLowerCase().contains("authentication")) {
-                    site.setErrorScore();
                     return Result.empty();
                 }
                 Result result = Result.fromType(site.getType(), searchContent);
@@ -363,16 +294,7 @@ public class SiteApi {
                 return result;
             }
         } catch (Throwable e) {
-            String trace = android.util.Log.getStackTraceString(e).toLowerCase();
-            if (trace.contains("500") || trace.contains("503") || trace.contains("3003") || trace.contains("authentication") || trace.contains("code: 50") || trace.contains("code: 300")) {
-                site.setErrorScore();
-            } else {
-                site.decrementScore();
-            }
-            BaseLoader.get().setFailure(site.getJar(), e);
-            android.util.Log.e("SiteApi", "searchContent [ERROR] site: " + site.getName() + " (Key: " + site.getKey() + "): " + e.getMessage(), e);
-            SpiderDebug.log(site.getName());
-            SpiderDebug.log(e);
+            site.decrementScore();
             return Result.empty();
         }
     }
@@ -385,8 +307,6 @@ public class SiteApi {
             if (site.getType() == 4) return Result.fromJson(OkHttp.string(action));
             return Result.empty();
         } catch (Throwable e) {
-            SpiderDebug.log(key);
-            SpiderDebug.log(e);
             return Result.empty();
         }
     }
@@ -407,8 +327,6 @@ public class SiteApi {
                 return result;
             }
         } catch (Throwable e) {
-            SpiderDebug.log(site.getName());
-            SpiderDebug.log(e);
             return result;
         }
     }

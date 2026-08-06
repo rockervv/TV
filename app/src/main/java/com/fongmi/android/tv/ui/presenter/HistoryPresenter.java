@@ -72,7 +72,6 @@ public class HistoryPresenter extends Presenter {
     public void onBindViewHolder(Presenter.ViewHolder viewHolder, Object object) {
         History item = (History) object;
         ViewHolder holder = (ViewHolder) viewHolder;
-        android.util.Log.d("TV_FATAL", "HistoryPresenter.Binding: " + item.getVodName() + " Pic: " + item.getVodPic());
         setClickListener(holder.view, item);
         holder.binding.name.setText(item.getVodName());
         holder.binding.site.setText(item.getSiteName());

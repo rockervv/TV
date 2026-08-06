@@ -282,6 +282,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     @Override
     protected void initEvent() {
         mBinding.title.setListener(this);
+        mBinding.title.setOnLongClickListener(v -> {
+            onRefreshHome();
+            return true;
+        });
         mBinding.recycler.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
@@ -409,6 +413,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mAdapter.add(home);
     }
 
+    private void onRefreshHome() {
+        mCache.remove(getKey());
+        homeContent();
+    }
+
     public void homeContent() {
         if (mBinding == null || getHome() == null) return;
         if (!getKey().equals(mResult.getKey())) {
@@ -423,14 +432,13 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         Result cached = mCache.get(getKey());
         if (cached != null) {
             setTypes(mResult = cached);
-            return;
-        }
-
-        Result fileCache = com.fongmi.android.tv.api.CacheManager.get(getHome());
-        if (fileCache != null) {
-            setTypes(mResult = fileCache);
         } else {
-            Notify.showTop(this, ResUtil.getString(R.string.home_loading, title));
+            Result fileCache = com.fongmi.android.tv.api.CacheManager.get(getHome());
+            if (fileCache != null) {
+                setTypes(mResult = fileCache);
+            } else {
+                Notify.showTop(this, ResUtil.getString(R.string.home_loading, title));
+            }
         }
 
         mFocus = getCurrentFocus();
@@ -470,6 +478,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         if (result.getTypes().isEmpty() && result.getList().isEmpty()) return;
 
         if (result.getKey().isEmpty()) result.setKey(getKey());
+        for (Map.Entry<String, List<Filter>> entry : result.getFilters().entrySet()) Prefers.put("filter_" + getKey() + "_" + entry.getKey(), App.gson().toJson(entry.getValue()));
+
         List<Class> types = new ArrayList<>(getTypes(result));
         types.removeIf(item -> item.getTypeName().equals(ResUtil.getString(R.string.home)));
 
@@ -505,7 +515,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
         if (typesChanged) {
             updating = true;
-            for (Map.Entry<String, List<Filter>> entry : result.getFilters().entrySet()) Prefers.put("filter_" + getKey() + "_" + entry.getKey(), App.gson().toJson(entry.getValue()));
             for (Class item : types) item.setFilters(getFilter(item.getTypeId()));
             if (mAdapter.size() > 1) mAdapter.removeItems(1, mAdapter.size() - 1);
             if (!types.isEmpty()) mAdapter.addAll(1, types);

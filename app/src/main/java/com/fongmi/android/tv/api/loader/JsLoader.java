@@ -1,17 +1,13 @@
 package com.fongmi.android.tv.api.loader;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.utils.Monitor;
 import com.fongmi.quickjs.crawler.Loader;
 import com.fongmi.quickjs.utils.Module;
 import com.github.catvod.crawler.Spider;
-import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.crawler.SpiderNull;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import dalvik.system.DexClassLoader;
 
 public class JsLoader {
 
@@ -20,12 +16,12 @@ public class JsLoader {
     private volatile String recent;
 
     public JsLoader() {
-        spiders = new ConcurrentHashMap<>();
-        loader = new Loader();
+        this.spiders = new ConcurrentHashMap<>();
+        this.loader = new Loader();
     }
 
     public void clear() {
-        spiders.values().forEach(Spider::destroy);
+        for (Spider spider : spiders.values()) spider.destroy();
         Module.get().clear();
         spiders.clear();
         recent = null;
@@ -36,28 +32,29 @@ public class JsLoader {
     }
 
     public Spider getSpider(String key, String api, String ext, String jar) {
-        return spiders.computeIfAbsent(key, k -> {
-            if (api == null || (!api.startsWith("http") && !api.startsWith("assets") && !api.contains("/"))) {
-                android.util.Log.w("JsLoader", "Invalid JS API path, skipping initialization: " + api);
-                return new SpiderNull();
-            }
-            android.util.Log.d("JsLoader", "Initializing JS Spider: " + key + " (API: " + api + ")");
-            Monitor.start("Spider_Init_JS_" + key);
+        if (api == null || api.isEmpty()) return new SpiderNull();
+        
+        // 🛠️ 使用雙重檢查鎖 + intern()，解凍 UI 執行緒
+        Spider spider = spiders.get(key);
+        if (spider != null) return spider;
+
+        synchronized (key.intern()) {
+            spider = spiders.get(key);
+            if (spider != null) return spider;
+
             try {
                 dalvik.system.DexClassLoader dexLoader = BaseLoader.get().dex(jar);
-                Spider spider = loader.spider(api, dexLoader);
+                spider = loader.spider(api, dexLoader);
                 spider.siteKey = key;
                 spider.init(App.get(), ext);
-                android.util.Log.d("JsLoader", "Successfully initialized JS Spider: " + key);
+                spiders.put(key, spider);
                 return spider;
             } catch (Throwable e) {
-                android.util.Log.e("JsLoader", "Failed to initialize JS Spider: " + key, e);
-                SpiderDebug.log(e);
-                return new SpiderNull();
-            } finally {
-                Monitor.end("Spider_Init_JS_" + key);
+                Spider error = new SpiderNull();
+                spiders.put(key, error);
+                return error;
             }
-        });
+        }
     }
 
     public Object[] proxy(Map<String, String> params) throws Exception {

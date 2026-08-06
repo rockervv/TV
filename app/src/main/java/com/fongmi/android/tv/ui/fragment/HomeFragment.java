@@ -152,10 +152,11 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
 
     public void addVideo(Result result) {
         int index = getRecommendIndex();
+        if (index == -1) return;
         List<Vod> list = result.getList();
         Style style = result.getStyle(getHome().getStyle());
-        if (mAdapter.size() > index && list.isEmpty()) return;
         if (mAdapter.size() > index) mAdapter.removeItems(index, mAdapter.size() - index);
+        if (list.isEmpty()) return;
         if (style.isList()) mAdapter.addAll(mAdapter.size(), list);
         else addGrid(list, style);
     }

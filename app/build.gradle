@@ -221,7 +221,7 @@ dependencies {
     implementation libs.leanback
     implementation libs.android.file.chooser
     implementation libs.androidautosize
-    //implementation 'org.slf4j:slf4j-jdk14:2.0.16'
+    implementation 'org.slf4j:slf4j-jdk14:2.0.16'
     implementation libs.slf4j
 
     annotationProcessor libs.room.compiler

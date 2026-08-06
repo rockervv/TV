@@ -32,20 +32,29 @@ public class PyLoader {
     }
 
     public Spider getSpider(String key, String api, String ext) {
-        return spiders.computeIfAbsent(key, k -> {
+        Spider spider = spiders.get(key);
+        if (spider != null) return spider;
+
+        synchronized (key.intern()) {
+            spider = spiders.get(key);
+            if (spider != null) return spider;
+            
             Monitor.start("Spider_Init_PY_" + key);
             try {
-                Spider spider = loader.spider(api);
+                spider = loader.spider(api);
                 spider.siteKey = key;
                 spider.init(App.get(), ext);
+                spiders.put(key, spider);
                 return spider;
             } catch (Throwable e) {
                 SpiderDebug.log(e);
-                return new SpiderNull();
+                Spider error = new SpiderNull();
+                spiders.put(key, error);
+                return error;
             } finally {
                 Monitor.end("Spider_Init_PY_" + key);
             }
-        });
+        }
     }
 
     public Object[] proxy(Map<String, String> params) throws Exception {

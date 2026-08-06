@@ -1516,7 +1516,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
             }
             mBinding.widget.status.setText(R.string.play_timeout_success);
             App.post(() -> {
-                if (mBinding != null && player().getPlaybackState() == Player.STATE_BUFFERING) {
+                if (mBinding != null && player() != null && player().getPlaybackState() == Player.STATE_BUFFERING) {
                     mBinding.widget.status.setText(R.string.play_buffering);
                 } else if (mBinding != null) {
                     mBinding.widget.status.setVisibility(View.GONE);
@@ -1531,18 +1531,27 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     protected boolean handleBack() {
-        return true;
+        if (isFullscreen()) {
+            mViewModel.setFullscreen(false);
+            return true;
+        }
+        return false;
     }
 
     @Override
     protected void onBackPress() {
+        if (mBinding == null) return;
         if (isVisible(mBinding.control.getRoot())) {
+            android.util.Log.d("VideoActivity", "onBackPress: hiding control");
             hideControl();
         } else if (isVisible(mBinding.widget.center)) {
+            android.util.Log.d("VideoActivity", "onBackPress: hiding center");
             hideCenter();
         } else if (isFullscreen()) {
+            android.util.Log.d("VideoActivity", "onBackPress: exiting fullscreen");
             mViewModel.setFullscreen(false);
         } else {
+            android.util.Log.d("VideoActivity", "onBackPress: finishing activity");
             mViewModel.stopSearch();
             finish();
         }

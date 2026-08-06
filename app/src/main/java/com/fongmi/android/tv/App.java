@@ -123,6 +123,12 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onCreate() {
         super.onCreate();
+        try {
+            java.lang.reflect.Field field = android.database.CursorWindow.class.getDeclaredField("sCursorWindowSize");
+            field.setAccessible(true);
+            field.set(null, 5 * 1024 * 1024);
+        } catch (Exception ignored) {
+        }
         Monitor.start("App_onCreate");
         setupExceptionHandler();
         Notify.createChannel();

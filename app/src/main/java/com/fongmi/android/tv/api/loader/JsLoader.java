@@ -11,6 +11,8 @@ import com.github.catvod.crawler.SpiderNull;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import dalvik.system.DexClassLoader;
+
 public class JsLoader {
 
     private final ConcurrentHashMap<String, Spider> spiders;
@@ -42,7 +44,8 @@ public class JsLoader {
             android.util.Log.d("JsLoader", "Initializing JS Spider: " + key + " (API: " + api + ")");
             Monitor.start("Spider_Init_JS_" + key);
             try {
-                Spider spider = loader.spider(api, BaseLoader.get().dex(jar));
+                dalvik.system.DexClassLoader dexLoader = BaseLoader.get().dex(jar);
+                Spider spider = loader.spider(api, dexLoader);
                 spider.siteKey = key;
                 spider.init(App.get(), ext);
                 android.util.Log.d("JsLoader", "Successfully initialized JS Spider: " + key);

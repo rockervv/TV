@@ -9,6 +9,7 @@ import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.api.Decoder;
 import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.bean.Config;
+import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.bean.Depot;
 import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Rule;
@@ -103,6 +104,8 @@ public class VodConfig extends BaseConfig {
     }
 
     public VodConfig init() {
+        this.sites.clear();
+        addLocal(this.sites);
         return config(Config.vod());
     }
 
@@ -123,8 +126,24 @@ public class VodConfig extends BaseConfig {
         this.flags.clear();
         this.parses.clear();
         this.loadLive = true;
+        addLocal(this.sites);
         BaseLoader.get().clear();
         return this;
+    }
+
+    private void addLocal(List<Site> items) {
+        for (String key : com.github.catvod.spider.SpiderFactory.getKeys()) {
+            com.github.catvod.crawler.Spider spider = com.github.catvod.spider.SpiderFactory.get(key);
+            if (spider == null) continue;
+            Site site = new Site();
+            site.setKey(key + "_local");
+            site.setName(spider.getName());
+            site.setApi(key);
+            site.setType(spider.getType());
+            site.setSearchable(spider.getSearchable());
+            site.setChangeable(spider.getChangeable());
+            if (!items.contains(site)) items.add(0, site);
+        }
     }
 
     @Override
@@ -159,7 +178,7 @@ public class VodConfig extends BaseConfig {
 
     @Override
     public boolean isLoaded() {
-        return !getSites().isEmpty();
+        return getSites().stream().anyMatch(s -> !s.getKey().endsWith("_local"));
     }
 
 
@@ -219,12 +238,20 @@ public class VodConfig extends BaseConfig {
 
     private void initSite(Config config, JsonObject object) {
         String spider = Json.safeString(object, "spider");
-        if (isLoaded() && spider.equals(config.getJson())) return;
+        List<Site> items = new ArrayList<>();
+        if (object.has("sites")) {
+            items.addAll(Json.safeListElement(object, "sites").stream().map(e -> Site.objectFrom(e, spider)).distinct().toList());
+        }
+        addLocal(items);
+        setSites(items);
         BaseLoader.get().parseJar(spider, true);
-        setSites(Json.safeListElement(object, "sites").stream().map(e -> Site.objectFrom(e, spider)).distinct().collect(Collectors.toCollection(ArrayList::new)));
-        Map<String, Site> items = Site.findAll().stream().collect(Collectors.toMap(Site::getKey, Function.identity()));
-        getSites().forEach(site -> site.sync(items.get(site.getKey())));
-        setHome(config, getSites().isEmpty() ? new Site() : getSites().stream().filter(item -> item.getKey().equals(config.getHome())).findFirst().orElse(getSites().get(0)), false);
+        AppDatabase.get().getSiteDao().clear();
+        Map<String, Site> sites = Site.findAll().stream().collect(Collectors.toMap(Site::getKey, Function.identity(), (a, b) -> a));
+        getSites().forEach(site -> site.sync(sites.get(site.getKey())));
+        String local = Setting.getLocalSpider();
+        Site home = getSites().stream().filter(item -> item.getKey().equals(config.getHome())).findFirst().orElse(getSites().get(0));
+        if (!local.isEmpty()) home = getSites().stream().filter(item -> item.getApi().equals(local)).findFirst().orElse(home);
+        setHome(config, home, false);
     }
 
     private void initParse(Config config, JsonObject object) {
@@ -318,6 +345,16 @@ public class VodConfig extends BaseConfig {
     public void setHome(Site site) {
         setHome(getConfig(), site, true);
         RefreshEvent.home();
+    }
+
+    public void setHome(String api) {
+        if (api == null || api.isEmpty()) return;
+        for (Site site : getSites()) {
+            if (api.equals(site.getApi())) {
+                home = site;
+                break;
+            }
+        }
     }
 
     private void setWall(String wall) {

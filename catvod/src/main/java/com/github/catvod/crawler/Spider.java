@@ -15,7 +15,21 @@ public abstract class Spider {
 
     public String siteKey;
 
+    public String getName() {
+        return getClass().getSimpleName();
+    }
 
+    public int getType() {
+        return 3;
+    }
+
+    public int getSearchable() {
+        return 1;
+    }
+
+    public int getChangeable() {
+        return 1;
+    }
 
     public void init(Context context) throws Exception {
     }

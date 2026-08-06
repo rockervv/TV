@@ -117,7 +117,9 @@ public class VodFallbackPolicy {
     private boolean mismatch(Vod item) {
         if (host.getVodId().equals(item.getId())) return true;
         if (state.hasFailedId(item.getId())) return true;
-        if (state.isAutoFallback()) return !item.getName().equals(state.getSearchKeyword());
-        return !item.getName().contains(state.getSearchKeyword());
+        String name1 = item.getName().replace(" ", "").toLowerCase();
+        String name2 = state.getSearchKeyword().replace(" ", "").toLowerCase();
+        if (state.isAutoFallback()) return !name1.equals(name2);
+        return !name1.contains(name2);
     }
 }

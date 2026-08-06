@@ -68,16 +68,22 @@ public class JarLoader {
         } catch (Throwable e) {
             failures.put(key, e);
             SpiderDebug.log(e);
+            Path.clear(file);
         }
     }
 
     private void invokeInit(DexClassLoader loader) {
+        // 🛠️ 方案 A 升級版：手動注入 Context 欄位，繞過 init() 方法中的殺手邏輯
         try {
             Class<?> clz = loader.loadClass("com.github.catvod.spider.Init");
-            Method method = clz.getMethod("init", Context.class);
-            method.invoke(clz, App.get());
+            Method getMethod = clz.getMethod("get");
+            Object instance = getMethod.invoke(null);
+            java.lang.reflect.Field contextField = clz.getDeclaredField("c");
+            contextField.setAccessible(true);
+            contextField.set(instance, App.get());
+            android.util.Log.d("JarLoader", "invokeInit() - Context injected manually. Init logic bypassed.");
         } catch (Throwable e) {
-            SpiderDebug.log(e);
+            android.util.Log.e("JarLoader", "Manual injection failed: " + e.getMessage());
         }
     }
 
@@ -136,6 +142,20 @@ public class JarLoader {
         }
     }
 
+    public void setFailure(String jar, Throwable e) {
+        String jaKey = Util.md5(jar);
+        if (failures.containsKey(jaKey)) return;
+        failures.put(jaKey, e);
+        if (e instanceof VerifyError) {
+            android.util.Log.e("JarLoader", "Critical VerifyError reported for JAR: " + jar + ". Purging cached spiders.");
+            spiders.entrySet().removeIf(entry -> entry.getKey().startsWith(jaKey));
+        }
+    }
+
+    public boolean isError(String jar) {
+        return failures.containsKey(Util.md5(jar));
+    }
+
     public Spider getSpider(String key, String api, String ext, String jar) {
         String jaKey = Util.md5(jar);
         if (failures.get(jaKey) instanceof VerifyError) {
@@ -152,19 +172,27 @@ public class JarLoader {
                     return new SpiderNull();
                 }
                 DexClassLoader loader = loaders.get(jaKey);
-                if (loader == null) return new SpiderNull();
+                if (loader == null) return new SpiderNull("JAR 載入失敗 (Loader Null)");
                 String apiName = api.split("csp_").length > 1 ? api.split("csp_")[1] : api;
-                Spider spider = (Spider) loader.loadClass("com.github.catvod.spider." + apiName).newInstance();
-                spider.siteKey = key;
-                spider.init(App.get(), ext);
-                return spider;
+                try {
+                    Spider spider = (Spider) loader.loadClass("com.github.catvod.spider." + apiName).newInstance();
+                    spider.siteKey = key;
+                    spider.init(App.get(), ext);
+                    return spider;
+                } catch (ClassNotFoundException e) {
+                    return new SpiderNull("類別未找到: " + apiName);
+                } catch (VerifyError e) {
+                    return new SpiderNull("系統不相容 (VerifyError)");
+                } catch (Throwable e) {
+                    return new SpiderNull("初始化崩潰: " + e.getMessage());
+                }
             } catch (Throwable e) {
                 if (e instanceof VerifyError) {
                     android.util.Log.e("JarLoader", "VerifyError caught during class load/init. [Key: " + key + ", API: " + api + ", EXT: " + ext + ", JAR: " + jar + "]", e);
                 }
                 failures.put(jaKey, e);
                 SpiderDebug.log(e);
-                return new SpiderNull();
+                return new SpiderNull("載入異常: " + e.getClass().getSimpleName());
             } finally {
                 Monitor.end("Spider_Init_CSP_" + key);
             }

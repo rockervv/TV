@@ -251,6 +251,10 @@ public class Path {
         }
     }
 
+    public static File write(File file, String content) {
+        return write(file, content.getBytes(StandardCharsets.UTF_8));
+    }
+
     public static void move(File in, File out) {
         copy(in, out);
         clear(in);
@@ -291,12 +295,8 @@ public class Path {
         try {
             File parent = file.getParentFile();
             if (parent != null) mkdir(parent);
-            if (file.exists()) clear(file);
+            if (file.exists() && file.isFile()) file.delete();
             if (file.createNewFile()) Logger.t(TAG).d("Create:" + file);
-            file.setReadable(true);
-            file.setWritable(true);
-            file.setExecutable(true);
-            Shell.exec("chmod 777 " + file);
             return file;
         } catch (IOException e) {
             e.printStackTrace();

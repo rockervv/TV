@@ -14,6 +14,7 @@ import androidx.leanback.widget.HorizontalGridView;
 import androidx.leanback.widget.ItemBridgeAdapter;
 import androidx.leanback.widget.ListRow;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.App;
@@ -59,11 +60,12 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
     private boolean mOpen;
     private Page mPage;
 
-    public static VodFragment newInstance(String key, String typeId, Style style, HashMap<String, String> extend, boolean folder) {
+    public static VodFragment newInstance(String key, String typeId, Style style, HashMap<String, String> extend, boolean folder, boolean filter) {
         Bundle args = new Bundle();
         args.putString("key", key);
         args.putString("typeId", typeId);
         args.putBoolean("folder", folder);
+        args.putBoolean("filter", filter);
         args.putParcelable("style", style);
         args.putSerializable("extend", extend);
         VodFragment fragment = new VodFragment();
@@ -118,9 +120,11 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         mPages = new ArrayList<>();
         mExtends = getExtend();
         mFilters = getFilter();
+        mOpen = getArguments().getBoolean("filter");
         setRecyclerView();
         setViewModel();
         setFilters();
+        if (mOpen) showFilter();
     }
 
     @Override
@@ -142,8 +146,11 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
 
     private void setViewModel() {
         mViewModel = new ViewModelProvider(getActivity()).get(SiteViewModel.class);
-        mViewModel.getFilter().observe(getViewLifecycleOwner(), this::toggleFilter);
+        mViewModel.getFilter().observe(getViewLifecycleOwner(), typeId -> {
+            if (typeId.equals(getTypeId())) toggleFilter(!mOpen);
+        });
         mViewModel.getResult().observe(getViewLifecycleOwner(), result -> {
+            if (!result.getTid().equals(getTypeId())) return;
             boolean first = mScroller.first();
             int size = result.getList().size();
             if (size > 0) addVideo(result);
@@ -172,10 +179,10 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
 
     private void getVideo() {
         mScroller.reset();
-        getVideo(getTypeId(), "1");
+        getVideo(getTypeId(), "1", false);
     }
 
-    private void getVideo(String typeId, String page) {
+    private void getVideo(String typeId, String page, boolean refresh) {
         boolean first = "1".equals(page);
         if (first) mLast = null;
         if (first) showProgress();
@@ -183,7 +190,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         int filterSize = mOpen ? mFilters.size() : 0;
         boolean clear = first && mAdapter.size() > filterSize;
         if (clear) mAdapter.removeItems(filterSize, mAdapter.size() - filterSize);
-        mViewModel.categoryContent(getKey(), typeId, page, true, mExtends);
+        mViewModel.categoryContent(getKey(), typeId, page, true, mExtends, refresh);
     }
 
     private void addVideo(Result result) {
@@ -192,17 +199,32 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         else addGrid(result.getList(), style);
     }
 
+    public boolean isFilterOpen() {
+        return mOpen;
+    }
+
     private void checkPosition(boolean first) {
+        View focus = getActivity() != null ? getActivity().getCurrentFocus() : null;
+        boolean sideMenuFocused = focus != null && focus.getId() == R.id.recycler;
+        if (sideMenuFocused || mBinding.recycler.hasFocus() || mBinding.recycler.getScrollState() != RecyclerView.SCROLL_STATE_IDLE) {
+            android.util.Log.d("HomeFocus", "VodFragment.checkPosition() - BLOCKED: User is busy or focused on menu/content.");
+            return; 
+        }
         if (mPage != null && mPage.getPosition() > 0) mBinding.recycler.hideHeader();
         if (mPage != null && mPage.getPosition() < 1) mBinding.recycler.showHeader();
-        if (mPage != null) mBinding.recycler.setSelectedPosition(mPage.getPosition());
-        else if (first && !mOpen) mBinding.recycler.moveToTop();
+        if (mPage != null) {
+            android.util.Log.d("HomeFocus", "VodFragment.checkPosition() - Restoring position: " + mPage.getPosition());
+            mBinding.recycler.setSelectedPosition(mPage.getPosition());
+        } else if (first && !mOpen) {
+            android.util.Log.d("HomeFocus", "VodFragment.checkPosition() - First load, moving to top.");
+            mBinding.recycler.moveToTop();
+        }
         mPage = null;
     }
 
     private void checkMore(int count) {
         if (mScroller.isDisable() || count == 0 || mAdapter.size() >= 5) return;
-        getVideo(getTypeId(), String.valueOf(mScroller.addPage()));
+        getVideo(getTypeId(), String.valueOf(mScroller.addPage()), false);
     }
 
     private boolean checkLastSize(List<Vod> items, Style style) {
@@ -255,13 +277,64 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
     }
 
     public void toggleFilter(boolean open) {
+        if (mOpen == open) return;
         if (open) showFilter();
         else hideFilter();
         mOpen = open;
     }
 
+    private boolean isActivated(int index) {
+        if (index < 0 || index >= mFilters.size()) return false;
+        return mExtends.containsKey(mFilters.get(index).getKey());
+    }
+
+    public boolean isFilterFocused() {
+        return mBinding.recycler.hasFocus() && mBinding.recycler.getSelectedPosition() < mFilters.size();
+    }
+
+    public boolean backFocusUp() {
+        int filterSize = mOpen ? mFilters.size() : 0;
+        int position = mBinding.recycler.getSelectedPosition();
+        
+        // 1. 如果焦點在影片區（position >= filterSize）
+        if (position >= filterSize) {
+            // 尋找最後一排有操作過的篩選器
+            for (int i = filterSize - 1; i >= 0; i--) {
+                if (isActivated(i)) {
+                    mBinding.recycler.setSelectedPosition(i);
+                    return true;
+                }
+            }
+        } 
+        // 2. 如果焦點在篩選區（position < filterSize）
+        else {
+            // 尋找上一排有操作過的篩選器
+            for (int i = position - 1; i >= 0; i--) {
+                if (isActivated(i)) {
+                    mBinding.recycler.setSelectedPosition(i);
+                    return true;
+                }
+            }
+        }
+        // 3. 沒找到任何操作過的篩選器，或已經在最上方，返回 false 交給 Activity 處理跳回分類選單
+        return false;
+    }
+
+    public void scrollToTop() {
+        if (mBinding == null) return;
+        mBinding.recycler.setSelectedPosition(0);
+        mBinding.recycler.showHeader();
+    }
+
+    public void focusFilter() {
+        if (mBinding == null) return;
+        mBinding.recycler.setSelectedPosition(0);
+        mBinding.recycler.requestFocus();
+    }
+
     public void onRefresh() {
-        getVideo();
+        mScroller.reset();
+        getVideo(getTypeId(), "1", true);
     }
 
     public boolean canBack() {
@@ -288,7 +361,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         } else if (item.isFolder()) {
             mPages.add(Page.get(item, mBinding.recycler.getSelectedPosition()));
             mBinding.recycler.setMoveTop(false);
-            getVideo(item.getId(), "1");
+            getVideo(item.getId(), "1", false);
         } else {
             if (isIndexs()) CollectActivity.start(getActivity(), item.getName());
             else if (!isFolder()) VideoActivity.start(getActivity(), getKey(), item.getId(), item.getName(), item.getPic());
@@ -307,7 +380,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         if (isIndexs()) return;
         if (Integer.parseInt(page) <= 1) return;
         mScroller.setLoading(true);
-        getVideo(getTypeId(), page);
+        getVideo(getTypeId(), page, false);
     }
 
     @Override

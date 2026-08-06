@@ -104,8 +104,8 @@ android {
             signingConfig = signingConfigs.debug
         }
         release {
-            minifyEnabled = true
-            shrinkResources = true
+            minifyEnabled = false
+            shrinkResources = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig = signingConfigs.debug
         }
@@ -221,11 +221,14 @@ dependencies {
     implementation libs.leanback
     implementation libs.android.file.chooser
     implementation libs.androidautosize
+    //implementation 'org.slf4j:slf4j-jdk14:2.0.16'
+    implementation libs.slf4j
 
     annotationProcessor libs.room.compiler
     annotationProcessor libs.glide.compiler
     annotationProcessor libs.eventbus.annotation.processor
     annotationProcessor libs.tikxml.processor
+
 
     coreLibraryDesugaring libs.desugar
 }

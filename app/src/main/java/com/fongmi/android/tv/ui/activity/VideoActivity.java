@@ -392,6 +392,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     public void requestSearch(List<Site> sites, String keyword) {
+        if (!VodConfig.get().isLoaded()) return; // 🛠️ 配置未載入時禁止搜尋，防止卡死
         mQuickAdapter.clear();
         mViewModel.searchContent(sites, keyword, true);
     }
@@ -538,11 +539,9 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     protected void onSourcesChanged(List<Vod> items) {
-        App.post(() -> {
-            if (mBinding == null) return;
-            mQuickAdapter.addAll(items);
-            mBinding.quick.setVisibility(mQuickAdapter.getItemCount() == 0 ? View.GONE : View.VISIBLE);
-        }, 2500);
+        if (mBinding == null) return;
+        mQuickAdapter.addAll(items);
+        mBinding.quick.setVisibility(mQuickAdapter.getItemCount() == 0 ? View.GONE : View.VISIBLE);
     }
 
     @Override

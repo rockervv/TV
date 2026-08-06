@@ -638,4 +638,12 @@ public class Setting {
     public static void putNormalize(boolean normalize) {
         Prefers.put("normalize", normalize);
     }
+
+    public static String getLocalSpider() {
+        return Prefers.getString("local_spider", "");
+    }
+
+    public static void putLocalSpider(String spider) {
+        Prefers.put("local_spider", spider);
+    }
 }

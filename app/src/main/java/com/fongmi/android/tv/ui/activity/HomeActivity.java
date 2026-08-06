@@ -265,10 +265,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private VerticalGridView getRecyclerView() {
-        if (mPageAdapter == null) return null;
+        if (mPageAdapter == null || mBinding == null) return null;
         Fragment fragment = (Fragment) mPageAdapter.instantiateItem(mBinding.pager, mBinding.pager.getCurrentItem());
-        if (fragment instanceof HomeFragment) return ((HomeFragment) fragment).mBinding.recycler;
-        if (fragment instanceof VodFragment) return ((VodFragment) fragment).mBinding.recycler;
+        if (fragment instanceof HomeFragment && ((HomeFragment) fragment).mBinding != null) return ((HomeFragment) fragment).mBinding.recycler;
+        if (fragment instanceof VodFragment && ((VodFragment) fragment).mBinding != null) return ((VodFragment) fragment).mBinding.recycler;
         return null;
     }
 
@@ -371,7 +371,9 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private void setViewModel() {
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
         mViewModel.getResult().observe(this, result -> {
-            if (result != null && (!result.getTypes().isEmpty() || result.getList().size() > 0)) setTypes(result);
+            Notify.dismissTop();
+            if (result == null || !result.getTid().isEmpty()) return;
+            if (!result.getTypes().isEmpty() || result.getList().size() > 0) setTypes(result);
         });
     }
 
@@ -409,23 +411,36 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     public void homeContent() {
         if (mBinding == null || getHome() == null) return;
-        if (!getKey().equals(mResult.getKey())) mResult = Result.empty();
+        if (!getKey().equals(mResult.getKey())) {
+            mResult = Result.empty();
+            HomeFragment fragment = getHomeFragment();
+            if (fragment != null) fragment.addVideo(mResult);
+        }
         String title = getHome().getName();
         mBinding.title.setText(title.isEmpty() ? ResUtil.getString(R.string.app_name) : title);
         if (getHome().getKey().isEmpty()) return;
+
         Result cached = mCache.get(getKey());
         if (cached != null) {
             setTypes(mResult = cached);
             return;
         }
+
+        Result fileCache = com.fongmi.android.tv.api.CacheManager.get(getHome());
+        if (fileCache != null) {
+            setTypes(mResult = fileCache);
+        } else {
+            Notify.showTop(this, ResUtil.getString(R.string.home_loading, title));
+        }
+
         mFocus = getCurrentFocus();
         HomeFragment fragment = getHomeFragment();
         if (fragment != null && fragment.mBinding != null && !fragment.mBinding.progressLayout.isContent()) fragment.mBinding.progressLayout.showProgress();
-        Notify.showTop(this, ResUtil.getString(R.string.home_loading, title));
         if (mViewModel != null) mViewModel.homeContent();
     }
 
     private int getChildPos(View v) {
+        if (v == null) return 0;
         View current = v;
         ViewParent parent = current.getParent();
         while (parent instanceof View) {
@@ -451,25 +466,20 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     public void setTypes(Result result) {
-        if (result.getTypes().isEmpty() && result.getList().isEmpty()) {
-            android.util.Log.w("HomeActivity", "setTypes() ABORTED - Result is EMPTY (likely a spider error)");
-            return;
-        }
+        Notify.dismissTop();
+        if (result.getTypes().isEmpty() && result.getList().isEmpty()) return;
 
         if (result.getKey().isEmpty()) result.setKey(getKey());
-
         List<Class> types = new ArrayList<>(getTypes(result));
         types.removeIf(item -> item.getTypeName().equals(ResUtil.getString(R.string.home)));
 
         View current = getCurrentFocus();
         int sideMenuPos = Math.max(0, mBinding.recycler.getSelectedPosition());
         int pagerPos = Math.max(0, mBinding.pager.getCurrentItem());
-        int fragmentRowPos = getRecyclerView() != null ? Math.max(0, getRecyclerView().getSelectedPosition()) : 0;
-        int itemPos = Math.max(0, getChildPos(current));
-        boolean recyclerFocused = viewAncestor(current, mBinding.recycler);
-        boolean pagerFocused = viewAncestor(current, mBinding.pager);
-
-        android.util.Log.d("HomeFocus", "setTypes() START - Current: " + getResName(current) + " [SidePos: " + sideMenuPos + ", Pager: " + pagerPos + ", Row: " + fragmentRowPos + ", Item: " + itemPos + ", PagerFocused: " + pagerFocused + "]");
+        
+        // --- 核心防跳動邏輯 ---
+        boolean isScrolling = mBinding.recycler.getScrollState() != RecyclerView.SCROLL_STATE_IDLE;
+        boolean busy = current != null && (viewAncestor(current, mBinding.pager) || viewAncestor(current, mBinding.recycler));
 
         boolean siteChanged = !getKey().equals(mResult.getKey());
         boolean listChanged = !result.isSameList(mResult);
@@ -491,8 +501,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             }
         } else if (mAdapter.size() > 1 && siteChanged) {
             typesChanged = true;
-        } else {
-            android.util.Log.d("HomeActivity", "setTypes() - Result has NO types, skipping category update");
         }
 
         if (typesChanged) {
@@ -503,13 +511,15 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             if (!types.isEmpty()) mAdapter.addAll(1, types);
             setPager();
             if (mPageAdapter != null) mPageAdapter.notifyDataSetChanged();
-            mBinding.recycler.setSelectedPosition(sideMenuPos);
-            mBinding.pager.setCurrentItem(pagerPos, false);
+            
+            if (mBinding.recycler.getSelectedPosition() != sideMenuPos) mBinding.recycler.setSelectedPosition(sideMenuPos);
+            if (mBinding.pager.getCurrentItem() != pagerPos) mBinding.pager.setCurrentItem(pagerPos, false);
+            
             App.post(() -> updating = false, 500);
         }
 
         HomeFragment homeFragment = getHomeFragment();
-        if (homeFragment != null && listChanged) {
+        if (homeFragment != null && listChanged && result.getTid().isEmpty()) {
             homeFragment.addVideo(result);
             if (homeFragment.mBinding != null) homeFragment.mBinding.progressLayout.showContent();
         }
@@ -522,51 +532,13 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mCache.put(getKey(), mResult);
         if (!typesChanged && !listChanged) return;
 
-        if (recyclerFocused) {
-            App.post(() -> {
-                if (isFinishing() || mBinding == null) return;
-                android.util.Log.d("HomeFocus", "Restoring Side Menu focus to Pos: " + sideMenuPos);
-                mBinding.recycler.setSelectedPosition(sideMenuPos);
-                mBinding.recycler.post(() -> {
-                    if (isFinishing() || mBinding == null) return;
-                    mBinding.recycler.requestFocus();
-                });
-            }, 400);
-        } else if (pagerFocused) {
-            App.post(() -> {
-                if (isFinishing() || mBinding == null) return;
-                View focus = getCurrentFocus();
-                if (focus != null && focus != mBinding.recycler && viewAncestor(focus, mBinding.recycler)) {
-                    int currentSidePos = mBinding.recycler.getSelectedPosition();
-                    if (currentSidePos != sideMenuPos) return;
-                }
-                VerticalGridView gridView = getRecyclerView();
-                if (gridView != null) {
-                    gridView.setSelectedPosition(fragmentRowPos);
-                    gridView.post(() -> {
-                        if (isFinishing() || mBinding == null) return;
-                        RecyclerView.ViewHolder holder = gridView.findViewHolderForAdapterPosition(fragmentRowPos);
-                        if (holder != null) {
-                            RecyclerView inner = findInnerRecycler(holder.itemView);
-                            if (inner != null) {
-                                if (inner instanceof HorizontalGridView) ((HorizontalGridView) inner).setSelectedPosition(itemPos);
-                                else inner.scrollToPosition(itemPos);
-                                inner.post(() -> {
-                                    if (isFinishing()) return;
-                                    inner.requestFocus();
-                                });
-                            } else {
-                                holder.itemView.requestFocus();
-                            }
-                        }
-                    });
-                }
-            }, 800);
+        // 如果使用者正在操作或列表正在滾動，絕對不恢復焦點以防止跳動
+        if (busy || isScrolling) {
+            android.util.Log.d("HomeFocus", "setTypes() - BUSY: Focus restore cancelled to prevent jumping.");
+            return;
         }
-else {
-            App.post(this::setFocus, 1000);
-        }
-        mResult = result;
+
+        App.post(this::setFocus, 500);
     }
 
 
@@ -599,7 +571,8 @@ else {
     };
 
     private void updateFilter(Class item) {
-        mViewModel.setFilter(item.toggleFilter());
+        item.toggleFilter();
+        mViewModel.setFilter(item.getTypeId());
         mAdapter.notifyArrayItemRangeChanged(1, mAdapter.size() - 1);
     }
 
@@ -704,27 +677,41 @@ else {
     }
 
     public void initConfig() {
-        String homeName = getHome().getName();
-        Notify.showTop(this, ResUtil.getString(R.string.home_loading, homeName.isEmpty() ? ResUtil.getString(R.string.app_name) : homeName));
         android.util.Log.d("TV_FATAL", "HomeActivity.initConfig() START");
+        String local = Setting.getLocalSpider();
+        boolean hasCache = false;
+
+        if (!local.isEmpty()) {
+            VodConfig.get().init();
+            VodConfig.get().setHome(local);
+            Result cache = com.fongmi.android.tv.api.CacheManager.get(VodConfig.get().getHome());
+            if (cache != null) {
+                hasCache = true;
+                App.post(() -> {
+                    setPager(); // 確保 Pager 已經建立
+                    setHomeType();
+                    setTypes(cache);
+                }, 100); // 給予稍微多一點時間讓 Fragment 初始化
+            } else {
+                App.post(() -> {
+                    setPager();
+                    setHomeType();
+                    homeContent();
+                });
+            }
+        }
+
+        if (!hasCache) {
+            String homeName = getHome().getName();
+            Notify.showTop(this, ResUtil.getString(R.string.home_loading, homeName.isEmpty() ? ResUtil.getString(R.string.app_name) : homeName));
+        }
+
         App.execute(() -> {
             Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
             try {
                 android.util.Log.d("TV_FATAL", "Background thread started");
                 Config vod = Config.vod();
                 Config live = Config.live();
-                if (vod != null && !vod.getJson().isEmpty()) {
-                    android.util.Log.d("TV_FATAL", "initConfig [CACHE]: Loading local JSON cache...");
-                    VodConfig.get().config(vod).cache();
-                    android.util.Log.d("TV_FATAL", "initConfig [CACHE]: Loaded, isLoaded=" + VodConfig.get().isLoaded());
-                    if (VodConfig.get().isLoaded()) {
-                        App.post(() -> {
-                            showContent();
-                            RefreshEvent.history();
-                            RefreshEvent.home();
-                        });
-                    }
-                }
                 App.post(() -> {
                     android.util.Log.d("TV_FATAL", "Posting to main thread for load()");
                     Monitor.start("Config_Load");
@@ -838,7 +825,6 @@ else {
         App.post(() -> confirm = false, 5000);
     }
 
-
     @Override
     public void showDialog() {
         if (!hasSettingButton()) {
@@ -863,6 +849,10 @@ else {
     @Override
     public void setSite(Site item) {
         VodConfig.get().setHome(item);
+        if (mBinding != null) {
+            mBinding.pager.setCurrentItem(0, false);
+            mBinding.recycler.setSelectedPosition(0);
+        }
         homeContent();
     }
 
@@ -875,9 +865,9 @@ else {
         switch (event.type()) {
             case VOD:
                 RefreshEvent.history();
-                RefreshEvent.home();
+                // 如果已經使用了本地 Spider 作為首頁，則不自動刷新首頁，避免中斷正在進行的請求
+                if (Setting.getLocalSpider().isEmpty()) RefreshEvent.home();
                 setLogo();
-                // 如果目前是空站點，或者是因為同步問題導致沒分類，才嘗試刷新
                 if (mAdapter.size() == 0 || getHome().getApi().isEmpty()) {
                     setHomeType();
                     homeContent();
@@ -983,7 +973,8 @@ else {
             mFocus = getCurrentFocus();
             android.util.Log.d("HomeFocus", "KEY_DOWN: " + KeyEvent.keyCodeToString(event.getKeyCode()) + " | currentFocus: " + (mFocus == null ? "null" : mFocus.getClass().getSimpleName() + " [" + getResName(mFocus) + "]"));
         }
-        boolean isHomeFragment = mBinding.pager.getCurrentItem() == 0;
+        int currentItem = mBinding.pager.getCurrentItem();
+        boolean isHomeFragment = currentItem == 0;
         if (isHomeFragment && KeyUtil.isMenuKey(event)) {
             if (Setting.getHomeMenuKey() == 0) MenuDialog.create(this).show();
             else if (Setting.getHomeMenuKey() == 1) SiteDialog.create(this).show(this);
@@ -995,7 +986,7 @@ else {
             else if (Setting.getHomeMenuKey() == 7) KeepActivity.start(this);
             else if (Setting.getHomeMenuKey() == 8) SettingActivity.start(this);
         }
-        if (!isHomeFragment && KeyUtil.isMenuKey(event)) updateFilter((Class) mAdapter.get(mBinding.pager.getCurrentItem()));
+        if (!isHomeFragment && KeyUtil.isMenuKey(event)) updateFilter((Class) mAdapter.get(currentItem));
         if (!isHomeFragment && KeyUtil.isBackKey(event) && event.isLongPress()) {
             VodFragment fragment = getFragment();
             if (fragment != null && fragment.goRoot()) setCoolDown();
@@ -1026,41 +1017,99 @@ else {
 
     @Override
     protected boolean handleBack() {
-        return true;
-    }
+        if (mBinding == null || mAdapter == null || mAdapter.size() == 0) return false;
+        View focus = getCurrentFocus();
+        int currentItem = mBinding.pager.getCurrentItem();
+        int selectedPos = mBinding.recycler.getSelectedPosition();
+        VodFragment vodFragment = currentItem > 0 ? getFragment() : null;
+        HomeFragment homeFragment = getHomeFragment();
+        
+        boolean inContent = viewAncestor(focus, mBinding.pager);
+        boolean inMenu = viewAncestor(focus, mBinding.recycler);
+        boolean filterOpen = vodFragment != null && vodFragment.isFilterOpen();
+        boolean inFilter = vodFragment != null && vodFragment.isFilterFocused();
 
-    @Override
-    protected void onBackPress() {
-        HomeFragment fragment = getHomeFragment();
-        if (isVisible(mBinding.recycler) && mBinding.recycler.getSelectedPosition() != 0) {
-            mBinding.recycler.scrollToPosition(0);
-        } else if (fragment != null && fragment.inited && fragment.mBinding.progressLayout.isProgress()) {
-            fragment.mBinding.progressLayout.showContent();
-        } else if (fragment != null && fragment.inited && fragment.mPresenter != null && fragment.mPresenter.isDelete()) {
-            fragment.setHistoryDelete(false);
-        } else if (fragment != null && fragment.canBack()) {
-            fragment.goBack();
+        Log.d("HomeBack", String.format("handleBack() - Item: %d | Rec: %d | Content: %b | Menu: %b | FilterOpen: %b | InFilter: %b", 
+            currentItem, selectedPos, inContent, inMenu, filterOpen, inFilter));
+
+        // 1. 處理子目錄返回
+        if (vodFragment != null && vodFragment.canBack()) {
+            Log.d("HomeBack", "-> Sub-folder back");
+            vodFragment.goBack();
+            return true;
+        }
+
+        // 2. 處理內容區 (影片/篩選)
+        if (inContent) {
+            mBinding.recycler.setSelectedPosition(currentItem);
+            if (filterOpen) {
+                // 如果開啟了篩選器，嘗試逐行向上移動焦點
+                if (vodFragment.backFocusUp()) {
+                    Log.d("HomeBack", "-> Moving focus up to previous filter/video row");
+                    return true;
+                } else {
+                    // 已經在第一行，回頂部分類標籤
+                    Log.d("HomeBack", "-> Already at top row, moving to Category Menu");
+                    vodFragment.scrollToTop(); 
+                    showToolBar();
+                    mBinding.recycler.requestFocus();
+                    return true;
+                }
+            } else {
+                // 沒有開啟篩選器，直接滑回頂部並回分類選單
+                Log.d("HomeBack", "-> No filter, jumping back to Category Menu");
+                if (vodFragment != null) vodFragment.scrollToTop(); 
+                showToolBar();
+                mBinding.recycler.requestFocus();
+                if (!mBinding.recycler.hasFocus()) {
+                    mBinding.recycler.postDelayed(() -> {
+                        if (isFinishing() || mBinding == null) return;
+                        mBinding.recycler.requestFocus();
+                    }, 100);
+                }
+                return true;
+            }
+        }
+
+        // 3. 關鍵修正：確保在分類選單時能回到 Pos 0，且不遺失首頁推薦數據
+        if (selectedPos != 0 || currentItem != 0) {
+            Log.d("HomeBack", "-> Force Category to Pos 0");
+            mBinding.pager.setCurrentItem(0, false); 
+            mBinding.recycler.setSelectedPosition(0);
+            
+            // 確保推薦結果不會遺失
+            if (mResult != null && !mResult.getList().isEmpty()) {
+                HomeFragment fragment = getHomeFragment();
+                if (fragment != null) fragment.addVideo(mResult);
+            }
+
+            mBinding.recycler.post(() -> {
+                if (isFinishing() || mBinding == null) return;
+                if (Setting.getHomeUI() == 0) {
+                    HomeFragment fragment = getHomeFragment();
+                    if (fragment != null && fragment.mBinding != null) fragment.mBinding.recycler.requestFocus();
+                } else {
+                    mBinding.recycler.requestFocus();
+                }
+            });
+            return true;
+        }
+
+        Log.d("HomeBack", "-> Home Tab Exit Logic");
+        if (homeFragment != null && homeFragment.inited && homeFragment.mBinding.progressLayout.isProgress()) {
+            homeFragment.mBinding.progressLayout.showContent();
+            return true;
+        } else if (homeFragment != null && homeFragment.inited && homeFragment.mPresenter != null && homeFragment.mPresenter.isDelete()) {
+            homeFragment.setHistoryDelete(false);
+            return true;
+        } else if (homeFragment != null && homeFragment.canBack()) {
+            homeFragment.goBack();
+            return true;
         } else if (!confirm) {
             setConfirm();
-        } else {
-            finish();
+            return true;
         }
-    }
-
-    @Override
-    public void onBackPressed() {
-        boolean isHomeFragment = mBinding.pager.getCurrentItem() == 0;
-        if (isHomeFragment) {
-            super.onBackPressed();
-            return;
-        }
-        Class item = (Class) mAdapter.get(mBinding.pager.getCurrentItem());
-        if (item.getFilter()) updateFilter(item);
-        else {
-            VodFragment fragment = getFragment();
-            if (fragment != null && fragment.canBack()) fragment.goBack();
-            else if (!coolDown) super.onBackPressed();
-        }
+        return false;
     }
 
     private void checkStoragePermission() {
@@ -1108,7 +1157,7 @@ else {
         public Fragment getItem(int position) {
             if (position == 0) return new HomeFragment();
             Class type = (Class) mAdapter.get(position);
-            return VodFragment.newInstance(getHome().getKey(), type.getTypeId(), type.getStyle(), new HashMap<>(), "1".equals(type.getTypeFlag()));
+            return VodFragment.newInstance(getHome().getKey(), type.getTypeId(), type.getStyle(), new HashMap<>(), "1".equals(type.getTypeFlag()), type.getFilter());
         }
 
         @Override

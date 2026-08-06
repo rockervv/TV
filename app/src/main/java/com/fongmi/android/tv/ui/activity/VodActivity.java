@@ -159,7 +159,8 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
     };
 
     private void updateFilter(Class item) {
-        mViewModel.setFilter(item.toggleFilter());
+        item.toggleFilter();
+        mViewModel.setFilter(item.getTypeId());
         mAdapter.notifyArrayItemRangeChanged(0, mAdapter.size());
     }
 
@@ -195,11 +196,17 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
     }
 
     @Override
-    public void onBackPressed() {
+    protected boolean handleBack() {
         Class item = (Class) mAdapter.get(mBinding.pager.getCurrentItem());
-        if (item.getFilter()) updateFilter(item);
-        else if (getFragment().canBack()) getFragment().goBack();
-        else if (!coolDown) super.onBackPressed();
+        if (item.getFilter()) {
+            updateFilter(item);
+            return true;
+        } else if (getFragment().canBack()) {
+            getFragment().goBack();
+            return true;
+        } else {
+            return coolDown;
+        }
     }
 
     class PageAdapter extends FragmentStatePagerAdapter {
@@ -212,7 +219,7 @@ public class VodActivity extends BaseActivity implements TypePresenter.OnClickLi
         @Override
         public Fragment getItem(int position) {
             Class type = (Class) mAdapter.get(position);
-            return VodFragment.newInstance(getKey(), type.getTypeId(), type.getStyle(), type.getExtend(false), "1".equals(type.getTypeFlag()));
+            return VodFragment.newInstance(getKey(), type.getTypeId(), type.getStyle(), type.getExtend(false), "1".equals(type.getTypeFlag()), type.getFilter());
         }
 
         @Override

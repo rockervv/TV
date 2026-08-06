@@ -92,6 +92,7 @@ public class Result implements Parcelable {
     private Integer jx;
     @SerializedName("drm")
     private Drm drm;
+    private String tid;
 
     public Result() {
     }
@@ -315,6 +316,15 @@ public class Result implements Parcelable {
 
     public void setDrm(Drm drm) {
         this.drm = drm;
+    }
+
+    public String getTid() {
+        return TextUtils.isEmpty(tid) ? "" : tid;
+    }
+
+    public Result setTid(String tid) {
+        this.tid = tid;
+        return this;
     }
 
     public boolean hasMsg() {

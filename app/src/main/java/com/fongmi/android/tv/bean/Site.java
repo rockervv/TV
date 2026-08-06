@@ -93,6 +93,9 @@ public class Site implements Parcelable {
     @SerializedName("failures")
     private int failures;
 
+    @SerializedName("score")
+    private int score;
+
     @ColumnInfo(name = "cache")
     private String cache;
 
@@ -224,6 +227,10 @@ public class Site implements Parcelable {
         return type == null ? 0 : type;
     }
 
+    public void setType(Integer type) {
+        this.type = type;
+    }
+
     public Integer getHide() {
         return hide == null ? 0 : hide;
     }
@@ -328,12 +335,38 @@ public class Site implements Parcelable {
     public void setBlacklist() {
         this.failures++;
         this.blacklist = failures >= 3;
+        this.score -= 5;
         this.save();
     }
 
     public void resetFailures() {
         this.failures = 0;
         this.blacklist = false;
+        this.save();
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public void setScore(int score) {
+        this.score = score;
+    }
+
+    public void incrementScore() {
+        this.score++;
+        this.failures = 0;
+        this.blacklist = false;
+        this.save();
+    }
+
+    public void decrementScore() {
+        if (this.score > 0) this.score--;
+        this.save();
+    }
+
+    public void setErrorScore() {
+        this.score = -1;
         this.save();
     }
 
@@ -386,6 +419,7 @@ public class Site implements Parcelable {
 
     public Site sync(Site item) {
         if (item == null) return this;
+        setScore(item.getScore());
         setCache(item.getCache());
         if (getChangeable() != 0) setChangeable(Math.max(1, item.getChangeable()));
         if (getSearchable() != 0) setSearchable(Math.max(1, item.getSearchable()));

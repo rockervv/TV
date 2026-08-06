@@ -51,7 +51,7 @@ import java.util.Locale;
 @Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class}, version = AppDatabase.VERSION)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public static final int VERSION = 36;
+    public static final int VERSION = 37;
     public static final String NAME = "tv";
     public static final String SYMBOL = "@@@";
     public static final String BACKUP_SUFFIX = "bk.gz";
@@ -179,6 +179,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 .addMigrations(wrap(MIGRATION_33_34))
                 .addMigrations(wrap(MIGRATION_34_35))
                 .addMigrations(wrap(MIGRATION_35_36))
+                .addMigrations(wrap(MIGRATION_36_37))
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
     }
 
@@ -407,6 +408,13 @@ public abstract class AppDatabase extends RoomDatabase {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             database.execSQL("ALTER TABLE Site ADD COLUMN cache TEXT DEFAULT NULL");
+        }
+    };
+
+    static final Migration MIGRATION_36_37 = new Migration(36, 37) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE Site ADD COLUMN score INTEGER DEFAULT 0 NOT NULL");
         }
     };
 }

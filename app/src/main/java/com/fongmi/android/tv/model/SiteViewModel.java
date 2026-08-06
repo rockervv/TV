@@ -17,7 +17,10 @@ import com.fongmi.android.tv.utils.Monitor;
 import com.fongmi.android.tv.utils.Notify;
 import com.github.catvod.utils.Trans;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -27,7 +30,7 @@ public class SiteViewModel extends ViewModel {
     protected final MutableLiveData<Result> player;
     protected final MutableLiveData<Result> search;
     protected final MutableLiveData<Result> action;
-    protected final MutableLiveData<Boolean> filter;
+    protected final MutableLiveData<String> filter;
     private final ViewModelTaskRunner<TaskType> tasks;
     private final ViewModelSearchRunner searches;
 
@@ -57,12 +60,12 @@ public class SiteViewModel extends ViewModel {
         return action;
     }
 
-    public LiveData<Boolean> getFilter() {
+    public LiveData<String> getFilter() {
         return filter;
     }
 
-    public void setFilter(boolean open) {
-        filter.setValue(open);
+    public void setFilter(String typeId) {
+        filter.setValue(typeId);
     }
 
     public SiteViewModel init() {
@@ -79,21 +82,30 @@ public class SiteViewModel extends ViewModel {
             return;
         }
         Site site = VodConfig.get().getHome();
-        if (!site.getCache().isEmpty()) {
-            android.util.Log.d("SiteViewModel", "homeContent [CACHE]: Found cached data for site: " + site.getName());
-            App.post(() -> Notify.showTop("使用快取資料"));
-            result.postValue(Result.fromJson(site.getCache()));
+        Result cache = com.fongmi.android.tv.api.CacheManager.get(site);
+        if (cache != null) {
+            android.util.Log.d("SiteViewModel", "homeContent [CACHE]: Found file cached data for site: " + site.getName());
+            result.postValue(cache.setTid(""));
         }
-        execute(TaskType.RESULT, result, () -> SiteApi.homeContent(site));
+        execute(TaskType.RESULT, result, () -> SiteApi.homeContent(site, true));
     }
 
-    public void categoryContent(String key, String tid, String page, boolean filter, HashMap<String, String> extend) {
+    public void categoryContent(String key, String tid, String page, boolean filter, HashMap<String, String> extend, boolean refresh) {
         if (!VodConfig.get().isLoaded()) {
             android.util.Log.w("SiteViewModel", "categoryContent [ABORTED]: VodConfig not loaded yet!");
             return;
         }
+        Site site = VodConfig.get().getSite(key);
+        Result cache = com.fongmi.android.tv.api.CacheManager.get(site, tid, page);
+        if (cache != null) {
+            result.postValue(cache.setTid(tid));
+        }
+        
+        // 如果是本地 Spider 且已有快取，則不執行背景更新，避免併發任務過多導致中斷
+        if (cache != null && key.startsWith("loc_") && !refresh) return;
+
         android.util.Log.d("SiteViewModel", "categoryContent: tid=" + tid + " page=" + page);
-        execute(TaskType.RESULT, result, () -> SiteApi.categoryContent(key, tid, page, filter, extend));
+        execute(TaskType.RESULT, result, () -> SiteApi.categoryContent(key, tid, page, filter, extend, refresh));
     }
 
     public void action(String key, String act) {
@@ -117,7 +129,11 @@ public class SiteViewModel extends ViewModel {
     }
 
     public void searchContent(List<Site> sites, String keyword, boolean quick) {
-        searches.start(sites, site -> SearchTask.create(site, keyword, quick), result -> App.post(() -> search.setValue(result)));
+        List<Site> sorted = new ArrayList<>();
+        for (Site site : sites) if (site.getScore() >= 0) sorted.add(site);
+        Collections.sort(sorted, (o1, o2) -> Integer.compare(o2.getScore(), o1.getScore()));
+        int limit = Math.min(sorted.size(), 10); // 🛠️ 將搜尋限制從 20 降至 10，減輕系統壓力
+        searches.start(sorted.subList(0, limit), site -> SearchTask.create(site, keyword, quick), result -> App.post(() -> search.setValue(result)));
     }
 
     protected void execute(TaskType type, MutableLiveData<Result> liveData, Callable<Result> callable) {

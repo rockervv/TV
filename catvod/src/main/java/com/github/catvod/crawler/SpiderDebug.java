@@ -13,6 +13,8 @@ public class SpiderDebug {
     }
 
     public static void log(String msg) {
-        if (msg != null) Logger.t(TAG).d(msg);
+        if (msg == null) return;
+        if (msg.length() > 1000) msg = msg.substring(0, 1000) + "... [TRUNCATED]";
+        Logger.t(TAG).d(msg);
     }
 }

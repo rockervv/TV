@@ -127,10 +127,12 @@ public abstract class BaseActivity extends AppCompatActivity {
     }
 
     private void setBackCallback() {
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(handleBack()) {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                onBackPress();
+                if (!handleBack()) {
+                    finish();
+                }
             }
         });
     }

@@ -16,6 +16,7 @@ import org.json.JSONObject;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import dalvik.system.DexClassLoader;
 
@@ -24,11 +25,13 @@ public class BaseLoader {
     private final JarLoader jarLoader;
     private final PyLoader pyLoader;
     private final JsLoader jsLoader;
+    private final Map<String, Spider> spiders;
 
     private BaseLoader() {
         jarLoader = new JarLoader();
         pyLoader = new PyLoader();
         jsLoader = new JsLoader();
+        spiders = new ConcurrentHashMap<>();
     }
 
     public static BaseLoader get() {
@@ -49,6 +52,8 @@ public class BaseLoader {
 
     public void clear() {
         Task.execute(() -> {
+            spiders.values().forEach(Spider::destroy);
+            spiders.clear();
             jarLoader.clear();
             pyLoader.clear();
             jsLoader.clear();
@@ -56,6 +61,21 @@ public class BaseLoader {
     }
 
     public Spider getSpider(String key, String api, String ext, String jar) {
+        if (com.github.catvod.spider.SpiderFactory.getKeys().contains(api)) {
+            String spKey = api + "_" + key;
+            if (spiders.containsKey(spKey)) return spiders.get(spKey);
+            Spider spider = com.github.catvod.spider.SpiderFactory.get(api);
+            if (spider != null) {
+                try {
+                    spider.init(com.fongmi.android.tv.App.get(), ext);
+                    spiders.put(spKey, spider);
+                    return spider;
+                } catch (Throwable e) {
+                    com.github.catvod.crawler.SpiderDebug.log(e);
+                }
+            }
+            return new SpiderNull();
+        }
         if (isPy(api)) return pyLoader.getSpider(key, api, ext);
         else if (isJs(api)) return jsLoader.getSpider(key, api, ext, jar);
         else if (isCsp(api)) return jarLoader.getSpider(key, api, ext, jar);
@@ -92,6 +112,14 @@ public class BaseLoader {
         String key = Util.md5(jar);
         jarLoader.parseJar(key, jar);
         if (recent) jarLoader.setRecent(key);
+    }
+
+    public void setFailure(String jar, Throwable e) {
+        jarLoader.setFailure(jar, e);
+    }
+
+    public JarLoader getJarLoader() {
+        return jarLoader;
     }
 
     public DexClassLoader dex(String jar) {

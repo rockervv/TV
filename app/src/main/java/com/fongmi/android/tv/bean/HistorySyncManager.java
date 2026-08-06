@@ -182,6 +182,41 @@ public class HistorySyncManager {
         }
     }
 
+    public static String downloadCache(String name) {
+        if (useFTP && ftpManager != null) {
+            try {
+                return ftpManager.downloadJsonFileAsString(name);
+            } catch (IOException ignored) {
+            }
+        }
+        if (useGist && ftpManager != null) {
+            try {
+                return ftpManager.downloadGistJsonFileAsString(name);
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
+    public static void uploadCache(String name, String content) {
+        if (useFTP) {
+            Task.execute(() -> {
+                try {
+                    ftpManager.uploadJsonString(content, name);
+                } catch (IOException ignored) {
+                }
+            });
+        }
+        if (useGist) {
+            Task.execute(() -> {
+                try {
+                    ftpManager.uploadGistJsonString(content, name);
+                } catch (IOException ignored) {
+                }
+            });
+        }
+    }
+
     private static List<Keep> parseKeepList(String jsonString) {
         if (jsonString == null) return new ArrayList<>();
         try {

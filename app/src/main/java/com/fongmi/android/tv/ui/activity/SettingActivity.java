@@ -96,7 +96,15 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         mBinding.dohText.setText(getDohList()[getDohIndex()]);
         mBinding.proxyText.setText(UrlUtil.scheme(Setting.getProxy()));
         mBinding.backupText.setText((backup = ResUtil.getStringArray(R.array.select_backup))[Setting.getBackupMode()]);
+        mBinding.localSpiderText.setText(getLocalSpiderName());
         mBinding.aboutText.setText("leanback-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi);
+    }
+
+    private String getLocalSpiderName() {
+        String key = Setting.getLocalSpider();
+        if (key.isEmpty()) return ResUtil.getString(R.string.setting_off);
+        com.github.catvod.crawler.Spider spider = com.github.catvod.spider.SpiderFactory.get(key);
+        return spider != null ? spider.getName() : ResUtil.getString(R.string.setting_off);
     }
 
     private void setCacheText() {
@@ -120,6 +128,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         mBinding.backup.setOnClickListener(this::onBackup);
         mBinding.restore.setOnClickListener(this::onRestore);
         mBinding.player.setOnClickListener(this::onPlayer);
+        mBinding.localSpider.setOnClickListener(this::onLocalSpider);
         mBinding.version.setOnClickListener(this::onVersion);
         mBinding.vod.setOnLongClickListener(this::onVodEdit);
         mBinding.vodHome.setOnClickListener(this::onVodHome);
@@ -247,6 +256,29 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
 
     private void onPlayer(View view) {
         SettingPlayerActivity.start(this);
+    }
+
+    private void onLocalSpider(View view) {
+        List<String> names = new ArrayList<>();
+        List<String> values = new ArrayList<>();
+        names.add(ResUtil.getString(R.string.setting_off));
+        values.add("");
+        for (String key : com.github.catvod.spider.SpiderFactory.getKeys()) {
+            com.github.catvod.crawler.Spider spider = com.github.catvod.spider.SpiderFactory.get(key);
+            if (spider != null) {
+                names.add(spider.getName());
+                values.add(key);
+            }
+        }
+        int index = values.indexOf(Setting.getLocalSpider());
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.setting_local_spider)
+                .setSingleChoiceItems(names.toArray(new String[0]), index, (dialog, which) -> {
+                    Setting.putLocalSpider(values.get(which));
+                    mBinding.localSpiderText.setText(names.get(which));
+                    dialog.dismiss();
+                })
+                .show();
     }
 
     private void onVersion(View view) {

@@ -58,6 +58,7 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
     private SiteViewModel mViewModel;
     private List<Filter> mFilters;
     private List<Page> mPages;
+    private long reqId;
     private boolean mOpen;
     private Page mPage;
 
@@ -152,6 +153,11 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
         });
         mViewModel.getResult().observe(getViewLifecycleOwner(), result -> {
             if (!result.getTid().equals(getTypeId())) return;
+            // 🛠️ 核心修復：丟棄「遲到」或「過時」的資料
+            if (result.getReqId() < reqId) {
+                android.util.Log.w("VodFragment", "Discarding expired result: reqId=" + result.getReqId() + " (current=" + reqId + ")");
+                return;
+            }
             if (result.getFilters().size() > 0) updateFilters(result.getFilters());
             boolean first = mScroller.first();
             int size = result.getList().size();
@@ -214,7 +220,10 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
 
     private void getVideo(String typeId, String page, boolean refresh) {
         boolean first = "1".equals(page);
-        if (first) mLast = null;
+        if (first) {
+            mLast = null;
+            reqId++; // 每當發起第 1 頁（更換篩選或分類），更新本地請求 ID
+        }
         if (first) showProgress();
         mScroller.setLoading(true);
         int filterSize = mOpen ? mFilters.size() : 0;

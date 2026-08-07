@@ -97,6 +97,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         mBinding.proxyText.setText(UrlUtil.scheme(Setting.getProxy()));
         mBinding.backupText.setText((backup = ResUtil.getStringArray(R.array.select_backup))[Setting.getBackupMode()]);
         mBinding.localSpiderText.setText(getLocalSpiderName());
+        mBinding.categoryCacheText.setText(Setting.getSwitch(Setting.isCategoryCache()));
         mBinding.aboutText.setText("leanback-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi);
     }
 
@@ -125,6 +126,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         mBinding.proxy.setOnClickListener(this::onProxy);
         mBinding.cache.setOnClickListener(this::onCache);
         mBinding.cache.setOnLongClickListener(this::onCacheLongClick);
+        mBinding.categoryCache.setOnClickListener(this::onCategoryCache);
         mBinding.backup.setOnClickListener(this::onBackup);
         mBinding.restore.setOnClickListener(this::onRestore);
         mBinding.player.setOnClickListener(this::onPlayer);
@@ -346,6 +348,11 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         OkHttp.get().setProxy(proxy);
         VodConfig.load(Config.vod(), getCallback());
         mBinding.proxyText.setText(UrlUtil.scheme(proxy));
+    }
+
+    private void onCategoryCache(View view) {
+        Setting.putCategoryCache(!Setting.isCategoryCache());
+        mBinding.categoryCacheText.setText(Setting.getSwitch(Setting.isCategoryCache()));
     }
 
     private void onCache(View view) {

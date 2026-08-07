@@ -182,6 +182,7 @@
     <string name="setting_netflix">啟用遙控器 Netflix 鍵</string>
     <string name="setting_storage">權限</string>
     <string name="setting_normalize">音量標準化</string>
+    <string name="setting_category_cache">分類快取</string>
     <string name="setting_off">關閉</string>
     <string name="setting_on">開啟</string>
 

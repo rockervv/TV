@@ -646,4 +646,12 @@ public class Setting {
     public static void putLocalSpider(String spider) {
         Prefers.put("local_spider", spider);
     }
+
+    public static boolean isCategoryCache() {
+        return Prefers.getBoolean("category_cache", true);
+    }
+
+    public static void putCategoryCache(boolean cache) {
+        Prefers.put("category_cache", cache);
+    }
 }

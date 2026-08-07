@@ -290,7 +290,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
                 onChildSelected(child);
-                mBinding.toolbar.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
+                showToolBar();
                 HomeFragment fragment = getHomeFragment();
                 if (fragment != null && fragment.mPresenter != null && fragment.mPresenter.isDelete()) fragment.setHistoryDelete(false);
             }
@@ -574,8 +574,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             int position = mBinding.recycler.getSelectedPosition();
             int currentPagerItem = mBinding.pager.getCurrentItem();
             if (position != -1 && currentPagerItem != position) mBinding.pager.setCurrentItem(position);
-            if (position == 0) showToolBar();
-            else hideToolBar();
         }
     };
 

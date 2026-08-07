@@ -26,6 +26,7 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
     private ActivitySiteTestBinding mBinding;
     private SiteAdapter mAdapter;
     private Site mSite;
+    private Result mHomeResult;
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, SiteTestActivity.class));
@@ -40,6 +41,7 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
     protected void initView(Bundle savedInstanceState) {
         mBinding.siteRecycler.setLayoutManager(new LinearLayoutManager(this));
         mBinding.siteRecycler.setAdapter(mAdapter = new SiteAdapter(this));
+        mBinding.keywordInput.setText("欧若拉公主");
         if (!VodConfig.get().getSites().isEmpty()) {
             onItemClick(VodConfig.get().getSites().get(0));
         }
@@ -48,20 +50,83 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
     @Override
     protected void initEvent() {
         mBinding.homeBtn.setOnClickListener(v -> testHome());
-        mBinding.categoryBtn.setOnClickListener(v -> testCategory());
-        mBinding.detailBtn.setOnClickListener(v -> testDetail());
+        mBinding.categoryBtn.setOnClickListener(v -> {
+            if (mBinding.tidInput.getText().toString().isEmpty()) pickCategory();
+            else testCategory();
+        });
+        mBinding.categoryBtn.setOnLongClickListener(v -> {
+            pickCategory();
+            return true;
+        });
+        mBinding.detailBtn.setOnClickListener(v -> {
+            if (mBinding.idInput.getText().toString().isEmpty()) pickVideo(false);
+            else testDetail();
+        });
+        mBinding.detailBtn.setOnLongClickListener(v -> {
+            pickVideo(false);
+            return true;
+        });
+        mBinding.playerBtn.setOnClickListener(v -> {
+            if (mBinding.idInput.getText().toString().isEmpty()) pickVideo(true);
+            else testPlayer();
+        });
+        mBinding.playerBtn.setOnLongClickListener(v -> {
+            pickVideo(true);
+            return true;
+        });
         mBinding.searchBtn.setOnClickListener(v -> testSearch());
-        mBinding.playerBtn.setOnClickListener(v -> testPlayer());
         mBinding.keywordInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) testSearch();
             return true;
         });
     }
 
+    private void pickVideo(boolean player) {
+        if (mHomeResult == null || mHomeResult.getList().isEmpty()) {
+            Notify.show("請先執行 Home 測試以獲取影片列表");
+            return;
+        }
+        String[] names = new String[mHomeResult.getList().size()];
+        String[] ids = new String[mHomeResult.getList().size()];
+        for (int i = 0; i < mHomeResult.getList().size(); i++) {
+            names[i] = mHomeResult.getList().get(i).getVodName();
+            ids[i] = mHomeResult.getList().get(i).getVodId();
+        }
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("選擇影片")
+                .setItems(names, (dialog, which) -> {
+                    mBinding.idInput.setText(ids[which]);
+                    if (player) testPlayer();
+                    else testDetail();
+                })
+                .show();
+    }
+
+    private void pickCategory() {
+        if (mHomeResult == null || mHomeResult.getTypes().isEmpty()) {
+            Notify.show("請先執行 Home 測試以獲取分類");
+            return;
+        }
+        String[] names = new String[mHomeResult.getTypes().size()];
+        String[] ids = new String[mHomeResult.getTypes().size()];
+        for (int i = 0; i < mHomeResult.getTypes().size(); i++) {
+            names[i] = mHomeResult.getTypes().get(i).getTypeName();
+            ids[i] = mHomeResult.getTypes().get(i).getTypeId();
+        }
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("選擇分類")
+                .setItems(names, (dialog, which) -> {
+                    mBinding.tidInput.setText(ids[which]);
+                    testCategory();
+                })
+                .show();
+    }
+
     @Override
     public void onItemClick(Site item) {
         for (Site site : VodConfig.get().getSites()) site.setSelected(site.equals(item));
         mSite = item;
+        mHomeResult = null;
         mBinding.siteName.setText(item.getName());
         mBinding.siteConfig.setText(String.format("API: %s\nEXT: %s", item.getApi(), item.getExt()));
         mAdapter.notifyDataSetChanged();
@@ -82,7 +147,16 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
         new Thread(() -> {
             try {
                 Result result = SiteApi.homeContent(mSite);
-                showResult("homeContent", result.toString());
+                mHomeResult = result;
+                runOnUiThread(() -> {
+                    if (mBinding.tidInput.getText().toString().isEmpty() && !result.getTypes().isEmpty()) {
+                        mBinding.tidInput.setText(result.getTypes().get(0).getTypeId());
+                    }
+                    if (mBinding.idInput.getText().toString().isEmpty() && !result.getList().isEmpty()) {
+                        mBinding.idInput.setText(result.getList().get(0).getId());
+                    }
+                    showResult("homeContent", result.toString());
+                });
             } catch (Exception e) {
                 showResult("homeContent", "Error: " + e.getMessage());
                 Log.e("SiteTest", "homeContent Error", e);
@@ -101,6 +175,7 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
         new Thread(() -> {
             try {
                 Result result = SiteApi.categoryContent(mSite.getKey(), tid, "1", true, new HashMap<>());
+                mHomeResult = result; // Update result to allow picking videos from this category
                 showResult("categoryContent", result.toString());
             } catch (Exception e) {
                 showResult("categoryContent", "Error: " + e.getMessage());

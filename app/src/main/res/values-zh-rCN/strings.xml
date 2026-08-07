@@ -77,7 +77,7 @@
     <string name="play_now">正在播放：%1$s</string>
     <string name="play_resume">续播自 %1$s</string>
     <string name="play_skip_op">跳过片头 %1$s</string>
-    <string name="play_ready">准备播放：%s</string>
+    <string name="play_ready">准备播放：%1$s</string>
     <string name="play_switch_parse">正在切换解析为：%1$s</string>
     <string name="play_switch_flag">正在切换线路为：%1$s</string>
     <string name="play_switch_site">正在切换源为：%1$s</string>

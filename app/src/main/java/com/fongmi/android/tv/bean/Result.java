@@ -93,6 +93,7 @@ public class Result implements Parcelable {
     @SerializedName("drm")
     private Drm drm;
     private String tid;
+    private long reqId;
 
     public Result() {
     }
@@ -100,6 +101,16 @@ public class Result implements Parcelable {
     protected Result(Parcel in) {
         this.types = new ArrayList<>();
         in.readList(this.types, Class.class.getClassLoader());
+        this.reqId = in.readLong();
+    }
+
+    public long getReqId() {
+        return reqId;
+    }
+
+    public Result setReqId(long reqId) {
+        this.reqId = reqId;
+        return this;
     }
 
     public static Result objectFrom(String str) {
@@ -391,6 +402,7 @@ public class Result implements Parcelable {
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeList(this.types);
+        dest.writeLong(this.reqId);
     }
 
     public static final Creator<Result> CREATOR = new Creator<>() {

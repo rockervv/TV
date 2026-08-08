@@ -88,6 +88,7 @@ public abstract class BaseActivity extends AppCompatActivity {
     }
 
     protected void onBackPress() {
+        if (!handleBack()) finish();
     }
 
     protected boolean isVisible(View view) {
@@ -130,9 +131,7 @@ public abstract class BaseActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (!handleBack()) {
-                    finish();
-                }
+                onBackPress();
             }
         });
     }

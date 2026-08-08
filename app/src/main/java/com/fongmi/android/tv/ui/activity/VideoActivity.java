@@ -647,11 +647,6 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         finish();
     }
 
-    @Override
-    public void onBackPressed() {
-        onBackPress();
-    }
-
     private void checkCast() {
         if (isCast() && !isFullscreen()) enterFullscreen();
         else mBinding.progressLayout.showProgress();

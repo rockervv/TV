@@ -170,6 +170,7 @@ public class ADFilter {
                 } else if (isMediaSegment(line)) {
                     currentBlock.segmentCount++;
                     Long currentNum = extractSegmentNumber(line);
+                    if (currentBlock.firstNum == null) currentBlock.firstNum = currentNum;
                     if (currentBlock.lastNum != null && currentNum != null && Math.abs(currentNum - currentBlock.lastNum) > 1) {
                         currentBlock.hasSequenceJump = true;
                     }
@@ -189,6 +190,7 @@ public class ADFilter {
         double adDuration = 0.0;
         double totalDuration = 0.0;
         boolean processedFirstMediaBlock = false;
+        Long globalLastNum = null;
 
         for (M3U8Block block : blocks) {
             if (block.lines.isEmpty()) continue;
@@ -197,11 +199,10 @@ public class ADFilter {
             boolean isAd = false;
 
             if (block.segmentCount > 0) {
-                // Determine if config mismatch
                 boolean configMismatch = !mainConfig.isEmpty() && !block.configFeature.equals(mainConfig);
-
-                // 🚀 核心修正：如果區塊時長 > 120秒 或分片數 > 30，除非有明確的 Cue 標籤或 AdUrl，否則視為正片
                 boolean isLikelyLongVideo = block.duration > 120 || block.segmentCount > 30;
+                boolean continuous = globalLastNum != null && block.firstNum != null && Math.abs(block.firstNum - globalLastNum) <= 1;
+                boolean sequenceJump = globalLastNum != null && block.firstNum != null && !continuous;
 
                 if (block.hasCueAd) {
                     isAd = true;
@@ -209,11 +210,15 @@ public class ADFilter {
                     isAd = true;
                 } else if (isLikelyLongVideo) {
                     isAd = false;
-                } else if (block.hasSequenceJump || configMismatch) {
+                } else if (block.hasSequenceJump || configMismatch || sequenceJump) {
                     isAd = true;
-                } else if (block.duration > 0 && block.duration < 60) {
+                } else if (block.duration > 0 && block.duration < 25) {
                     if (block.hasStartDiscontinuity && processedFirstMediaBlock) {
-                        isAd = true;
+                        if (continuous) {
+                            isAd = false;
+                        } else {
+                            isAd = true;
+                        }
                     } else if (block.hasEndList && processedFirstMediaBlock) {
                         isAd = true;
                     }
@@ -221,7 +226,7 @@ public class ADFilter {
             }
 
             if (isAd) {
-                adCount ++; //= block.segmentCount;
+                adCount ++;
                 adDuration += block.duration;
                 Log.d("M3U8Parser", "Filtered Block (AD): Duration=" + block.duration + ", Segments=" + block.segmentCount + ", Cue=" + block.hasCueAd + ", ConfigMismatch=" + (!mainConfig.isEmpty() && !block.configFeature.equals(mainConfig)));
                 if (block.hasEndList) {
@@ -233,6 +238,7 @@ public class ADFilter {
                 }
                 if (block.segmentCount > 0) {
                     processedFirstMediaBlock = true;
+                    if (block.lastNum != null) globalLastNum = block.lastNum;
                 }
             }
         }
@@ -289,14 +295,19 @@ public class ADFilter {
         return !currentFeature.equals(mainFeature);
     }
 
-    private static Long extractSegmentNumber(String tsFilename) {
+    private static Long extractSegmentNumber(String url) {
         try {
-            Matcher matcher = PATTERN_SEGMENT.matcher(tsFilename);
-            if (matcher.find()) {
-                return Long.parseLong(Objects.requireNonNull(matcher.group(1)));
+            int queryIdx = url.indexOf('?');
+            String path = queryIdx > 0 ? url.substring(0, queryIdx) : url;
+            Matcher matcher = PATTERN_SEGMENT.matcher(path);
+            String lastMatch = null;
+            while (matcher.find()) {
+                lastMatch = matcher.group(1);
             }
-        } catch (Exception e) {
-            // Log.e("M3U8Parser", "Failed to parse segment number from: " + tsFilename);
+            if (lastMatch != null) {
+                return Long.parseLong(lastMatch);
+            }
+        } catch (Exception ignored) {
         }
         return null;
     }
@@ -310,6 +321,7 @@ public class ADFilter {
         boolean hasEndList = false;
         boolean hasCueAd = false;
         String configFeature = "";
+        Long firstNum = null;
         Long lastNum = null;
         boolean hasSequenceJump = false;
     }

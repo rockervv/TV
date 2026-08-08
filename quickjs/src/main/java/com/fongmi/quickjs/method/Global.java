@@ -41,20 +41,22 @@ public class Global {
     private final QuickJSContext ctx;
     private final Timer timer;
 
+    private final String tag;
     private volatile boolean destroyed;
 
-    private Global(QuickJSContext ctx, ExecutorService executor) {
+    private Global(QuickJSContext ctx, ExecutorService executor, String tag) {
         this.executor = executor;
         this.timerId = new AtomicInteger();
         this.timers = new ConcurrentHashMap<>();
         this.timer = new Timer("quickjs-timer", true);
         this.ctx = ctx;
+        this.tag = tag;
         setProperty();
     }
 
 
-    public static Global create(QuickJSContext ctx, ExecutorService executor) {
-        return new Global(ctx, executor);
+    public static Global create(QuickJSContext ctx, ExecutorService executor, String tag) {
+        return new Global(ctx, executor, tag);
     }
 
 
@@ -168,7 +170,7 @@ public class Global {
     @JSMethod
     public String gbkDecode(JSArray buffer) throws CharacterCodingException {
         String result = JSUtil.decodeTo("GB2312", buffer);
-        Logger.t("gbkDecode").d("text:%s\nresult:\n%s", buffer, result);
+        Logger.t(tag).d("text:%s\nresult:\n%s", buffer, result);
         return result;
     }
 
@@ -176,7 +178,7 @@ public class Global {
     @JSMethod
     public String md5X(String text) {
         String result = Crypto.md5(text);
-        Logger.t("md5X").d("text:%s\nresult:\n%s", text, result);
+        Logger.t(tag).d("text:%s\nresult:\n%s", text, result);
         return result;
     }
 
@@ -184,7 +186,7 @@ public class Global {
     @JSMethod
     public String aesX(String mode, boolean encrypt, String input, boolean inBase64, String key, String iv, boolean outBase64) {
         String result = Crypto.aes(mode, encrypt, input, inBase64, key, iv, outBase64);
-        Logger.t("aesX").d("mode:%s\nencrypt:%s\ninBase64:%s\noutBase64:%s\nkey:%s\niv:%s\ninput:\n%s\nresult:\n%s", mode, encrypt, inBase64, outBase64, key, iv, input, result);
+        Logger.t(tag).d("mode:%s\nencrypt:%s\ninBase64:%s\noutBase64:%s\nkey:%s\niv:%s\ninput:\n%s\nresult:\n%s", mode, encrypt, inBase64, outBase64, key, iv, input, result);
         return result;
     }
 
@@ -192,7 +194,7 @@ public class Global {
     @JSMethod
     public String rsaX(String mode, boolean pub, boolean encrypt, String input, boolean inBase64, String key, boolean outBase64) {
         String result = Crypto.rsa(mode, pub, encrypt, input, inBase64, key, outBase64);
-        Logger.t("rsaX").d("mode:%s\npub:%s\nencrypt:%s\ninBase64:%s\noutBase64:%s\nkey:\n%s\ninput:\n%s\nresult:\n%s", mode, pub, encrypt, inBase64, outBase64, key, input, result);
+        Logger.t(tag).d("mode:%s\npub:%s\nencrypt:%s\ninBase64:%s\noutBase64:%s\nkey:\n%s\ninput:\n%s\nresult:\n%s", mode, pub, encrypt, inBase64, outBase64, key, input, result);
         return result;
     }
 

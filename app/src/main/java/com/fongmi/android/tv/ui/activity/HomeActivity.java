@@ -884,7 +884,12 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 RefreshEvent.wall();
                 break;
             case BOOT:
-                LiveActivity.start(this);
+                if (Setting.isBootLive()) {
+                    LiveActivity.start(this);
+                } else if (Setting.isBootVod()) {
+                    List<History> history = History.get();
+                    if (!history.isEmpty()) onItemClick(history.get(0));
+                }
                 break;
         }
     }

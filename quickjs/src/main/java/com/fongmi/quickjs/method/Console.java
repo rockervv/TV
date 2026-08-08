@@ -5,25 +5,29 @@ import com.whl.quickjs.wrapper.QuickJSContext;
 
 public class Console implements QuickJSContext.Console {
 
-    private static final String TAG = "quickjs";
+    private final String tag;
+
+    public Console(String tag) {
+        this.tag = tag;
+    }
 
     @Override
     public void log(String info) {
-        Logger.t(TAG).d(info);
+        Logger.t(tag).d(info);
     }
 
     @Override
     public void info(String info) {
-        Logger.t(TAG).i(info);
+        Logger.t(tag).i(info);
     }
 
     @Override
     public void warn(String info) {
-        Logger.t(TAG).w(info);
+        Logger.t(tag).w(info);
     }
 
     @Override
     public void error(String info) {
-        Logger.t(TAG).e(info);
+        Logger.t(tag).e(info);
     }
 }

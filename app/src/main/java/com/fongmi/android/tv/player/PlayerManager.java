@@ -297,6 +297,10 @@ public class PlayerManager implements ParseCallback {
         if (engine != null) engine.setRender(mode, intensity);
     }
 
+    public void setScale(int scale) {
+        if (engine != null) engine.setScale(scale);
+    }
+
     public void play() {
         player.play();
     }

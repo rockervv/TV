@@ -23,6 +23,7 @@ import com.fongmi.android.tv.utils.Monitor;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.hook.Hook;
 import com.github.catvod.Init;
+import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.bean.Doh;
 import com.github.catvod.net.OkHttp;
 import com.google.gson.Gson;
@@ -156,6 +157,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
 
     private void initTools() {
         Logger.addLogAdapter(getLogAdapter());
+        SpiderDebug.init();
         OkHttp.get().setProxy(Setting.getProxy());
         OkHttp.get().setDoh(Doh.objectFrom(Setting.getDoh()));
         ADFilter.initListener();

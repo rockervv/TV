@@ -176,6 +176,7 @@ public class CastActivity extends PlaybackActivity implements CustomKeyDownCast.
     }
 
     private void setScale(int scale) {
+        player().setScale(scale);
         mBinding.player.setResizeMode(scale);
         mBinding.control.scale.setText(ResUtil.getStringArray(R.array.select_scale)[scale]);
     }

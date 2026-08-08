@@ -263,6 +263,14 @@ public class Setting {
         Prefers.put("boot_live", boot);
     }
 
+    public static boolean isBootVod() {
+        return Prefers.getBoolean("boot_vod");
+    }
+
+    public static void putBootVod(boolean boot) {
+        Prefers.put("boot_vod", boot);
+    }
+
     public static boolean isInvert() {
         return Prefers.getBoolean("invert");
     }

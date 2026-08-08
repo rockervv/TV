@@ -177,9 +177,9 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     private void setScale(int scale) {
         if (mVod != null) mVod.setScale(scale);
-        if (mBinding.exo.getResizeMode() == scale) return;
-        mBinding.exo.setResizeMode(scale);
         mBinding.control.scale.setText(ResUtil.getStringArray(R.array.select_scale)[scale]);
+        player().setScale(scale);
+        mBinding.exo.setResizeMode(scale);
     }
 
     @Override

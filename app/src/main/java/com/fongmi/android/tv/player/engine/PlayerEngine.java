@@ -40,6 +40,9 @@ public interface PlayerEngine {
     default void setRender(int mode, int intensity) {
     }
 
+    default void setScale(int scale) {
+    }
+
     default boolean addSubtitle(Sub sub) {
         return false;
     }

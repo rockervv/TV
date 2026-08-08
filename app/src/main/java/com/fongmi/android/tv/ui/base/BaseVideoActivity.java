@@ -20,6 +20,7 @@ import com.fongmi.android.tv.model.PlaybackViewModel;
 import com.fongmi.android.tv.playback.vod.VodPlaybackController;
 import com.fongmi.android.tv.playback.vod.VodPlaybackHost;
 import com.fongmi.android.tv.server.Server;
+import com.fongmi.android.tv.server.process.M3U8;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.activity.PlaybackActivity;
 import com.fongmi.android.tv.utils.Notify;
@@ -318,6 +319,25 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
                 if (content.isEmpty()) {
                     App.post(() -> Notify.show(R.string.error_play_url));
                     return;
+                }
+                while (content.contains("#EXT-X-STREAM-INF")) {
+                    String nextUrl = "";
+                    String[] lines = content.split("\n");
+                    for (int i = 0; i < lines.length; i++) {
+                        if (lines[i].contains("#EXT-X-STREAM-INF")) {
+                            for (int j = i + 1; j < lines.length; j++) {
+                                String line = lines[j].trim();
+                                if (line.isEmpty() || line.startsWith("#")) continue;
+                                nextUrl = line;
+                                break;
+                            }
+                        }
+                        if (!nextUrl.isEmpty()) break;
+                    }
+                    if (nextUrl.isEmpty()) break;
+                    String nextContent = M3U8.fetch(decodeUrl(nextUrl), player().getHeaders());
+                    if (nextContent.isEmpty() || nextContent.equals(content)) break;
+                    content = nextContent;
                 }
                 String realUrl = decodeUrl(url);
                 String realContent = decodeContent(content);

@@ -61,6 +61,37 @@ public class MpvPlayerEngine implements PlayerEngine {
     }
 
     @Override
+    public void setScale(int scale) {
+        switch (scale) {
+            case 0:
+                player.setOption("video-aspect-override", "-1");
+                player.setOption("keepaspect", "yes");
+                player.setOption("panscan", "0.0");
+                break;
+            case 1:
+                player.setOption("video-aspect-override", "16:9");
+                player.setOption("keepaspect", "yes");
+                player.setOption("panscan", "0.0");
+                break;
+            case 2:
+                player.setOption("video-aspect-override", "4:3");
+                player.setOption("keepaspect", "yes");
+                player.setOption("panscan", "0.0");
+                break;
+            case 3:
+                player.setOption("video-aspect-override", "-1");
+                player.setOption("keepaspect", "no");
+                player.setOption("panscan", "0.0");
+                break;
+            case 4:
+                player.setOption("video-aspect-override", "-1");
+                player.setOption("keepaspect", "yes");
+                player.setOption("panscan", "1.0");
+                break;
+        }
+    }
+
+    @Override
     public boolean addSubtitle(Sub sub) {
         if (sub == null || player.getCurrentMediaItem() == null) return false;
         if (player.getPlaybackState() == Player.STATE_IDLE || player.getPlaybackState() == Player.STATE_ENDED) return false;

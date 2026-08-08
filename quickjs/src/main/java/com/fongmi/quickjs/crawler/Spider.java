@@ -159,7 +159,7 @@ public class Spider extends com.github.catvod.crawler.Spider {
 
     private void createCtx() {
         ctx = QuickJSContext.create();
-        ctx.setConsole(new Console());
+        ctx.setConsole(new Console(getTag()));
         ctx.evaluate(Asset.read("js/lib/http.js"));
         ctx.getGlobalObject().setProperty("local", Local.class);
         ctx.setModuleLoader(new QuickJSContext.BytecodeModuleLoader() {
@@ -175,9 +175,20 @@ public class Spider extends com.github.catvod.crawler.Spider {
         });
     }
 
+    private String getTag() {
+        try {
+            int index = api.lastIndexOf("/");
+            String name = index == -1 ? api : api.substring(index + 1);
+            if (name.contains("?")) name = name.substring(0, name.indexOf("?"));
+            return "quickjs-" + name.replace(".js", "");
+        } catch (Exception e) {
+            return "quickjs";
+        }
+    }
+
     private void createFun() {
         try {
-            global = Global.create(ctx, executor);
+            global = Global.create(ctx, executor, getTag());
             Class<?> clz = dex.loadClass("com.github.catvod.js.Function");
             clz.getDeclaredConstructor(QuickJSContext.class).newInstance(ctx);
         } catch (Throwable ignored) {

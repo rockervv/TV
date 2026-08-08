@@ -229,6 +229,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void setScale(int scale) {
         LiveSetting.putScale(scale);
+        player().setScale(scale);
         mBinding.player.setResizeMode(scale);
         mBinding.control.action.scale.setText(ResUtil.getStringArray(R.array.select_scale)[scale]);
     }
@@ -454,7 +455,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     @Override
     protected void onPrepare() {
         mBinding.widget.status.setVisibility(View.VISIBLE);
-        mBinding.widget.status.setText(R.string.play_status_preparing);
+        mBinding.widget.status.setText(R.string.play_status_data_success);
+        mBinding.widget.status.postDelayed(() -> mBinding.widget.status.setText(R.string.play_status_preparing), 1000);
         setPlaybackMode();
     }
 
@@ -489,9 +491,12 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         switch (state) {
             case Player.STATE_BUFFERING:
                 showProgress();
+                mBinding.widget.status.setVisibility(View.VISIBLE);
+                mBinding.widget.status.setText(R.string.play_status_preparing);
                 break;
             case Player.STATE_READY:
                 hideProgress();
+                mBinding.widget.status.setVisibility(View.GONE);
                 player().reset();
                 break;
             case Player.STATE_ENDED:
@@ -504,7 +509,10 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     public void onTimeoutCountdown(long ms) {
         if (ms > 0) {
             mBinding.widget.status.setVisibility(View.VISIBLE);
-            mBinding.widget.status.setText(ResUtil.getString(R.string.play_status_countdown, ms / 1000));
+            mBinding.widget.status.setText(ResUtil.getString(R.string.play_status_reading, ms / 1000.0f));
+        } else if (ms == 0) {
+            mBinding.widget.status.setVisibility(View.VISIBLE);
+            mBinding.widget.status.setText(R.string.play_status_data_timeout);
         } else {
             mBinding.widget.status.setVisibility(View.GONE);
         }

@@ -179,9 +179,9 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     private void setScale(int scale) {
         if (mVod != null) mVod.setScale(scale);
-        if (mBinding.exo.getResizeMode() == scale) return;
-        mBinding.exo.setResizeMode(scale);
         mBinding.control.scale.setText(ResUtil.getStringArray(R.array.select_scale)[scale]);
+        player().setScale(scale);
+        mBinding.exo.setResizeMode(scale);
     }
 
     @Override
@@ -531,11 +531,14 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
             mBinding.widget.status.setVisibility(View.GONE);
             return;
         }
-        if (mBinding.widget.status.getVisibility() != View.VISIBLE) mBinding.widget.status.setVisibility(View.VISIBLE);
-        if (ms <= 0) {
-            mBinding.widget.status.setText(R.string.play_timeout_error);
+        if (ms > 0) {
+            mBinding.widget.status.setVisibility(View.VISIBLE);
+            mBinding.widget.status.setText(ResUtil.getString(R.string.play_status_reading, ms / 1000.0f));
+        } else if (ms == 0) {
+            mBinding.widget.status.setVisibility(View.VISIBLE);
+            mBinding.widget.status.setText(R.string.play_status_data_timeout);
         } else {
-            mBinding.widget.status.setText(ResUtil.getString(R.string.play_timeout_count, ms / 1000.0f));
+            mBinding.widget.status.setVisibility(View.GONE);
         }
     }
 
@@ -1259,7 +1262,8 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     protected void onPrepare() {
         mBinding.widget.status.setVisibility(View.VISIBLE);
-        mBinding.widget.status.setText(R.string.play_status_preparing);
+        mBinding.widget.status.setText(R.string.play_status_data_success);
+        mBinding.widget.status.postDelayed(() -> mBinding.widget.status.setText(R.string.play_status_preparing), 1000);
         setPlaybackMode();
     }
 
@@ -1296,7 +1300,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
                 mClock.setCallback(null);
                 if (mBinding.widget.status.getVisibility() == View.VISIBLE || mBinding.widget.progress.getVisibility() == View.VISIBLE) {
                     mBinding.widget.status.setVisibility(View.VISIBLE);
-                    mBinding.widget.status.setText(R.string.play_buffering);
+                    mBinding.widget.status.setText(R.string.play_status_preparing);
                 }
                 break;
             case Player.STATE_READY:

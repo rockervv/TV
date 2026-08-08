@@ -70,6 +70,7 @@ public class SiteApi {
     @NonNull
     public static Result homeContent(@NonNull Site site, boolean refresh) {
         if (!VodConfig.get().isLoaded() || BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty().setTid("");
+        SpiderDebug.onSet("SpiderDebug-" + site.getName());
         if (site.getApi().isEmpty() || site.getType() == 0) {
             Site recovery = VodConfig.get().getSite(site.getKey());
             if (recovery.getApi().isEmpty()) return Result.empty();
@@ -146,6 +147,7 @@ public class SiteApi {
         if (!VodConfig.get().isLoaded()) return Result.empty().setTid(tid);
         Site site = VodConfig.get().getSite(key);
         if (BaseLoader.get().getJarLoader().isError(site.getJar()) || site.getApi().isEmpty()) return Result.empty().setTid(tid);
+        SpiderDebug.onSet("SpiderDebug-" + site.getName());
         
         // 🛠️ 核心修復：發送前將所有參數轉化為簡體，確保 Mainland 站點能正確識別
         HashMap<String, String> params = new HashMap<>();
@@ -221,6 +223,7 @@ public class SiteApi {
         if (!VodConfig.get().isLoaded()) return Result.empty();
         Site site = VodConfig.get().getSite(key);
         if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty();
+        SpiderDebug.onSet("SpiderDebug-" + site.getName());
         if (site.getApi().isEmpty() && !PUSH.equals(key)) return Result.empty();
         try {
             if (site.isEmpty() && PUSH.equals(key)) {
@@ -263,6 +266,7 @@ public class SiteApi {
     @NonNull
     public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id) {
         Site site = VodConfig.get().getSite(key);
+        SpiderDebug.onSet("SpiderDebug-" + site.getName());
         try {
             Source.get().stop();
             if (isSpider(site)) {
@@ -312,6 +316,7 @@ public class SiteApi {
     @NonNull
     public static Result searchContent(@NonNull Site site, @NonNull String keyword, boolean quick, @NonNull String page) {
         if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty();
+        SpiderDebug.onSet("SpiderDebug-" + site.getName());
         try {
             boolean hasPage = !page.equals("1");
             if (isSpider(site)) {

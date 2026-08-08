@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.api.loader;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.utils.Download;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.crawler.Spider;
@@ -152,6 +153,7 @@ public class JarLoader {
 
                 spider = (Spider) loader.loadClass("com.github.catvod.spider." + apiName).newInstance();
                 spider.siteKey = key;
+                spider.siteName = VodConfig.get().getSite(key).getName();
                 spider.init(App.get(), ext);
                 spiders.put(spKey, spider);
                 return spider;

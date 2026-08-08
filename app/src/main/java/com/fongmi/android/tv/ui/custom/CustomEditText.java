@@ -1,13 +1,13 @@
 package com.fongmi.android.tv.ui.custom;
 
 import android.content.Context;
-import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.text.InputType;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -29,13 +29,19 @@ public class CustomEditText extends AppCompatEditText {
     }
 
     @Override
-    public boolean onCheckIsTextEditor() {
-        Configuration config = getResources().getConfiguration();
-        if (config.keyboard != Configuration.KEYBOARD_NOKEYS) {
-            config.keyboard = Configuration.KEYBOARD_NOKEYS;
-            getContext().getResources().updateConfiguration(config, getResources().getDisplayMetrics());
+    public InputConnection onCreateInputConnection(@NonNull EditorInfo outAttrs) {
+        InputConnection ic = super.onCreateInputConnection(outAttrs);
+        if (getShowSoftInputOnFocus()) {
+            // 🛡️ Android 14 強制 Gboard 顯示的核心修復
+            // 透過臨時修改當前 Context 的配置，欺騙輸入法引擎「沒有硬體鍵盤」
+            // 這樣 Gboard 就不會顯示「使用遠端裝置輸入」的提示，而是直接彈出虛擬鍵盤
+            android.content.res.Configuration config = getResources().getConfiguration();
+            if (config.keyboard != android.content.res.Configuration.KEYBOARD_NOKEYS) {
+                config.keyboard = android.content.res.Configuration.KEYBOARD_NOKEYS;
+                getResources().updateConfiguration(config, getResources().getDisplayMetrics());
+            }
         }
-        return super.onCheckIsTextEditor();
+        return ic;
     }
 
     @Override
@@ -43,10 +49,7 @@ public class CustomEditText extends AppCompatEditText {
         super.onFocusChanged(focused, direction, previouslyFocusedRect);
         if (focused && getShowSoftInputOnFocus()) {
             setRawInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
-            postDelayed(() -> {
-                InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-                if (imm != null) imm.showSoftInput(this, InputMethodManager.SHOW_FORCED);
-            }, 200);
+            postDelayed(() -> Util.showKeyboard(this), 200);
         }
     }
 

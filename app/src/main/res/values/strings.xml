@@ -270,6 +270,7 @@
     <string name="error_play_op_limit">片頭時間不合理（上限 10 分鐘）</string>
     <string name="error_play_ed_limit">片尾時間不合理（上限 10 分鐘）</string>
     <string name="error_decode_fallback">硬解失敗，已回退至軟解</string>
+    <string name="error_play_refused">連線被拒絕（ECONNREFUSED）</string>
     <string name="error_detail">沒有播放資料</string>
     <string name="error_empty">未找到</string>
 

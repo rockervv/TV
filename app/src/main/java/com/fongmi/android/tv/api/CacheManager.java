@@ -20,36 +20,42 @@ public class CacheManager {
         return getFile(api, "home", "1", "");
     }
 
+    public static String getExtHash(String extend) {
+        if (TextUtils.isEmpty(extend)) return "";
+        return com.github.catvod.utils.Util.md5(extend).substring(0, 8);
+    }
+
     public static String getExtHash(HashMap<String, String> extend) {
         if (extend == null || extend.isEmpty()) return "";
         // 🛠️ 使用 TreeMap 確保 Key 排序，產生唯一的 JSON 與 Hash
         TreeMap<String, String> sorted = new TreeMap<>(extend);
         String json = com.fongmi.android.tv.App.gson().toJson(sorted);
-        return com.github.catvod.utils.Util.md5(json).substring(0, 8);
+        return getExtHash(json);
     }
 
-    public static File getFile(String api, String tid, String page, String extHash) {
+    public static File getFile(String key, String tid, String page, String extHash) {
+        String name = com.github.catvod.utils.Util.md5(key);
         if (TextUtils.isEmpty(extHash)) {
-            return Path.files(String.format("cache_%s_%s_%s.json", api, tid, page));
+            return Path.files(String.format("cache_%s_%s_%s.json", name, tid, page));
         } else {
-            return Path.files(String.format("cache_%s_%s_%s_%s.json", api, tid, page, extHash));
+            return Path.files(String.format("cache_%s_%s_%s_%s.json", name, tid, page, extHash));
         }
     }
 
     public static Result get(Site site) {
-        return get(site, "home", "1", "");
+        return get(site, "home", "1", getExtHash(site.getExt()));
     }
 
     public static Result get(Site site, String tid, String page, String extHash) {
         try {
-            File local = getFile(site.getApi(), tid, page, extHash);
+            File local = getFile(site.getKey(), tid, page, extHash);
             if (local.exists()) {
                 Log.d(TAG, "Loading local cache for " + site.getName() + " [" + tid + "] Hash: " + extHash);
                 String data = Path.read(local);
                 if (!data.isEmpty()) return Result.fromJson(data);
             }
-            // 雲端同步僅針對第一頁與首頁，避免流量過大
-            if (page.equals("1") && TextUtils.isEmpty(extHash)) {
+            // 雲端同步僅針對第一頁與首頁
+            if (page.equals("1")) {
                 Log.d(TAG, "Local cache not found for " + site.getName() + ", checking cloud...");
                 String cloudData = HistorySyncManager.downloadCache(local.getName());
                 if (cloudData != null && !cloudData.isEmpty()) {
@@ -65,13 +71,13 @@ public class CacheManager {
     }
 
     public static void put(Site site, Result result) {
-        put(site, "home", "1", "", result);
+        put(site, "home", "1", getExtHash(site.getExt()), result);
     }
 
     public static void put(Site site, String tid, String page, String extHash, Result result) {
         if (result == null || (result.getTypes().isEmpty() && result.getList().isEmpty())) return;
         try {
-            File local = getFile(site.getApi(), tid, page, extHash);
+            File local = getFile(site.getKey(), tid, page, extHash);
             String json = result.toString();
             Path.write(local, json);
             // 僅同步第一頁與無篩選的首頁到雲端

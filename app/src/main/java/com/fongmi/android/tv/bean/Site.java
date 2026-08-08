@@ -147,6 +147,7 @@ public class Site implements Parcelable {
     public static Site objectFrom(JsonElement element, String spider) {
         try {
             Site site = App.gson().fromJson(element, Site.class);
+            if (site.getKey().isEmpty()) site.setKey(site.getName());
             if (site.getJar().isEmpty()) site.setJar(spider);
             site.setApi(UrlUtil.convert(site.getApi()));
             site.setExt(UrlUtil.convert(site.getExt()));

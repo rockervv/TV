@@ -14,6 +14,7 @@ import okhttp3.OkHttpClient;
 public abstract class Spider {
 
     public String siteKey;
+    public String siteName;
 
     public String getName() {
         return getClass().getSimpleName();

@@ -5,6 +5,7 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.player.engine.PlayerEngine;
 import com.fongmi.android.tv.player.media.MediaItemFactory;
 import com.fongmi.android.tv.player.media.PlaySpec;
@@ -91,6 +92,7 @@ public class ExoPlayerEngine implements PlayerEngine {
 
     @Override
     public String getErrorMessage(PlaybackException e) {
+        if (isConnectionRefused(e)) return com.fongmi.android.tv.utils.ResUtil.getString(R.string.error_play_refused);
         return provider.get(e);
     }
 
@@ -101,12 +103,25 @@ public class ExoPlayerEngine implements PlayerEngine {
                 return ErrorAction.FALLBACK;
             }
         }
+        if (isConnectionRefused(e)) return ErrorAction.FATAL;
         return switch (e.errorCode) {
             case PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> ErrorAction.SEEK;
             case PlaybackException.ERROR_CODE_DECODER_INIT_FAILED, PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED, PlaybackException.ERROR_CODE_DECODING_FAILED -> ErrorAction.FALLBACK;
             case PlaybackException.ERROR_CODE_IO_UNSPECIFIED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> ErrorAction.FORMAT;
             default -> ErrorAction.FATAL;
         };
+    }
+
+    private boolean isConnectionRefused(PlaybackException e) {
+        String message = e.getMessage() != null ? e.getMessage() : "";
+        if (message.contains("ECONNREFUSED") || (message.contains("127.0.0.1") && !message.contains(String.valueOf(com.github.catvod.Proxy.getPort())))) return true;
+        Throwable t = e.getCause();
+        while (t != null) {
+            String cMsg = t.getMessage() != null ? t.getMessage() : "";
+            if (cMsg.contains("ECONNREFUSED") || (cMsg.contains("127.0.0.1") && !cMsg.contains(String.valueOf(com.github.catvod.Proxy.getPort())))) return true;
+            t = t.getCause();
+        }
+        return false;
     }
 
     private void startInternal(long position) {

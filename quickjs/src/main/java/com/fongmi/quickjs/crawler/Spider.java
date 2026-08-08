@@ -1,6 +1,7 @@
 package com.fongmi.quickjs.crawler;
 
 import android.content.Context;
+import android.text.TextUtils;
 
 import com.fongmi.quickjs.bean.Res;
 import com.fongmi.quickjs.method.Console;
@@ -177,10 +178,9 @@ public class Spider extends com.github.catvod.crawler.Spider {
 
     private String getTag() {
         try {
-            int index = api.lastIndexOf("/");
-            String name = index == -1 ? api : api.substring(index + 1);
-            if (name.contains("?")) name = name.substring(0, name.indexOf("?"));
-            return "quickjs-" + name.replace(".js", "");
+            if (!TextUtils.isEmpty(siteName)) return "quickjs-" + siteName;
+            if (!TextUtils.isEmpty(siteKey)) return "quickjs-" + siteKey;
+            return "quickjs-" + (api.contains("/") ? api.substring(api.lastIndexOf("/") + 1) : api).replace(".js", "");
         } catch (Exception e) {
             return "quickjs";
         }

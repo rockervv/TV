@@ -7,6 +7,7 @@
     <!-- Vod -->
     <string name="vod_last">上次看到%1$s</string>
     <string name="error_site_empty">站点数据为空</string>
+    <string name="error_play_refused">连接被拒绝（ECONNREFUSED）</string>
     <string name="home_loading">正在加载“%1$s”的内容&#8230;</string>
 
     <!-- Live -->

@@ -152,7 +152,7 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
     public void onSearch() {
         String keyword = mBinding.keyword.getText().toString().trim();
         mBinding.keyword.setSelection(mBinding.keyword.length());
-        Util.hideKeyboard(mBinding.keyword);
+        if (mBinding.keyword.getShowSoftInputOnFocus()) Util.hideKeyboard(mBinding.keyword);
         if (TextUtils.isEmpty(keyword)) return;
         CollectActivity.start(this, keyword);
         App.post(() -> mRecordAdapter.add(keyword), 250);

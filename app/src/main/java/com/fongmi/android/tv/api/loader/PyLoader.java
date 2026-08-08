@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.api.loader;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.utils.Monitor;
 import com.fongmi.chaquo.Loader;
 import com.github.catvod.crawler.Spider;
@@ -43,6 +44,7 @@ public class PyLoader {
             try {
                 spider = loader.spider(api);
                 spider.siteKey = key;
+                spider.siteName = VodConfig.get().getSite(key).getName();
                 spider.init(App.get(), ext);
                 spiders.put(key, spider);
                 return spider;

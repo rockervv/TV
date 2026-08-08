@@ -80,7 +80,10 @@ public class SiteApi {
             if (isSpider(site)) {
                 if (!refresh) {
                     Result cache = CacheManager.get(site);
-                    if (cache != null) return cache;
+                    if (cache != null) {
+                        cache.setKey(site.getKey());
+                        return cache;
+                    }
                 }
                 Spider spider = site.recent().spider();
                 String home = spider.homeContent(true);

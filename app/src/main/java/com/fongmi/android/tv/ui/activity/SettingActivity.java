@@ -119,7 +119,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
 
     @Override
     protected void initEvent() {
-        android.util.Log.d("Backup", "initEvent START");
+        android.util.Log.d("initEvent", "initEvent START");
         mBinding.vod.setOnClickListener(this::onVod);
         mBinding.live.setOnClickListener(this::onLive);
         mBinding.wall.setOnClickListener(this::onWall);
@@ -149,7 +149,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         mBinding.about.setOnClickListener(this::onAbout);
         mBinding.syncSetting.setOnClickListener(this::onSyncSetting);
         mBinding.sync.setOnClickListener(this::onSync);
-        android.util.Log.d("Backup", "initEvent SUCCESS");
+        android.util.Log.d("initEvent", "initEvent SUCCESS");
     }
 
     @Override

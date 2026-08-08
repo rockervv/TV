@@ -49,6 +49,10 @@ public class ImgUtil {
     }
 
     public static void logo(ImageView view, String url) {
+        if (TextUtils.isEmpty(url)) {
+            view.setImageResource(R.drawable.ic_logo);
+            return;
+        }
         try {
             Glide.with(view).load(UrlUtil.convert(url)).circleCrop().override(Target.SIZE_ORIGINAL, Target.SIZE_ORIGINAL).error(R.drawable.ic_logo).into(view);
         } catch (Throwable e) {
@@ -57,6 +61,7 @@ public class ImgUtil {
     }
 
     public static void load(String url, CustomTarget<Bitmap> target) {
+        if (TextUtils.isEmpty(url)) return;
         try {
             Glide.with(App.get()).asBitmap().load(getUrl(url)).override(ResUtil.dp2px(96), ResUtil.dp2px(96)).error(R.drawable.artwork).into(target);
         } catch (Throwable e) {
@@ -65,6 +70,7 @@ public class ImgUtil {
     }
 
     public static void load(Context context, String url, CustomTarget<Drawable> target) {
+        if (TextUtils.isEmpty(url)) return;
         try {
             Glide.with(context).load(getUrl(url)).override(ResUtil.getScreenWidth(), ResUtil.getScreenHeight()).error(R.drawable.artwork).into(target);
         } catch (Throwable e) {
@@ -137,19 +143,33 @@ public class ImgUtil {
         return builder.buildRoundRect(text, ColorGenerator.get400(text), ResUtil.dp2px(4));
     }
 
+    private static boolean isTimeout(GlideException e) {
+        if (e == null) return false;
+        for (Throwable t : e.getRootCauses()) {
+            if (t instanceof java.net.SocketTimeoutException || t instanceof java.net.ConnectException || t instanceof java.net.UnknownHostException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static RequestListener<Drawable> getListener(String text, String url, ImageView view, boolean vod) {
         return new RequestListener<>() {
             @Override
             public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Drawable> target, boolean isFirstResource) {
-                android.util.Log.e("TV_FATAL", "onLoadFailed: " + url + " error: " + (e != null ? e.getMessage() : "unknown"));
+                boolean network = isTimeout(e);
+                if (network) {
+                    android.util.Log.w("ImgUtil", "onLoadFailed (Network): " + url);
+                } else {
+                    android.util.Log.e("TV_FATAL", "onLoadFailed: " + url + " error: " + (e != null ? e.getMessage() : "unknown"));
+                }
                 view.setImageDrawable(getTextDrawable(text, vod));
-                failed.add(url);
+                if (!network) failed.add(url);
                 return true;
             }
 
             @Override
             public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                android.util.Log.d("TV_FATAL", "onResourceReady: " + url);
                 return false;
             }
         };

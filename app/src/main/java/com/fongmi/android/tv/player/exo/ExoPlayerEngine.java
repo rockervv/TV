@@ -69,6 +69,11 @@ public class ExoPlayerEngine implements PlayerEngine {
     }
 
     @Override
+    public void setRender(int mode, int intensity) {
+        ExoUtil.setRender(player, mode, intensity);
+    }
+
+    @Override
     public void stop() {
         preCache.stop();
         player.stop();

@@ -515,6 +515,18 @@ public class MpvPlayer extends ForwardingPlayer implements MPVLib.EventObserver 
     @Override public void clearVideoSurface() { setVideoSurface(null); }
     @Override public void setPlaybackSpeed(float speed) { if (!released) MPVLib.setPropertyDouble("speed", speed); }
 
+    public void setOption(String key, String value) {
+        if (!released) MPVLib.setOptionString(key, value);
+    }
+
+    public void setProperty(String key, String value) {
+        if (!released) MPVLib.setPropertyString(key, value);
+    }
+
+    public void setProperty(String key, double value) {
+        if (!released) MPVLib.setPropertyDouble(key, value);
+    }
+
     private final SurfaceHolder.Callback surfaceCallback = new SurfaceHolder.Callback() {
         @Override public void surfaceCreated(@NonNull SurfaceHolder holder) { if (!released) attachSurface(holder.getSurface()); }
         @Override public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {

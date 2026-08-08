@@ -93,6 +93,15 @@
     <string name="play_mini_progress">迷你</string>
     <string name="play_video_title">標題</string>
 
+    <string name="play_render">影像增強</string>
+    <string name="render_standard">標準</string>
+    <string name="render_bright">明亮</string>
+    <string name="render_cinema">劇院</string>
+    <string name="render_night">夜間</string>
+    <string name="render_comfort">護眼</string>
+    <string name="render_low">弱</string>
+    <string name="render_medium">中</string>
+    <string name="render_high">強</string>
     <string name="play_save">儲存 M3U8</string>
     <string name="play_save_success">M3U8 已儲存至：%1$s</string>
     <string name="play_display">顯示</string>

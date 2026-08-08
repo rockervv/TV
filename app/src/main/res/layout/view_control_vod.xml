@@ -88,6 +88,71 @@
                 android:textSize="14sp"
                 tools:text="刷新" />
 
+            <com.fongmi.android.tv.ui.custom.CustomUpDownView
+                android:id="@+id/speed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/selector_text"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusDown="@id/timeBar"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                tools:text="1.00" />
+
+            <TextView
+                android:id="@+id/render"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/selector_text"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusDown="@id/timeBar"
+                android:text="@string/play_render"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
+            <com.fongmi.android.tv.ui.custom.CustomUpDownView
+                android:id="@+id/opening"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/selector_text"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusDown="@id/timeBar"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                tools:text="00:00" />
+
+            <com.fongmi.android.tv.ui.custom.CustomUpDownView
+                android:id="@+id/ending"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/selector_text"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusDown="@id/timeBar"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                tools:text="00:00" />
+
+            <TextView
+                android:id="@+id/save"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/selector_text"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusDown="@id/timeBar"
+                android:text="@string/play_save"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
             <TextView
                 android:id="@+id/player"
                 android:layout_width="wrap_content"
@@ -113,19 +178,6 @@
                 android:textColor="@color/white"
                 android:textSize="14sp"
                 tools:text="硬解" />
-
-            <com.fongmi.android.tv.ui.custom.CustomUpDownView
-                android:id="@+id/speed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/selector_text"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:nextFocusDown="@id/timeBar"
-                android:textColor="@color/white"
-                android:textSize="14sp"
-                tools:text="1.00" />
 
             <TextView
                 android:id="@+id/scale"
@@ -187,45 +239,6 @@
                 android:textSize="14sp"
                 android:visibility="gone"
                 tools:visibility="visible" />
-
-            <com.fongmi.android.tv.ui.custom.CustomUpDownView
-                android:id="@+id/opening"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/selector_text"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:nextFocusDown="@id/timeBar"
-                android:textColor="@color/white"
-                android:textSize="14sp"
-                tools:text="00:00" />
-
-            <com.fongmi.android.tv.ui.custom.CustomUpDownView
-                android:id="@+id/ending"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/selector_text"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:nextFocusDown="@id/timeBar"
-                android:textColor="@color/white"
-                android:textSize="14sp"
-                tools:text="00:00" />
-
-            <TextView
-                android:id="@+id/save"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/selector_text"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:nextFocusDown="@id/timeBar"
-                android:text="@string/play_save"
-                android:textColor="@color/white"
-                android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/loop"

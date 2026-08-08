@@ -35,15 +35,23 @@ import com.fongmi.android.tv.player.engine.PlayerEngine;
 import com.fongmi.android.tv.player.track.LangUtil;
 import com.fongmi.android.tv.setting.PlayerSetting;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ExoUtil {
 
     private static LoudnessEnhancer loudnessEnhancer;
 
+    @androidx.media3.common.util.UnstableApi
+    @SuppressWarnings("RestrictedApi")
     public static ExoPlayer buildPlayer(int decode, Player.Listener listener) {
-        ExoPlayer player = new ExoPlayer.Builder(App.get()).setTrackSelector(buildTrackSelector()).setRenderersFactory(buildPlaybackRenderersFactory(decode)).setMediaSourceFactory(buildMediaSourceFactory()).build();
+        ExoPlayer player = new ExoPlayer.Builder(App.get())
+                .setTrackSelector(buildTrackSelector())
+                .setRenderersFactory(buildPlaybackRenderersFactory(decode))
+                .setMediaSourceFactory(buildMediaSourceFactory())
+                .build();
         if (BuildConfig.DEBUG) player.addAnalyticsListener(new EventLogger());
         player.addAnalyticsListener(new AnalyticsListener() {
             @Override
@@ -89,6 +97,50 @@ public class ExoUtil {
         player.setPlayWhenReady(true);
         player.addListener(listener);
         return player;
+    }
+
+    public static void setRender(ExoPlayer player, int mode, int intensity) {
+        Log.d("ExoUtil", "setRender mode: " + mode + " intensity: " + intensity);
+        if (mode == 0) {
+            Log.d("ExoUtil", "Standard mode, clearing effects");
+            player.setVideoEffects(new ArrayList<>());
+            return;
+        }
+        List<androidx.media3.common.Effect> effects = new ArrayList<>();
+        switch (mode) {
+            case 1: // Bright
+                float b = 0.1f * (intensity + 1);
+                Log.d("ExoUtil", "Applying Brightness: " + b);
+                effects.add(new androidx.media3.effect.Brightness(b));
+                break;
+            case 2: // Cinema
+                float c = 0.2f * (intensity + 1);
+                float s = 15.0f * (intensity + 1);
+                Log.d("ExoUtil", "Applying Contrast: " + c + " Saturation: " + s);
+                effects.add(new androidx.media3.effect.Contrast(c));
+                effects.add(new androidx.media3.effect.HslAdjustment.Builder().adjustSaturation(s).build());
+                break;
+            case 3: // Night
+                float b3 = -0.1f * (intensity + 1);
+                float c3 = -0.05f * (intensity + 1);
+                Log.d("ExoUtil", "Applying Night - Brightness: " + b3 + " Contrast: " + c3);
+                effects.add(new androidx.media3.effect.Brightness(b3));
+                effects.add(new androidx.media3.effect.Contrast(c3));
+                break;
+            case 4: // Comfort
+                Log.d("ExoUtil", "Applying Comfort (RgbAdjustment)");
+                effects.add(new androidx.media3.effect.RgbAdjustment.Builder().setRedScale(1.1f).setBlueScale(0.8f).build());
+                break;
+            default:
+                Log.d("ExoUtil", "Standard mode, clearing effects");
+                break;
+        }
+        try {
+            player.setVideoEffects(effects);
+            Log.d("ExoUtil", "setVideoEffects called successfully");
+        } catch (Exception e) {
+            Log.e("ExoUtil", "setVideoEffects error: ", e);
+        }
     }
 
     public static String getMimeType(int errorCode) {

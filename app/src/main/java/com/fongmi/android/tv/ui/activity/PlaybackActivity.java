@@ -60,6 +60,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     private boolean bound;
     private boolean stop;
     private boolean lock;
+    private boolean wasPlaying;
 
     protected MediaController controller() {
         return mController;
@@ -521,7 +522,23 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
             onReclaim();
         } else {
             attachSurface();
+            if (isOwner() && PlayerSetting.isBackgroundOff() && mController != null && wasPlaying) {
+                mController.play();
+                wasPlaying = false;
+            }
         }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("wasPlaying", wasPlaying);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        wasPlaying = savedInstanceState.getBoolean("wasPlaying");
     }
 
     @Override
@@ -533,7 +550,10 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     @Override
     protected void onStop() {
         super.onStop();
-        if (isOwner() && PlayerSetting.isBackgroundOff() && mController != null) mController.pause();
+        if (isOwner() && PlayerSetting.isBackgroundOff() && mController != null) {
+            wasPlaying = mController.isPlaying();
+            mController.pause();
+        }
     }
 
     @Override

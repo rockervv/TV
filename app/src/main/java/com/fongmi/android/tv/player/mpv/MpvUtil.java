@@ -50,6 +50,31 @@ public final class MpvUtil {
         player.setSubtitleOptions(buildSubtitleConfig());
     }
 
+    public static void setRender(MpvPlayer player, int mode, int intensity) {
+        String vf = "";
+        switch (mode) {
+            case 1: // Bright
+                double gamma = 1.0 + (intensity + 1) * 0.1;
+                double bright = 0.02 * (intensity + 1);
+                vf = String.format("eq=gamma=%.2f:brightness=%.2f", gamma, bright);
+                break;
+            case 2: // Cinema
+                double contrast = 1.0 + (intensity + 1) * 0.05;
+                double saturation = 1.0 + (intensity + 1) * 0.1;
+                vf = String.format("eq=contrast=%.2f:saturation=%.2f", contrast, saturation);
+                break;
+            case 3: // Night
+                double g = 1.0 - (intensity + 1) * 0.1;
+                double b = -0.05 * (intensity + 1);
+                vf = String.format("eq=gamma=%.2f:brightness=%.2f", g, b);
+                break;
+            case 4: // Comfort
+                vf = "colorlevels=rim=0.1:gim=0.1:bim=0.3";
+                break;
+        }
+        player.setOption("vf", vf);
+    }
+
     private static MpvPlayerConfig buildConfig() {
         MpvPlayerConfig.Builder builder = newConfigBuilder();
         addAndroidOptions(builder);

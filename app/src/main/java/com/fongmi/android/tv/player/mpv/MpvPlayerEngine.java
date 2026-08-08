@@ -56,6 +56,11 @@ public class MpvPlayerEngine implements PlayerEngine {
     }
 
     @Override
+    public void setRender(int mode, int intensity) {
+        MpvUtil.setRender(player, mode, intensity);
+    }
+
+    @Override
     public boolean addSubtitle(Sub sub) {
         if (sub == null || player.getCurrentMediaItem() == null) return false;
         if (player.getPlaybackState() == Player.STATE_IDLE || player.getPlaybackState() == Player.STATE_ENDED) return false;

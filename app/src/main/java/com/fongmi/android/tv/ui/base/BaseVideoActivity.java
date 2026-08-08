@@ -319,24 +319,26 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
                     App.post(() -> Notify.show(R.string.error_play_url));
                     return;
                 }
-                String realUrl = url;
-                if (url.startsWith(Server.get().getAddress())) {
-                    realUrl = java.net.URLDecoder.decode(url.split("url=")[1].split("&")[0], StandardCharsets.UTF_8.name());
-                }
+                String realUrl = decodeUrl(url);
+                String realContent = decodeContent(content);
                 long timestamp = System.currentTimeMillis();
                 LocalDateTime ldt = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
                 String date = String.format(java.util.Locale.getDefault(), "%04d%02d%02d%02d%02d%02d", ldt.getYear(), ldt.getMonthValue(), ldt.getDayOfMonth(), ldt.getHour(), ldt.getMinute(), ldt.getSecond());
                 String name = prefix + date + "_" + getVodName().replaceAll("[\\\\/:*?\"<>|]", "_") + ".json";
                 JsonObject json = new JsonObject();
                 json.addProperty("URL", realUrl);
-                json.addProperty("m3u8", content);
+                json.addProperty("m3u8", realContent);
                 String content_json = App.gson().toJson(json);
                 if (Setting.isUseFtp()) {
                     String ftpUrl = Setting.getFtpUri();
                     String username = Setting.getFtpUsername();
                     String password = Setting.getFtpPassword();
                     com.fongmi.android.tv.bean.FtpManager ftp = new com.fongmi.android.tv.bean.FtpManager(ftpUrl, username, password);
-                    String remotePath = new File(new java.net.URI(ftpUrl).getPath()).getParent() + "/m3u8/" + name;
+                    String path = ftp.getPath();
+                    if (path.endsWith(".json") || path.endsWith(".txt")) {
+                        path = new File(path).getParent();
+                    }
+                    String remotePath = (path.endsWith("/") ? path : path + "/") + "m3u8/" + name;
                     ftp.uploadJsonString(content_json, remotePath);
                     App.post(() -> Notify.show("已上傳至 FTP: " + name));
                 } else {
@@ -348,6 +350,31 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
                 App.post(() -> Notify.show("儲存失敗: " + e.getMessage()));
             }
         });
+    }
+
+    private String decodeUrl(String url) {
+        try {
+            while (url.contains("url=")) {
+                String[] split = url.split("url=");
+                if (split.length < 2) break;
+                String extract = split[1].split("&")[0];
+                url = java.net.URLDecoder.decode(extract, StandardCharsets.UTF_8.name());
+            }
+        } catch (Exception ignored) {
+        }
+        return url;
+    }
+
+    private String decodeContent(String content) {
+        StringBuilder sb = new StringBuilder();
+        for (String line : content.split("\n")) {
+            if (line.contains("url=")) {
+                sb.append(decodeUrl(line)).append("\n");
+            } else {
+                sb.append(line).append("\n");
+            }
+        }
+        return sb.toString().trim();
     }
 
     @Override

@@ -185,7 +185,12 @@ public class HistorySyncManager {
     public static String downloadCache(String name) {
         if (useFTP && ftpManager != null) {
             try {
-                return ftpManager.downloadJsonFileAsString(name);
+                String path = ftpManager.getPath();
+                if (path.contains("/")) {
+                    path = path.substring(0, path.lastIndexOf("/"));
+                }
+                String remotePath = (path.isEmpty() ? "" : path + "/") + "category/" + name;
+                return ftpManager.downloadJsonFileAsString(remotePath);
             } catch (IOException ignored) {
             }
         }
@@ -199,10 +204,15 @@ public class HistorySyncManager {
     }
 
     public static void uploadCache(String name, String content) {
-        if (useFTP) {
+        if (useFTP && ftpManager != null) {
             Task.execute(() -> {
                 try {
-                    ftpManager.uploadJsonString(content, name);
+                    String path = ftpManager.getPath();
+                    if (path.contains("/")) {
+                        path = path.substring(0, path.lastIndexOf("/"));
+                    }
+                    String remotePath = (path.isEmpty() ? "" : path + "/") + "category/" + name;
+                    ftpManager.uploadJsonString(content, remotePath);
                 } catch (IOException ignored) {
                 }
             });

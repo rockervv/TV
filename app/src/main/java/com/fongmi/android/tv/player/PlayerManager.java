@@ -293,6 +293,10 @@ public class PlayerManager implements ParseCallback {
         if (engine != null) engine.setStats(stats);
     }
 
+    public void setRender(int mode, int intensity) {
+        if (engine != null) engine.setRender(mode, intensity);
+    }
+
     public void play() {
         player.play();
     }

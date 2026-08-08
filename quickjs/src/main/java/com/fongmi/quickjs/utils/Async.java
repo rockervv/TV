@@ -10,12 +10,24 @@ public class Async {
 
     public static CompletableFuture<Object> run(JSObject object, String name, Object... args) {
         CompletableFuture<Object> future = new CompletableFuture<>();
+        if (object == null) {
+            future.complete(null);
+            return future;
+        }
         JSFunction func = object.getJSFunction(name);
+        if (func == null) {
+            future.complete(null);
+            return future;
+        }
         call(future, func, args);
         return future;
     }
 
     private static void call(CompletableFuture<Object> future, JSFunction func, Object... args) {
+        if (func == null) {
+            future.complete(null);
+            return;
+        }
         Object result = func.call(args);
         if (result instanceof JSObject) {
             then(future, (JSObject) result);
@@ -31,7 +43,10 @@ public class Async {
             future.complete(promise);
         } else {
             consume(then, args -> future.complete(args[0]));
-            consume(promise.getJSFunction("catch"), args -> future.completeExceptionally(new Exception(args[0].toString())));
+            JSFunction catchFunc = promise.getJSFunction("catch");
+            if (catchFunc != null) {
+                consume(catchFunc, args -> future.completeExceptionally(new Exception(args[0].toString())));
+            }
         }
     }
 

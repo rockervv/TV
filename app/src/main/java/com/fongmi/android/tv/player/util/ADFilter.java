@@ -45,7 +45,7 @@ public class ADFilter {
     }
 
     private static final String[] AD_KEYWORDS = {
-            "adsvideo", "gvt1.com", "doubleclick.net", "googleads", "analytics", "ads.ts", "ad-", "-ad", "ad_", "_ad", "ad/", "/ad", "pstatp", "toutiao", "byteimg", "adservice", "adsystem", "union.video", "volcengine", "vcloud"
+            "adsvideo", "gvt1.com", "doubleclick.net", "googleads", "analytics", "ads.ts", "ad-", "-ad", "ad_", "_ad", "ad/", "/ad", "pstatp", "toutiao", "byteimg", "adservice", "adsystem", "union.video", "volcengine", "vcloud", "m3u8-ad", "video-ads", "v-ad", "short.video", "video_ad", "marketing"
     };
 
     private static boolean isAdUrl(String url) {
@@ -58,6 +58,7 @@ public class ADFilter {
     }
 
     private static M3U8AdFilterResult parseAndFilterM3U8(String url, BufferedReader reader) {
+        Log.d("M3U8Parser", "Analyzing M3U8 Content: " + url);
         List<String> lines = new ArrayList<>();
         try {
             String line;
@@ -70,12 +71,16 @@ public class ADFilter {
 
         String rawContent = String.join("\n", lines);
         if (rawContent.contains("#EXT-X-STREAM-INF")) {
+            Log.d("M3U8Parser", "Master Playlist detected, skipping filter.");
             return new M3U8AdFilterResult(rawContent, 0, 0.0);
         }
 
         String cacheKey = url + "_" + rawContent.hashCode();
         M3U8AdFilterResult cached = cache.get(cacheKey);
-        if (cached != null) return cached;
+        if (cached != null) {
+            Log.d("M3U8Parser", "ADFilter Result Cache Hit for: " + url);
+            return cached;
+        }
 
         // 1. Calculate main path feature and main config feature
         Map<String, Integer> pathCountMap = new HashMap<>();
@@ -195,14 +200,16 @@ public class ADFilter {
                 // Determine if config mismatch
                 boolean configMismatch = !mainConfig.isEmpty() && !block.configFeature.equals(mainConfig);
 
-                // 🚀 核心修正：如果區塊時長 > 120秒 或分片數 > 30，除非有明確的 Cue 標籤，否則視為正片
+                // 🚀 核心修正：如果區塊時長 > 120秒 或分片數 > 30，除非有明確的 Cue 標籤或 AdUrl，否則視為正片
                 boolean isLikelyLongVideo = block.duration > 120 || block.segmentCount > 30;
 
                 if (block.hasCueAd) {
                     isAd = true;
+                } else if (block.hasAdUrl) {
+                    isAd = true;
                 } else if (isLikelyLongVideo) {
                     isAd = false;
-                } else if ( block.hasAdUrl || block.hasSequenceJump || configMismatch) {
+                } else if (block.hasSequenceJump || configMismatch) {
                     isAd = true;
                 } else if (block.duration > 0 && block.duration < 60) {
                     if (block.hasStartDiscontinuity && processedFirstMediaBlock) {
@@ -233,13 +240,13 @@ public class ADFilter {
         adDuration = Math.round(adDuration * 10.0) / 10.0;
         double adRatio = adDuration / (totalDuration > 0 ? totalDuration : 1.0);
         Log.d("M3U8Parser", "=== Summary ===");
-        Log.d("M3U8Parser", "Total: " + totalDuration + ", AD Total: " + adDuration + ", AD Count: " + adCount + ", AD Ratio: " + adRatio);
+        Log.d("M3U8Parser", "Total: " + totalDuration + ", AD Total: " + adDuration + ", AD Count: " + adCount + ", AD Ratio: " + (Math.round(adRatio * 100.0) / 100.0));
 
         M3U8AdFilterResult result;
-        if (adRatio > 0.15 && totalDuration > 0) { 
+        if (adRatio > 0.5 && totalDuration > 0) {
              Log.w("M3U8Parser", "Warning: AD ratio > 50%, returning raw content to avoid false positive");
              result = new M3U8AdFilterResult(rawContent, 0, 0.0);
-        } else if (adDuration > 0 && adRatio > 0.1 && totalDuration > 300) { 
+        } else if (adDuration > 0 && adRatio > 0.15 && totalDuration > 300) {
             Log.w("M3U8Parser", "Warning: AD ratio > 15% in long video, dropping video (-1)");
             result = new M3U8AdFilterResult(rawContent, -1, 0.0);
         } else {

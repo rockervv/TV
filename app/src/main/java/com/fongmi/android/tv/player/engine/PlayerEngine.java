@@ -37,6 +37,9 @@ public interface PlayerEngine {
     default void setStats(boolean stats) {
     }
 
+    default void setRender(int mode, int intensity) {
+    }
+
     default boolean addSubtitle(Sub sub) {
         return false;
     }

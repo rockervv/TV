@@ -47,7 +47,11 @@ public class M3U8 implements Process {
 
     public static String fetch(String targetUrl, Map<String, String> headers) {
         CacheItem cached = urlCache.get(targetUrl);
-        if (cached != null && !cached.isExpired()) return cached.content;
+        if (cached != null && !cached.isExpired()) {
+            Log.d("M3U8", "Cache Hit: " + targetUrl);
+            return cached.content;
+        }
+        Log.d("M3U8", "Fetch M3U8: " + targetUrl);
         try {
             Headers.Builder headersBuilder = new Headers.Builder();
             if (headers != null) {

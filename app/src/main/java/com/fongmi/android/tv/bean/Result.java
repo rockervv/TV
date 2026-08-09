@@ -184,16 +184,18 @@ public class Result implements Parcelable {
         return types == null ? Collections.emptyList() : types;
     }
 
-    public void setTypes(List<Class> types) {
+    public Result setTypes(List<Class> types) {
         this.types = types;
+        return this;
     }
 
     public List<Vod> getList() {
         return list == null ? Collections.emptyList() : list;
     }
 
-    public void setList(List<Vod> list) {
+    public Result setList(List<Vod> list) {
         this.list = list;
+        return this;
     }
 
     public boolean isSameList(Result result) {
@@ -289,8 +291,9 @@ public class Result implements Parcelable {
         return TextUtils.isEmpty(key) ? "" : key;
     }
 
-    public void setKey(String key) {
+    public Result setKey(String key) {
         this.key = key;
+        return this;
     }
 
     public Long getPosition() {

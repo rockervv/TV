@@ -63,6 +63,7 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
         mBinding.resetText.setText((reset = ResUtil.getStringArray(R.array.select_reset))[Setting.getReset()]);
         mBinding.captionText.setText((caption = ResUtil.getStringArray(R.array.select_caption))[PlayerSetting.isCaption() ? 1 : 0]);
         mBinding.normalizeText.setText(Setting.getSwitch(Setting.isNormalize()));
+        mBinding.renderEnhanceText.setText(Setting.getSwitch(PlayerSetting.isRenderEnhance()));
     }
 
     @Override
@@ -82,6 +83,7 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
         mBinding.normalize.setOnClickListener(this::setNormalize);
         mBinding.background.setOnClickListener(this::onBackground);
         mBinding.adblock.setOnClickListener(this::setAdblock);
+        mBinding.renderEnhance.setOnClickListener(this::setRenderEnhance);
         mBinding.preload.setOnClickListener(this::onPreloadSetting);
         mBinding.decode.setOnClickListener(this::onDecodeSetting);
         mBinding.ua.setOnClickListener(this::onUa);
@@ -199,6 +201,11 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
     private void setAdblock(View view) {
         Setting.putAdblock(!Setting.isAdblock());
         mBinding.adblockText.setText(Setting.getSwitch(Setting.isAdblock()));
+    }
+
+    private void setRenderEnhance(View view) {
+        PlayerSetting.putRenderEnhance(!PlayerSetting.isRenderEnhance());
+        mBinding.renderEnhanceText.setText(Setting.getSwitch(PlayerSetting.isRenderEnhance()));
     }
 
     private void onPreloadSetting(View view) {

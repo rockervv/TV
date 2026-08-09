@@ -354,6 +354,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         setSeekNextFocusDown(R.id.next);
         setActionFocusBoundary(mBinding.control.actionLayout);
         mBinding.control.scale.setText(ResUtil.getStringArray(R.array.select_scale)[mHistory != null ? mHistory.getScale() : Setting.getScale()]);
+        mBinding.control.render.setVisibility(PlayerSetting.isRenderEnhance() ? View.VISIBLE : View.GONE);
         PlaybackAction.setSpeedText(player(), mBinding.control.speed);
         PlaybackAction.setPlaybackMode(player(), mBinding.control.player, mBinding.control.decode);
         updateRenderButton();
@@ -1305,7 +1306,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
                 mBinding.widget.status.setVisibility(View.GONE);
                 if (!isFullscreen()) hideInfo();
                 if (!isFullscreen()) hideCenter();
-                applyRender();
+                if (com.fongmi.android.tv.setting.PlayerSetting.isRenderEnhance()) applyRender();
                 break;
             case Player.STATE_ENDED:
                 mClock.setCallback(null);
@@ -1646,7 +1647,11 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     protected boolean handleBack() {
-        if (isVisible(mBinding.control.getRoot()) || isVisible(mBinding.renderControl.getRoot())) {
+        if (isVisible(mBinding.renderControl.getRoot())) {
+            mBinding.renderControl.getRoot().setVisibility(View.GONE);
+            mBinding.control.render.requestFocus();
+            return true;
+        } else if (isVisible(mBinding.control.getRoot())) {
             hideControl();
             return true;
         } else if (isVisible(mBinding.widget.center)) {

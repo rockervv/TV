@@ -42,8 +42,6 @@ import java.util.Map;
 
 public class ExoUtil {
 
-    private static LoudnessEnhancer loudnessEnhancer;
-
     @androidx.media3.common.util.UnstableApi
     @SuppressWarnings("RestrictedApi")
     public static ExoPlayer buildPlayer(int decode, Player.Listener listener) {
@@ -54,6 +52,8 @@ public class ExoUtil {
                 .build();
         if (BuildConfig.DEBUG) player.addAnalyticsListener(new EventLogger());
         player.addAnalyticsListener(new AnalyticsListener() {
+            private LoudnessEnhancer loudnessEnhancer;
+
             @Override
             public void onAudioSessionIdChanged(@NonNull EventTime eventTime, int audioSessionId) {
                 if (Setting.isNormalize()) {
@@ -131,9 +131,6 @@ public class ExoUtil {
                 Log.d("ExoUtil", "Applying Comfort (RgbAdjustment)");
                 effects.add(new androidx.media3.effect.RgbAdjustment.Builder().setRedScale(1.1f).setBlueScale(0.8f).build());
                 break;
-            default:
-                Log.d("ExoUtil", "Standard mode, clearing effects");
-                break;
         }
         try {
             player.setVideoEffects(effects);
@@ -184,16 +181,69 @@ public class ExoUtil {
     }
 
     private static RenderersFactory buildRenderersFactory(int renderMode, boolean audioPrefer, boolean videoPrefer) {
-        return new DefaultRenderersFactory(App.get()) {
+        DefaultRenderersFactory factory = new DefaultRenderersFactory(App.get()) {
             @Override
             protected AudioSink buildAudioSink(@NonNull Context context, boolean enableFloatOutput, boolean enableAudioOutputPlaybackParams) {
                 return ExoUtil.buildAudioSink(context, enableFloatOutput, enableAudioOutputPlaybackParams);
             }
-        }.setExtensionRendererMode(renderMode).setEnableDecoderFallback(true);
+        };
+        factory.setExtensionRendererMode(renderMode);
+        factory.setEnableDecoderFallback(true);
+        return factory;
     }
 
     private static AudioSink buildAudioSink(Context context, boolean enableFloatOutput, boolean enableAudioOutputPlaybackParams) {
-        return new DefaultAudioSink.Builder(context).setEnableFloatOutput(enableFloatOutput).build();
+        AudioSink sink = new DefaultAudioSink.Builder(context).setEnableFloatOutput(enableFloatOutput).build();
+        return (AudioSink) java.lang.reflect.Proxy.newProxyInstance(AudioSink.class.getClassLoader(), new Class[]{AudioSink.class}, (proxy, method, args) -> {
+            if (method.getName().equals("setListener") && args[0] instanceof AudioSink.Listener) {
+                return method.invoke(sink, new AudioSinkListener((AudioSink.Listener) args[0]));
+            }
+            return method.invoke(sink, args);
+        });
+    }
+
+    private static class AudioSinkListener implements AudioSink.Listener {
+
+        private final AudioSink.Listener listener;
+
+        private AudioSinkListener(AudioSink.Listener listener) {
+            this.listener = listener;
+        }
+
+        @Override
+        public void onAudioSinkError(@NonNull Exception e) {
+            Log.d("ExoUtil", "Audio Sink Error: " + e.getMessage());
+        }
+
+        @Override
+        public void onPositionDiscontinuity() {
+            if (listener != null) listener.onPositionDiscontinuity();
+        }
+
+        @Override
+        public void onPositionAdvancing(long playoutServerTimestampNs) {
+            if (listener != null) listener.onPositionAdvancing(playoutServerTimestampNs);
+        }
+
+        @Override
+        public void onUnderrun(int bufferSize, long bufferSizeMs, long elapsedSinceLastFeedMs) {
+            if (listener != null) listener.onUnderrun(bufferSize, bufferSizeMs, elapsedSinceLastFeedMs);
+        }
+
+        @Override
+        public void onSkipSilenceEnabledChanged(boolean skipSilenceEnabled) {
+            if (listener != null) listener.onSkipSilenceEnabledChanged(skipSilenceEnabled);
+        }
+
+        @Override
+        public void onOffloadBufferEmptying() {
+            if (listener != null) listener.onOffloadBufferEmptying();
+        }
+
+        @Override
+        public void onOffloadBufferFull() {
+            if (listener != null) listener.onOffloadBufferFull();
+        }
     }
 
     public static void setSubtitleView(PlayerView playerView) {

@@ -94,6 +94,7 @@
     <string name="play_video_title">標題</string>
 
     <string name="play_render">影像增強</string>
+    <string name="play_render_setting">影像增強開關</string>
     <string name="render_standard">標準</string>
     <string name="render_bright">明亮</string>
     <string name="render_cinema">劇院</string>

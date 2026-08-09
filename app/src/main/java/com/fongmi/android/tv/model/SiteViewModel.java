@@ -83,12 +83,10 @@ public class SiteViewModel extends ViewModel {
             return;
         }
         Site site = VodConfig.get().getHome();
-        if (com.fongmi.android.tv.setting.Setting.isCategoryCache()) {
-            Result cache = com.fongmi.android.tv.api.CacheManager.get(site);
-            if (cache != null) {
-                android.util.Log.d("SiteViewModel", "homeContent [CACHE]: Found file cached data for site: " + site.getName());
-                result.postValue(cache.setTid(""));
-            }
+        Result cache = com.fongmi.android.tv.api.CacheManager.get(site);
+        if (cache != null) {
+            android.util.Log.d("SiteViewModel", "homeContent [CACHE]: Found file cached data for site: " + site.getName());
+            result.postValue(cache.setTid(""));
         }
         execute(TaskType.RESULT, result, () -> SiteApi.homeContent(site, true));
     }
@@ -101,17 +99,10 @@ public class SiteViewModel extends ViewModel {
         long currentReqId = ++reqId;
         Site site = VodConfig.get().getSite(key);
         String extHash = com.fongmi.android.tv.api.CacheManager.getExtHash(extend);
-        if (com.fongmi.android.tv.setting.Setting.isCategoryCache()) {
-            Result cache = com.fongmi.android.tv.api.CacheManager.get(site, tid, page, extHash);
-            if (cache != null) {
-                result.postValue(cache.setTid(tid).setReqId(currentReqId));
-            }
-        }
-        
-        // 如果是本地 Spider 且已有快取，則不執行背景更新，避免併發任務過多導致中斷
-        if (com.fongmi.android.tv.setting.Setting.isCategoryCache() && key.startsWith("loc_") && !refresh) {
-             Result cache = com.fongmi.android.tv.api.CacheManager.get(site, tid, page, extHash);
-             if (cache != null) return;
+        Result cache = com.fongmi.android.tv.api.CacheManager.get(site, tid, page, extHash);
+        if (cache != null) {
+            result.postValue(cache.setTid(tid).setReqId(currentReqId));
+            if (key.startsWith("loc_") && !refresh) return;
         }
 
         android.util.Log.d("SiteViewModel", "categoryContent: tid=" + tid + " page=" + page + " hash=" + extHash);

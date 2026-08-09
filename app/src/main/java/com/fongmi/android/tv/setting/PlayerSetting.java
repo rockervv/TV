@@ -279,4 +279,12 @@ public class PlayerSetting {
     public static void putMpvStats(boolean stats) {
         Prefers.put("mpv_stats", stats);
     }
+
+    public static boolean isRenderEnhance() {
+        return Prefers.getBoolean("render_enhance", true);
+    }
+
+    public static void putRenderEnhance(boolean renderEnhance) {
+        Prefers.put("render_enhance", renderEnhance);
+    }
 }

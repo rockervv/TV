@@ -162,11 +162,11 @@ public class SiteApi {
 
         try {
             if (isSpider(site)) {
-                if (!refresh && com.fongmi.android.tv.setting.Setting.isCategoryCache()) {
+                if (!refresh) {
                     Result cache = CacheManager.get(site, tid, page, extHash);
                     if (cache != null) {
                         android.util.Log.d("FILTER_DEBUG", ">>> [STEP 3: Cache Hit] Returning cached data.");
-                        return cache.setTid(tid);
+                        return cache.setTid(tid).setKey(key);
                     }
                 }
                 
@@ -192,9 +192,7 @@ public class SiteApi {
                 result.setKey(key);
                 result.setTid(tid);
 
-                if (com.fongmi.android.tv.setting.Setting.isCategoryCache()) {
-                    CacheManager.put(site, tid, page, extHash, result);
-                }
+                CacheManager.put(site, tid, page, extHash, result);
                 
                 if (!result.getList().isEmpty()) {
                     android.util.Log.d("FILTER_DEBUG", ">>> [STEP 6: Content Sample] First Item: " + result.getList().get(0).getVodName());

@@ -47,9 +47,22 @@ public class CacheManager {
     }
 
     public static Result get(Site site, String tid, String page, String extHash) {
+        boolean isHome = tid.equals("home");
+        int configCache = com.fongmi.android.tv.setting.Setting.getConfigCache();
+        boolean categoryCache = com.fongmi.android.tv.setting.Setting.isCategoryCache();
+
+        if (isHome && configCache == 0) return null;
+        if (!isHome && !categoryCache) return null;
+
         try {
             File local = getFile(site.getKey(), tid, page, extHash);
             if (local.exists()) {
+                if (isHome) {
+                    int hours = configCache == 1 ? 12 : 24;
+                    if (System.currentTimeMillis() - local.lastModified() > hours * 3600000L) {
+                        return null;
+                    }
+                }
                 Log.d(TAG, "Loading local cache for " + site.getName() + " [" + tid + "] Hash: " + extHash);
                 String data = Path.read(local);
                 if (!data.isEmpty()) return Result.fromJson(data);
@@ -75,6 +88,10 @@ public class CacheManager {
     }
 
     public static void put(Site site, String tid, String page, String extHash, Result result) {
+        boolean isHome = tid.equals("home");
+        if (isHome && com.fongmi.android.tv.setting.Setting.getConfigCache() == 0) return;
+        if (!isHome && !com.fongmi.android.tv.setting.Setting.isCategoryCache()) return;
+
         if (result == null || (result.getTypes().isEmpty() && result.getList().isEmpty())) return;
         try {
             File local = getFile(site.getKey(), tid, page, extHash);

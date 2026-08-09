@@ -10,6 +10,7 @@ import com.fongmi.android.tv.player.engine.PlayerEngine;
 import com.fongmi.android.tv.player.media.MediaItemFactory;
 import com.fongmi.android.tv.player.media.PlaySpec;
 
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 public class ExoPlayerEngine implements PlayerEngine {
@@ -20,6 +21,8 @@ public class ExoPlayerEngine implements PlayerEngine {
     private ExoPlayer player;
     private PlaySpec spec;
     private int decode;
+    private int lastMode;
+    private int lastIntensity;
 
     public ExoPlayerEngine(int decode, Player.Listener listener) {
         this.player = ExoUtil.buildPlayer(decode, listener);
@@ -27,6 +30,8 @@ public class ExoPlayerEngine implements PlayerEngine {
         this.preCache = new PreCache();
         this.listener = listener;
         this.decode = decode;
+        this.lastMode = -1;
+        this.lastIntensity = -1;
     }
 
     @Override
@@ -41,6 +46,7 @@ public class ExoPlayerEngine implements PlayerEngine {
 
     @Override
     public void release() {
+        if (lastMode != -1) player.setVideoEffects(new ArrayList<>());
         preCache.release();
         player.release();
     }
@@ -49,6 +55,8 @@ public class ExoPlayerEngine implements PlayerEngine {
     public Player rebuild() {
         preCache.stop();
         player.release();
+        lastMode = -1;
+        lastIntensity = -1;
         return player = ExoUtil.buildPlayer(decode, listener);
     }
 
@@ -71,6 +79,15 @@ public class ExoPlayerEngine implements PlayerEngine {
 
     @Override
     public void setRender(int mode, int intensity) {
+        if (!com.fongmi.android.tv.setting.PlayerSetting.isRenderEnhance()) return;
+        if (mode == 0 && lastMode == -1) {
+            lastMode = 0;
+            lastIntensity = intensity;
+            return;
+        }
+        if (lastMode == mode && lastIntensity == intensity) return;
+        lastMode = mode;
+        lastIntensity = intensity;
         ExoUtil.setRender(player, mode, intensity);
     }
 

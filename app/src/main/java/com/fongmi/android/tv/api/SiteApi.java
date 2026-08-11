@@ -36,16 +36,32 @@ public class SiteApi {
     public static String call(@NonNull Site site, @NonNull ArrayMap<String, String> params) throws IOException {
         if (!site.getExt().isEmpty()) params.put("extend", site.getExt());
         if (site.getApi().isEmpty()) return "";
+        
+        android.util.Log.d("SiteApi", ">>> [Network Call] URL: " + site.getApi());
+        android.util.Log.d("SiteApi", ">>> [Network Call] Params: " + App.gson().toJson(params));
+        if (!site.getHeader().isEmpty()) android.util.Log.d("SiteApi", ">>> [Network Call] Headers: " + App.gson().toJson(site.getHeader()));
+
         Call call = site.getExt().length() <= 1000 ? OkHttp.newCall(site.getApi(), site.getHeader(), params) : OkHttp.newCall(site.getApi(), site.getHeader(), OkHttp.toBody(params));
-        if (call == null) return "";
+        if (call == null) {
+            android.util.Log.e("SiteApi", ">>> [Network Call] Failed to create Call object");
+            return "";
+        }
+
         try (Response response = call.execute()) {
-            return response.body().string();
+            String body = response.body().string();
+            android.util.Log.d("SiteApi", ">>> [Network Call] Response Code: " + response.code());
+            android.util.Log.d("SiteApi", ">>> [Network Call] Response Body Sample: " + (body.length() > 500 ? body.substring(0, 500) + "..." : body));
+            return body;
+        } catch (IOException e) {
+            android.util.Log.e("SiteApi", ">>> [Network Call] Execution Error: " + e.getMessage());
+            throw e;
         }
     }
 
     private static boolean isSpider(@NonNull Site site) {
         String api = site.getApi();
         if (site.getType() == 3) return true;
+        if (site.getType() == 4) return false;
         if (TextUtils.isEmpty(api)) return false;
         api = api.toLowerCase();
         if (api.startsWith("csp_") || api.contains(".js") || api.contains(".py") || api.contains("drpy") || api.contains("js_") || api.contains("proxy://")) return true;
@@ -318,6 +334,7 @@ public class SiteApi {
     public static Result searchContent(@NonNull Site site, @NonNull String keyword, boolean quick, @NonNull String page) {
         if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty();
         SpiderDebug.onSet("SpiderDebug-" + site.getName());
+        long start = System.currentTimeMillis();
         try {
             boolean hasPage = !page.equals("1");
             if (isSpider(site)) {
@@ -331,7 +348,9 @@ public class SiteApi {
                     Result result = Result.fromJson(searchContent);
                     result.setKey(site.getKey());
                     for (Vod vod : result.getList()) vod.setSite(site);
-                    site.incrementScore();
+                    site.setResponseTime(System.currentTimeMillis() - start);
+                    if (result.getList().size() >= 2) site.incrementScore();
+                    else site.save();
                     return result;
                 } catch (Throwable e) {
                     android.util.Log.e("SiteApi", "JSON Parse Error from site: " + site.getName());
@@ -356,7 +375,9 @@ public class SiteApi {
                 result.setKey(site.getKey());
                 result = fetchPic(site, result);
                 for (Vod vod : result.getList()) vod.setSite(site);
-                site.incrementScore();
+                site.setResponseTime(System.currentTimeMillis() - start);
+                if (result.getList().size() >= 2) site.incrementScore();
+                else site.save();
                 return result;
             }
         } catch (Throwable e) {

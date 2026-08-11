@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 37,
-    "identityHash": "fac110009d04e2f8b84182a7474544de",
+    "identityHash": "976deb5b316d82be2f4f32ab4748934c",
     "entities": [
       {
         "tableName": "Keep",
@@ -62,7 +62,7 @@
       },
       {
         "tableName": "Site",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `searchable` INTEGER, `changeable` INTEGER, `blacklist` INTEGER NOT NULL, `failures` INTEGER NOT NULL, `score` INTEGER NOT NULL, `cache` TEXT, PRIMARY KEY(`key`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `searchable` INTEGER, `changeable` INTEGER, `blacklist` INTEGER NOT NULL, `failures` INTEGER NOT NULL, `score` INTEGER NOT NULL, `responseTime` INTEGER NOT NULL, `cache` TEXT, PRIMARY KEY(`key`))",
         "fields": [
           {
             "fieldPath": "key",
@@ -97,6 +97,12 @@
           {
             "fieldPath": "score",
             "columnName": "score",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "responseTime",
+            "columnName": "responseTime",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -574,7 +580,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fac110009d04e2f8b84182a7474544de')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '976deb5b316d82be2f4f32ab4748934c')"
     ]
   }
 }

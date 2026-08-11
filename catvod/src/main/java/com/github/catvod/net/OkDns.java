@@ -7,9 +7,12 @@ import com.github.catvod.utils.Util;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -50,6 +53,24 @@ public class OkDns implements Dns {
     @NonNull
     @Override
     public List<InetAddress> lookup(@NonNull String hostname) throws UnknownHostException {
-        return (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));
+        Set<InetAddress> result = new LinkedHashSet<>();
+        String target = get(hostname);
+
+        // 🛡️ 優先順序機制：如果設定檔中有對應（如內部IP），先將其加入列表首位
+        if (!target.equals(hostname)) {
+            try {
+                result.addAll(Dns.SYSTEM.lookup(target));
+            } catch (Exception ignored) {
+            }
+        }
+
+        // 🛡️ 備援機制：將原本的解析結果（系統DNS或DoH）加入列表
+        try {
+            result.addAll((doh != null ? doh : Dns.SYSTEM).lookup(hostname));
+        } catch (Exception ignored) {
+        }
+
+        if (result.isEmpty()) throw new UnknownHostException(hostname);
+        return new ArrayList<>(result);
     }
 }

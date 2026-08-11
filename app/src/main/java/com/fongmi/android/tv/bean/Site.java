@@ -96,6 +96,9 @@ public class Site implements Parcelable {
     @SerializedName("score")
     private int score;
 
+    @SerializedName("responseTime")
+    private long responseTime;
+
     @ColumnInfo(name = "cache")
     private String cache;
 
@@ -354,6 +357,14 @@ public class Site implements Parcelable {
         this.score = score;
     }
 
+    public long getResponseTime() {
+        return responseTime;
+    }
+
+    public void setResponseTime(long responseTime) {
+        this.responseTime = responseTime;
+    }
+
     public void incrementScore() {
         this.score++;
         this.failures = 0;
@@ -421,6 +432,7 @@ public class Site implements Parcelable {
     public Site sync(Site item) {
         if (item == null) return this;
         setScore(item.getScore());
+        setResponseTime(item.getResponseTime());
         setCache(item.getCache());
         if (getChangeable() != 0) setChangeable(Math.max(1, item.getChangeable()));
         if (getSearchable() != 0) setSearchable(Math.max(1, item.getSearchable()));

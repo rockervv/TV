@@ -131,7 +131,23 @@ public class SiteViewModel extends ViewModel {
 
     public void searchContent(List<Site> sites, String keyword, boolean quick) {
         List<Site> sorted = new ArrayList<>(sites);
-        Collections.sort(sorted, (o1, o2) -> Integer.compare(o2.getScore(), o1.getScore()));
+        Collections.sort(sorted, (o1, o2) -> {
+            int compare = Integer.compare(o2.getScore(), o1.getScore());
+            if (compare != 0) return compare;
+            long t1 = o1.getResponseTime() == 0 ? Integer.MAX_VALUE : o1.getResponseTime();
+            long t2 = o2.getResponseTime() == 0 ? Integer.MAX_VALUE : o2.getResponseTime();
+            return Long.compare(t1, t2);
+        });
+
+        // 🛡️ 機會之窗機制：保留前 18 名精英，隨機打亂剩餘站台以提供翻身機會
+        if (sorted.size() > 18) {
+            List<Site> elites = new ArrayList<>(sorted.subList(0, 18));
+            List<Site> challengers = new ArrayList<>(sorted.subList(18, sorted.size()));
+            Collections.shuffle(challengers);
+            elites.addAll(challengers);
+            sorted = elites;
+        }
+
         searches.start(sorted, site -> SearchTask.create(site, keyword, quick), result -> {
             if (result.getList().size() > 0) App.post(() -> search.setValue(result));
         });

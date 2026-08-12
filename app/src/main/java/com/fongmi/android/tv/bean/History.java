@@ -64,6 +64,8 @@ public class History implements Diffable<History> {
     private int scale;
     @SerializedName("cid")
     private int cid;
+    @SerializedName("context")
+    private String context;
     @SerializedName("lastUpdated")
     private long lastUpdated;
     @SerializedName("deleted")
@@ -272,6 +274,14 @@ public class History implements Diffable<History> {
 
     public void setCid(int cid) {
         this.cid = cid;
+    }
+
+    public String getContext() {
+        return TextUtils.isEmpty(context) ? "" : context;
+    }
+
+    public void setContext(String context) {
+        this.context = context;
     }
 
     public long getLastUpdated() {

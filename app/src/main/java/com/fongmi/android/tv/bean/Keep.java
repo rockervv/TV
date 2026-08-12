@@ -39,6 +39,8 @@ public class Keep implements Diffable<Keep> {
     private int type;
     @SerializedName("cid")
     private int cid;
+    @SerializedName("context")
+    private String context;
 
     public static List<Keep> arrayFrom(String str) {
         Type listType = TypeToken.getParameterized(List.class, Keep.class).getType();
@@ -161,6 +163,14 @@ public class Keep implements Diffable<Keep> {
 
     public void setCid(int cid) {
         this.cid = cid;
+    }
+
+    public String getContext() {
+        return android.text.TextUtils.isEmpty(context) ? "" : context;
+    }
+
+    public void setContext(String context) {
+        this.context = context;
     }
 
     public String getSiteKey() {

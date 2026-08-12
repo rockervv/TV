@@ -102,6 +102,9 @@ public class Site implements Parcelable {
     @ColumnInfo(name = "cache")
     private String cache;
 
+    @ColumnInfo(name = "context")
+    private String context;
+
     @Ignore
     @SerializedName("quickSearch")
     private Integer quickSearch;
@@ -141,6 +144,7 @@ public class Site implements Parcelable {
         this.categories = in.createStringArrayList();
         this.style = in.readParcelable(Style.class.getClassLoader());
         this.selected = in.readByte() != 0;
+        this.context = in.readString();
     }
 
     public static Site objectFrom(JsonElement element) {
@@ -398,6 +402,14 @@ public class Site implements Parcelable {
         this.cache = cache;
     }
 
+    public String getContext() {
+        return TextUtils.isEmpty(context) ? "" : context;
+    }
+
+    public void setContext(String context) {
+        this.context = context;
+    }
+
     public Site setChangeable(boolean changeable) {
         if (getChangeable() != 0) setChangeable(changeable ? 1 : 2);
         return this;
@@ -434,6 +446,7 @@ public class Site implements Parcelable {
         setScore(item.getScore());
         setResponseTime(item.getResponseTime());
         setCache(item.getCache());
+        setContext(item.getContext());
         if (getChangeable() != 0) setChangeable(Math.max(1, item.getChangeable()));
         if (getSearchable() != 0) setSearchable(Math.max(1, item.getSearchable()));
         return this;
@@ -486,6 +499,7 @@ public class Site implements Parcelable {
         dest.writeStringList(this.categories);
         dest.writeParcelable(this.style, flags);
         dest.writeByte(this.selected ? (byte) 1 : (byte) 0);
+        dest.writeString(this.context);
     }
 
     public static final Creator<Site> CREATOR = new Creator<>() {

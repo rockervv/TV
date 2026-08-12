@@ -193,6 +193,9 @@
     <string name="setting_storage">權限</string>
     <string name="setting_normalize">音量標準化</string>
     <string name="setting_category_cache">分類快取</string>
+    <string name="setting_spider">Spider 設定</string>
+    <string name="setting_quickjs">啟用 QuickJS</string>
+    <string name="setting_chaquo">啟用 Chaquo (Python)</string>
     <string name="setting_off">關閉</string>
     <string name="setting_on">開啟</string>
 
@@ -279,6 +282,7 @@
     <string name="update_version">新版本 %1$s</string>
     <string name="update_check">正在檢查更新…</string>
     <string name="update_confirm">更新</string>
+    <string name="update_more">更多版本</string>
 
     <!-- Crash -->
     <string name="crash_info">發生了意料之外的錯誤。\n造成不便，敬請見諒。</string>

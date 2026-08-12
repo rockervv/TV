@@ -81,13 +81,22 @@ public class Download {
             byte[] buffer = new byte[16384];
             int readBytes;
             long totalBytes = 0;
+            long lastTime = System.currentTimeMillis();
+            long lastBytes = 0;
             while ((readBytes = input.read(buffer)) != -1) {
                 if (Thread.interrupted()) return;
                 totalBytes += readBytes;
                 os.write(buffer, 0, readBytes);
-                if (length <= 0) continue;
-                int progress = (int) (totalBytes / length * 100.0);
-                if (callback != null) App.post(() -> callback.progress(progress));
+                
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastTime >= 500) {
+                    long bytesRead = totalBytes - lastBytes;
+                    double speed = (bytesRead / 1024.0) / ((currentTime - lastTime) / 1000.0);
+                    int progress = length > 0 ? (int) (totalBytes / length * 100.0) : -1;
+                    if (callback != null) App.post(() -> callback.progress(progress, String.format(java.util.Locale.getDefault(), "%.2f KB/s", speed)));
+                    lastTime = currentTime;
+                    lastBytes = totalBytes;
+                }
             }
         }
     }
@@ -103,7 +112,7 @@ public class Download {
 
     public interface Callback {
 
-        void progress(int progress);
+        void progress(int progress, String speed);
 
         void error(String msg);
 

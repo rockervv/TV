@@ -1,7 +1,6 @@
 package com.fongmi.android.tv.api.loader;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.utils.Monitor;
 import com.fongmi.chaquo.Loader;
 import com.github.catvod.crawler.Spider;
@@ -14,17 +13,22 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PyLoader {
 
     private final ConcurrentHashMap<String, Spider> spiders;
-    private final Loader loader;
+    private Loader loader;
     private volatile String recent;
 
     public PyLoader() {
         spiders = new ConcurrentHashMap<>();
-        loader = new Loader();
+    }
+
+    private Loader getLoader() {
+        if (loader == null) loader = new Loader();
+        return loader;
     }
 
     public void clear() {
         spiders.values().forEach(Spider::destroy);
         spiders.clear();
+        loader = null;
         recent = null;
     }
 
@@ -33,6 +37,11 @@ public class PyLoader {
     }
 
     public Spider getSpider(String key, String api, String ext) {
+        if (!com.fongmi.android.tv.setting.Setting.isChaquo()) {
+            android.util.Log.w("PyLoader", "Python is disabled in settings. Skipping: " + key);
+            return new SpiderNull("Python 引擎已關閉");
+        }
+        
         Spider spider = spiders.get(key);
         if (spider != null) return spider;
 
@@ -42,9 +51,9 @@ public class PyLoader {
             
             Monitor.start("Spider_Init_PY_" + key);
             try {
-                spider = loader.spider(api);
+                spider = getLoader().spider(api);
                 spider.siteKey = key;
-                spider.siteName = VodConfig.get().getSite(key).getName();
+                spider.siteName = com.fongmi.android.tv.api.config.VodConfig.get().getSite(key).getName();
                 spider.init(App.get(), ext);
                 spiders.put(key, spider);
                 return spider;

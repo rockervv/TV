@@ -20,20 +20,23 @@ import com.github.catvod.utils.Github;
 import com.github.catvod.utils.Json;
 import com.github.catvod.utils.Path;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.reflect.TypeToken;
 
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
-public class
-Updater implements Download.Callback {
+public class Updater implements Download.Callback {
 
     private DialogUpdateBinding binding;
     private AlertDialog dialog;
+    private List<Apk> apks;
+    private Apk selected;
     private boolean dev;
-
-    private String md5;
 
     private static class Loader {
         static volatile Updater INSTANCE = new Updater();
@@ -50,11 +53,15 @@ Updater implements Download.Callback {
     }
 
     private String getJson() {
-        return Github.getJson(dev, "leanback"); 
+        return Github.getJson(dev, "leanback");
     }
 
-    private String getApk() {
-        return Github.getApk(dev, "leanback-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi); 
+    private String getApkUrl(String flavor) {
+        return Github.getApk(dev, flavor);
+    }
+
+    private String getCurrentFlavor() {
+        return "leanback-" + BuildConfig.FLAVOR_api + "-" + BuildConfig.FLAVOR_abi;
     }
 
     public Updater force() {
@@ -82,9 +89,8 @@ Updater implements Download.Callback {
         Task.execute(() -> doInBackground(activity));
     }
 
-
     private boolean need(int code, String name) {
-        Log.d("Updater", name + " code: " + code );
+        Log.d("Updater", name + " code: " + code);
         return Setting.getUpdate() && (dev ? !name.equals(BuildConfig.VERSION_NAME) && code >= BuildConfig.VERSION_CODE : code > BuildConfig.VERSION_CODE);
     }
 
@@ -99,26 +105,53 @@ Updater implements Download.Callback {
         }
         String url = getJson();
         try {
-            String Jsondata = OkHttp.string(url);
-            JSONObject object = Json.safeJSONObject(Jsondata);
+            String data = OkHttp.string(url);
+            JSONObject object = Json.safeJSONObject(data);
             String name = object.optString("name");
             String desc = object.optString("desc");
             int code = object.optInt("code");
-            this.md5 = object.optString("md5");
-            Log.d ("Updater", "URL: " + Github.URL + " name:[" + name + "] code: " + code + " MD5: " + md5 + ", desc:\n" + desc + "\n");
+            this.apks = Apk.arrayFrom(object.optString("apks"));
+            this.selected = findDefaultApk(object.optString("md5"));
+            Log.d("Updater", "URL: " + Github.URL + " name:[" + name + "] code: " + code + " MD5: " + selected.md5 + ", desc:\n" + desc + "\n");
             if (need(code, name)) App.post(() -> show(activity, name, desc));
         } catch (Exception e) {
             Log.d("Updater", url + " error: " + e);
         }
     }
 
+    private Apk findDefaultApk(String defaultMd5) {
+        String current = getCurrentFlavor();
+        for (Apk apk : apks) {
+            if (apk.flavor.equals(current)) return apk;
+        }
+        Apk apk = new Apk();
+        apk.flavor = current;
+        apk.md5 = defaultMd5;
+        return apk;
+    }
+
     private void show(Activity activity, String version, String desc) {
         binding = DialogUpdateBinding.inflate(LayoutInflater.from(activity));
         binding.version.setText(ResUtil.getString(R.string.update_version, version));
+        binding.server.setText("Server: " + Github.URL);
+        binding.server.setVisibility(View.VISIBLE);
+        binding.more.setVisibility(apks.size() > 1 ? View.VISIBLE : View.GONE);
         binding.confirm.setOnClickListener(this::confirm);
+        binding.more.setOnClickListener(v -> onMore(activity));
         binding.cancel.setOnClickListener(this::cancel);
         check().create(activity).show();
         binding.desc.setText(desc);
+    }
+
+    private void onMore(Activity activity) {
+        String[] items = new String[apks.size()];
+        for (int i = 0; i < apks.size(); i++) items[i] = apks.get(i).getName();
+        new MaterialAlertDialogBuilder(activity)
+                .setTitle(R.string.update_more)
+                .setItems(items, (d, which) -> {
+                    selected = apks.get(which);
+                    confirm(null);
+                }).show();
     }
 
     private AlertDialog create(Activity activity) {
@@ -132,8 +165,10 @@ Updater implements Download.Callback {
 
     private void confirm(View view) {
         binding.confirm.setEnabled(false);
+        binding.more.setEnabled(false);
         binding.cancel.setVisibility(View.GONE);
-        Download.create(getApk(), getFile(), this).start();
+        binding.speed.setVisibility(View.VISIBLE);
+        Download.create(getApkUrl(selected.flavor), getFile(), this).start();
     }
 
     private void dismiss() {
@@ -144,8 +179,9 @@ Updater implements Download.Callback {
     }
 
     @Override
-    public void progress(int progress) {
-        binding.confirm.setText(String.format(Locale.getDefault(), "%1$d%%", progress));
+    public void progress(int progress, String speed) {
+        binding.confirm.setText(progress >= 0 ? String.format(Locale.getDefault(), "%1$d%%", progress) : "下載中...");
+        binding.speed.setText("Speed: " + speed);
     }
 
     @Override
@@ -156,8 +192,8 @@ Updater implements Download.Callback {
 
     @Override
     public void success(File file) {
-        if (!TextUtils.isEmpty(md5) && !com.github.catvod.utils.Util.md5(file).equalsIgnoreCase(md5)) {
-            android.util.Log.e("Updater", "MD5 mismatch! Downloaded: " + com.github.catvod.utils.Util.md5(file) + " Expected: " + md5);
+        if (!TextUtils.isEmpty(selected.md5) && !com.github.catvod.utils.Util.md5(file).equalsIgnoreCase(selected.md5)) {
+            android.util.Log.e("Updater", "MD5 mismatch! Downloaded: " + com.github.catvod.utils.Util.md5(file) + " Expected: " + selected.md5);
             Notify.show("檔案驗證失敗，請重試");
             file.delete();
             dismiss();
@@ -165,5 +201,23 @@ Updater implements Download.Callback {
         }
         FileUtil.openFile(file);
         dismiss();
+    }
+
+    private static class Apk {
+        @SerializedName("name")
+        private String name;
+        @SerializedName("flavor")
+        private String flavor;
+        @SerializedName("md5")
+        private String md5;
+
+        public String getName() {
+            return TextUtils.isEmpty(name) ? flavor : name;
+        }
+
+        static List<Apk> arrayFrom(String str) {
+            List<Apk> items = App.gson().fromJson(str, new TypeToken<List<Apk>>() {}.getType());
+            return items == null ? new ArrayList<>() : items;
+        }
     }
 }

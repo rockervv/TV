@@ -662,4 +662,20 @@ public class Setting {
     public static void putCategoryCache(boolean cache) {
         Prefers.put("category_cache", cache);
     }
+
+    public static boolean isQuickJS() {
+        return Prefers.getBoolean("quickjs", true);
+    }
+
+    public static void putQuickJS(boolean quickjs) {
+        Prefers.put("quickjs", quickjs);
+    }
+
+    public static boolean isChaquo() {
+        return Prefers.getBoolean("chaquo", true);
+    }
+
+    public static void putChaquo(boolean chaquo) {
+        Prefers.put("chaquo", chaquo);
+    }
 }

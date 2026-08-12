@@ -143,6 +143,16 @@ public class ImgUtil {
         return builder.buildRoundRect(text, ColorGenerator.get400(text), ResUtil.dp2px(4));
     }
 
+    private static boolean isForbidden(GlideException e) {
+        if (e == null) return false;
+        for (Throwable t : e.getRootCauses()) {
+            if (t instanceof com.bumptech.glide.load.HttpException && ((com.bumptech.glide.load.HttpException) t).getStatusCode() == 403) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean isTimeout(GlideException e) {
         if (e == null) return false;
         for (Throwable t : e.getRootCauses()) {
@@ -157,14 +167,17 @@ public class ImgUtil {
         return new RequestListener<>() {
             @Override
             public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Drawable> target, boolean isFirstResource) {
+                boolean forbidden = isForbidden(e);
                 boolean network = isTimeout(e);
-                if (network) {
+                if (forbidden) {
+                    android.util.Log.d("ImgUtil", "onLoadFailed (403): " + url);
+                } else if (network) {
                     android.util.Log.w("ImgUtil", "onLoadFailed (Network): " + url);
                 } else {
                     android.util.Log.e("TV_FATAL", "onLoadFailed: " + url + " error: " + (e != null ? e.getMessage() : "unknown"));
                 }
                 view.setImageDrawable(getTextDrawable(text, vod));
-                if (!network) failed.add(url);
+                if (!network && !forbidden) failed.add(url);
                 return true;
             }
 

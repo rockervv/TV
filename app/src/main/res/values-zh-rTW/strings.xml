@@ -136,4 +136,5 @@
     <string name="setting_category_cache">分類快取</string>
     <string name="setting_off">關閉</string>
     <string name="setting_on">開啟</string>
+    <string name="update_more">更多版本</string>
 </resources>

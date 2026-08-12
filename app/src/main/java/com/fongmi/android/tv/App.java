@@ -124,6 +124,17 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onCreate() {
         super.onCreate();
+        
+        // 🛡️ 追蹤 Hidden API 與反射調用的神器
+        if (BuildConfig.DEBUG) {
+            android.os.StrictMode.setVmPolicy(new android.os.StrictMode.VmPolicy.Builder()
+                    .detectLeakedSqlLiteObjects()
+                    .detectLeakedClosableObjects()
+                    .detectUntaggedSockets()
+                    .penaltyLog()
+                    .build());
+        }
+
         try {
             java.lang.reflect.Field field = android.database.CursorWindow.class.getDeclaredField("sCursorWindowSize");
             field.setAccessible(true);

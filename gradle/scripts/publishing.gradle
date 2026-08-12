@@ -1,3 +1,6 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
 androidComponents {
     onVariants(selector().all()) { variant ->
         def buildType = variant.buildType
@@ -19,19 +22,26 @@ androidComponents {
         if (buildType == 'release') {
             def flavorNames = variant.productFlavors.collect { it.second }
             def flavorDirName = flavorNames.join("")
-            def targetOutputDir = file("${project.projectDir}/release_output/${flavorDirName}")
-            def jsonFile = new File(targetOutputDir, "leanback.json")
+            def flavorFileName = flavorNames.join("-")
+            def rootOutputDir = file("${project.projectDir}/release_output")
+            def targetOutputDir = file("${rootOutputDir}/${flavorDirName}")
+            def masterJsonFile = new File(rootOutputDir, "leanback.json")
+            
+            // 🛡️ 需求：x86_64 自動觸發 armeabi_v7a 的編譯
+            if (variant.flavorName.toLowerCase().contains("x86_64")) {
+                def otherVariantName = variant.name.replace("X86_64", "Armeabi_v7a")
+                tasks.matching { it.name == "assemble${variantName.capitalize()}" }.configureEach {
+                    it.dependsOn("assemble${otherVariantName.capitalize()}")
+                }
+            }
 
             // 動態計算目標 Task 的名字
             def targetTaskName = "assemble${variantName.substring(0, 1).toUpperCase()}${variantName.substring(1)}"
-
-            // 從專案屬性獲取由主腳本傳遞過來的 Artifact 實例
             def apkDirProvider = variant.artifacts.get(project.apkArtifact)
 
             tasks.configureEach { task ->
                 if (task.name == targetTaskName) {
                     task.doLast {
-                        // 動態寫入 JSON 內容
                         def commitMessage = project.getLastCommitMessage()
                         def apkDir = apkDirProvider.get().asFile
                         def apkFile = new File(apkDir, variant.outputs.first().outputFileName.get())
@@ -46,31 +56,59 @@ androidComponents {
                             md5 = new BigInteger(1, messageDigest.digest()).toString(16).padLeft(32, '0')
                         }
 
-                        def jsonContent = """{
-    "name": "${project.autoVersionName}",
-    "desc": "${commitMessage}",
-    "code": "${project.autoVersionCode}",
-    "md5": "${md5}"
-}"""
-                        targetOutputDir.mkdirs()
-                        jsonFile.text = jsonContent
-
-                        println "DEBUG: Generated MD5: ${md5}"
-                        println "DEBUG: json:\n-------------\n ${jsonContent} \n--------------\n"
-
-                        // 使用 Provider 獲取目錄
-                        // def apkDir = apkDirProvider.get().asFile // 已在上方定義過
-
-                        project.copy {
-                            from jsonFile
-                            into apkDir
+                        // 🛡️ 執行合併 JSON 邏輯
+                        // 使用專案級別的鎖確保多個 assemble 任務併發執行時不會寫壞 JSON
+                        project.rootProject.ext.with {
+                            if (!delegate.hasProperty("jsonLock")) delegate.jsonLock = new Object()
                         }
+                        
+                        synchronized(project.rootProject.ext.jsonLock) {
+                            def jsonSlurper = new JsonSlurper()
+                            def data = [:]
+                            if (masterJsonFile.exists()) {
+                                try {
+                                    data = jsonSlurper.parse(masterJsonFile)
+                                } catch (Exception ignored) {}
+                            }
+
+                            // 更新基本資訊
+                            data.name = project.autoVersionName
+                            data.code = project.autoVersionCode.toInteger()
+                            data.desc = commitMessage
+                            data.md5 = md5
+
+                            // 初始化或更新 apks 列表
+                            if (data.apks == null) data.apks = []
+                            
+                            def currentFlavorKey = "leanback-${flavorFileName}"
+                            def existingApk = data.apks.find { it.flavor == currentFlavorKey }
+                            if (existingApk) {
+                                existingApk.md5 = md5
+                            } else {
+                                data.apks << [
+                                    name: "${flavorFileName} 版本",
+                                    flavor: currentFlavorKey,
+                                    md5: md5
+                                ]
+                            }
+
+                            rootOutputDir.mkdirs()
+                            masterJsonFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(data))
+                        }
+
                         // 將編譯好的 APK 複製到指定的 release_output 目錄下
+                        targetOutputDir.mkdirs()
                         variant.outputs.each { output ->
                             project.copy {
                                 from new File(apkDir, output.outputFileName.get())
                                 into targetOutputDir
                             }
+                        }
+                        
+                        // 同時複製主 JSON 到每個 flavor 目錄下（相容舊機制）
+                        project.copy {
+                            from masterJsonFile
+                            into targetOutputDir
                         }
                     }
                 }

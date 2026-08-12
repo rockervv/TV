@@ -13,18 +13,23 @@ import java.util.concurrent.ConcurrentHashMap;
 public class JsLoader {
 
     private final ConcurrentHashMap<String, Spider> spiders;
-    private final Loader loader;
+    private Loader loader;
     private volatile String recent;
 
     public JsLoader() {
         this.spiders = new ConcurrentHashMap<>();
-        this.loader = new Loader();
+    }
+
+    private Loader getLoader() {
+        if (loader == null) loader = new Loader();
+        return loader;
     }
 
     public void clear() {
         for (Spider spider : spiders.values()) spider.destroy();
         Module.get().clear();
         spiders.clear();
+        loader = null;
         recent = null;
     }
 
@@ -34,6 +39,7 @@ public class JsLoader {
 
     public Spider getSpider(String key, String api, String ext, String jar) {
         if (api == null || api.isEmpty()) return new SpiderNull();
+        if (!com.fongmi.android.tv.setting.Setting.isQuickJS()) return new SpiderNull("QuickJS is disabled");
         
         // 🛠️ 使用雙重檢查鎖 + intern()，解凍 UI 執行緒
         Spider spider = spiders.get(key);
@@ -45,7 +51,7 @@ public class JsLoader {
 
             try {
                 dalvik.system.DexClassLoader dexLoader = BaseLoader.get().dex(jar);
-                spider = loader.spider(api, dexLoader);
+                spider = getLoader().spider(api, dexLoader);
                 spider.siteKey = key;
                 spider.siteName = VodConfig.get().getSite(key).getName();
                 spider.init(App.get(), ext);

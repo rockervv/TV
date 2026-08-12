@@ -24,6 +24,7 @@ import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Filter;
 import com.fongmi.android.tv.bean.Page;
 import com.fongmi.android.tv.bean.Result;
+import com.fongmi.android.tv.bean.Scenario;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Style;
 import com.fongmi.android.tv.bean.Value;
@@ -233,7 +234,8 @@ public class VodFragment extends BaseFragment implements CustomScroller.Callback
     }
 
     private void addVideo(Result result) {
-        Style style = result.getStyle(getStyle());
+        Scenario scenario = VodConfig.get().getScenario();
+        Style style = scenario.getId().isEmpty() ? result.getStyle(getStyle()) : scenario.getStyle();
         if (style.isList()) mAdapter.addAll(mAdapter.size(), result.getList());
         else addGrid(result.getList(), style);
     }

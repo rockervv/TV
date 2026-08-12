@@ -55,6 +55,7 @@ import com.fongmi.android.tv.bean.Class;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Filter;
 import com.fongmi.android.tv.bean.Result;
+import com.fongmi.android.tv.bean.Scenario;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.bean.Func;
@@ -74,6 +75,7 @@ import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.custom.CustomTitleView;
 import com.fongmi.android.tv.ui.dialog.HistoryDialog;
 import com.fongmi.android.tv.ui.dialog.MenuDialog;
+import com.fongmi.android.tv.ui.dialog.ScenarioDialog;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.ui.fragment.HomeFragment;
 import com.fongmi.android.tv.ui.fragment.VodFragment;
@@ -109,7 +111,7 @@ import java.util.Map;
 import java.util.Optional;
 
 
-public class HomeActivity extends BaseActivity implements CustomTitleView.Listener, TypePresenter.OnClickListener, VodPresenter.OnClickListener, FuncPresenter.OnClickListener, HistoryPresenter.OnClickListener {
+public class HomeActivity extends BaseActivity implements CustomTitleView.Listener, TypePresenter.OnClickListener, VodPresenter.OnClickListener, FuncPresenter.OnClickListener, HistoryPresenter.OnClickListener, ScenarioDialog.Callback {
 
     private static final Map<String, Result> mCache = new HashMap<>();
     public ActivityHomeBinding mBinding;
@@ -286,6 +288,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             onRefreshHome();
             return true;
         });
+        mBinding.scenario.setOnClickListener(v -> ScenarioDialog.create().show(this));
         mBinding.recycler.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
@@ -756,6 +759,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 Task.execute(HistorySyncManager::setup);
                 setTitle(config);
                 setLogo(config);
+                mBinding.scenario.setVisibility(VodConfig.get().getScenarios().isEmpty() ? View.GONE : View.VISIBLE);
                 showContent();
                 App.post(() -> {
                     RefreshEvent.history();
@@ -861,6 +865,19 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             mBinding.recycler.setSelectedPosition(0);
         }
         homeContent();
+    }
+
+    @Override
+    public void setScenario(Scenario item) {
+        VodConfig.get().setContext(item.getId());
+        setScenarioUI(item);
+        onRefreshHome();
+    }
+
+    private void setScenarioUI(Scenario item) {
+        if (item.getId().isEmpty()) return;
+        mBinding.title.setText(item.getName());
+        // TODO: Apply more styles like theme color, background image, etc.
     }
 
     @Override

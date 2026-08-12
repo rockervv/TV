@@ -25,6 +25,7 @@ import com.fongmi.android.tv.bean.Button;
 import com.fongmi.android.tv.bean.Func;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Result;
+import com.fongmi.android.tv.bean.Scenario;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Style;
 import com.fongmi.android.tv.bean.Vod;
@@ -154,7 +155,8 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
         int index = getRecommendIndex();
         if (index == -1) return;
         List<Vod> list = result.getList();
-        Style style = result.getStyle(getHome().getStyle());
+        Scenario scenario = VodConfig.get().getScenario();
+        Style style = scenario.getId().isEmpty() ? result.getStyle(getHome().getStyle()) : scenario.getStyle();
         if (mAdapter.size() > index) mAdapter.removeItems(index, mAdapter.size() - index);
         if (list.isEmpty()) return;
         if (style.isList()) mAdapter.addAll(mAdapter.size(), list);

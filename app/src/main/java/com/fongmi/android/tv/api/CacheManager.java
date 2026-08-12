@@ -34,7 +34,8 @@ public class CacheManager {
     }
 
     public static File getFile(String key, String tid, String page, String extHash) {
-        String name = com.github.catvod.utils.Util.md5(key);
+        String context = com.fongmi.android.tv.api.config.VodConfig.get().getContext();
+        String name = com.github.catvod.utils.Util.md5(context + "_" + key);
         if (TextUtils.isEmpty(extHash)) {
             return Path.files(String.format("cache_%s_%s_%s.json", name, tid, page));
         } else {

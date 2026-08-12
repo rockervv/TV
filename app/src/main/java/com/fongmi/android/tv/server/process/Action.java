@@ -156,7 +156,7 @@ public class Action implements Process {
             Config config = Config.find(Config.objectFrom(params.get("config")));
             FormBody.Builder body = new FormBody.Builder();
             body.add("config", config.toString());
-            body.add("targets", App.gson().toJson(History.get(config.getId())));
+            body.add("targets", App.gson().toJson(History.get(config.getId(), VodConfig.get().getContext())));
             OkHttp.newCall(OkHttp.client(Constant.TIMEOUT_SYNC), device.getIp().concat("/action?do=sync&mode=0&type=history"), body.build()).execute();
         } catch (Exception e) {
             App.post(() -> Notify.show(e.getMessage()));

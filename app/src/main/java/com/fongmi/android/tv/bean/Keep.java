@@ -49,39 +49,45 @@ public class Keep implements Diffable<Keep> {
     }
 
     public static Keep find(String key) {
-        return find(VodConfig.getCid(), key);
+        return find(VodConfig.getCid(), VodConfig.get().getContext(), key);
     }
 
-    public static Keep find(int cid, String key) {
-        return AppDatabase.get().getKeepDao().find(cid, key);
+    public static Keep find(int cid, String context, String key) {
+        return AppDatabase.get().getKeepDao().find(cid, context, key);
     }
 
     public static boolean exist(String key) {
-        return AppDatabase.get().getKeepDao().find(key) != null;
+        return find(key) != null;
     }
 
     public static void deleteAll() {
-        AppDatabase.get().getKeepDao().delete();
+        AppDatabase.get().getKeepDao().deleteByContext(VodConfig.get().getContext());
     }
 
-    public static void delete(int cid) {
-        AppDatabase.get().getKeepDao().delete(cid);
+    public static void delete(int cid, String context) {
+        AppDatabase.get().getKeepDao().delete(cid, context);
     }
 
     public static void delete(String key) {
-        AppDatabase.get().getKeepDao().delete(key);
+        Keep item = find(key);
+        if (item != null) item.delete();
+        else AppDatabase.get().getKeepDao().delete(key);
     }
 
     public static List<Keep> getVod() {
-        return AppDatabase.get().getKeepDao().getVod();
+        return AppDatabase.get().getKeepDao().getVod(VodConfig.get().getContext());
     }
 
     public static List<Keep> getLive() {
         return AppDatabase.get().getKeepDao().getLive();
     }
 
+    public static List<Keep> get() {
+        return AppDatabase.get().getKeepDao().getAll(VodConfig.get().getContext());
+    }
+
     public static List<Keep> getAll() {
-        return AppDatabase.get().getKeepDao().getAll();
+        return AppDatabase.get().getKeepDao().findAll();
     }
 
     public static List<Keep> syncLists(List<Keep> local, List<Keep> remote) {
@@ -187,11 +193,13 @@ public class Keep implements Diffable<Keep> {
     }
 
     public void save() {
+        if (android.text.TextUtils.isEmpty(context)) context = VodConfig.get().getContext();
         AppDatabase.get().getKeepDao().insertOrUpdate(this);
     }
 
     public Keep delete() {
-        AppDatabase.get().getKeepDao().delete(getCid(), getKey());
+        if (getType() == 1) AppDatabase.get().getKeepDao().delete(getKey());
+        else AppDatabase.get().getKeepDao().delete(getCid(), getContext(), getKey());
         return this;
     }
 

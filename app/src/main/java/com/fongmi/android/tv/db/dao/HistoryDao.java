@@ -17,27 +17,26 @@ public abstract class HistoryDao extends BaseDao<History> {
     //@Query("SELECT * FROM History WHERE cid = :cid ORDER BY createTime DESC")
     //@Query("SELECT * FROM History WHERE cid = :cid ORDER BY lastUpdated DESC")
     //@Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid ORDER BY createTime DESC")
-    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid ORDER BY lastUpdated DESC")
-    public abstract List<History> find(int cid);
+    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND context = :context ORDER BY lastUpdated DESC")
+    public abstract List<History> find(int cid, String context);
 
-    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND createTime >= :createTime ORDER BY lastUpdated DESC")
-    public abstract List<History> find(int cid, long createTime);
+    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND context = :context AND createTime >= :createTime ORDER BY lastUpdated DESC")
+    public abstract List<History> find(int cid, String context, long createTime);
 
-    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND `key` = :key ORDER BY lastUpdated DESC")
-    public abstract History find(int cid, String key);
+    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND context = :context AND `key` = :key ORDER BY lastUpdated DESC")
+    public abstract History find(int cid, String context, String key);
 
-    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND vodName = :vodName ORDER BY lastUpdated DESC")
-    public abstract List<History> findByName(int cid, String vodName);
+    @Query("SELECT * FROM History WHERE deleted = 0 AND cid = :cid AND context = :context AND vodName = :vodName ORDER BY lastUpdated DESC")
+    public abstract List<History> findByName(int cid, String context, String vodName);
 
-    @Query("UPDATE History SET deleted = 1, lastUpdated = :lastUpdated WHERE cid = :cid AND `key` = :key")
-    public abstract void delete(int cid, String key, long lastUpdated);
+    @Query("UPDATE History SET deleted = 1, lastUpdated = :lastUpdated WHERE cid = :cid AND context = :context AND `key` = :key")
+    public abstract void delete(int cid, String context, String key, long lastUpdated);
 
-    //hard Deleted from database, TODO or NotTodo: delete rows which has deleted flag on for more than xx days
-    @Query("DELETE FROM History WHERE cid = :cid AND `key` = :key")
-    public abstract void delete(int cid, String key);
+    @Query("DELETE FROM History WHERE cid = :cid AND context = :context AND `key` = :key")
+    public abstract void delete(int cid, String context, String key);
 
-    @Query("DELETE FROM History WHERE cid = :cid")
-    public abstract void delete(int cid);
+    @Query("DELETE FROM History WHERE cid = :cid AND context = :context")
+    public abstract void delete(int cid, String context);
 
     @Query("DELETE FROM History")
     public abstract void delete();
@@ -50,7 +49,7 @@ public abstract class HistoryDao extends BaseDao<History> {
     @Transaction
     public void insertOrUpdateAll(List<History> histories) {
         for (History history : histories) {
-            History existing = find(history.getCid(), history.getKey());
+            History existing = find(history.getCid(), history.getContext(), history.getKey());
             if (existing != null) {
                 update(history);
             } else {

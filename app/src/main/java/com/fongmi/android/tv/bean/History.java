@@ -95,27 +95,31 @@ public class History implements Diffable<History> {
     }
 
     public static List<History> get() {
-        return get(VodConfig.getCid());
+        return get(VodConfig.getCid(), VodConfig.get().getContext());
     }
 
-    public static List<History> get(int cid) {
-        return AppDatabase.get().getHistoryDao().find(cid, System.currentTimeMillis() - Constant.HISTORY_TIME);
+    public static List<History> get(int cid, String context) {
+        return AppDatabase.get().getHistoryDao().find(cid, context, System.currentTimeMillis() - Constant.HISTORY_TIME);
     }
 
     public static History find(String key) {
-        return AppDatabase.get().getHistoryDao().find(VodConfig.getCid(), key);
+        return AppDatabase.get().getHistoryDao().find(VodConfig.getCid(), VodConfig.get().getContext(), key);
     }
 
     public static List<History> findByName(String name) {
         try {
-            return AppDatabase.get().getHistoryDao().findByName(VodConfig.getCid(), name);
+            return AppDatabase.get().getHistoryDao().findByName(VodConfig.getCid(), VodConfig.get().getContext(), name);
         } catch (Exception e) {
             return Collections.emptyList();
         }
     }
 
     public static void delete(int cid) {
-        AppDatabase.get().getHistoryDao().delete(cid);
+        delete(cid, VodConfig.get().getContext());
+    }
+
+    public static void delete(int cid, String context) {
+        AppDatabase.get().getHistoryDao().delete(cid, context);
     }
 
     public static List<History> syncLists(List<History> local, List<History> remote) {
@@ -388,13 +392,14 @@ public class History implements Diffable<History> {
     public History save(boolean update) {
         if (update) lastUpdated = System.currentTimeMillis();
         if (update) createTime = System.currentTimeMillis();
+        if (TextUtils.isEmpty(context)) context = VodConfig.get().getContext();
         updateTime = System.currentTimeMillis();
         AppDatabase.get().getHistoryDao().insertOrUpdate(this);
         return this;
     }
 
     public History delete() {
-        AppDatabase.get().getHistoryDao().delete(VodConfig.getCid(), getKey());
+        AppDatabase.get().getHistoryDao().delete(VodConfig.getCid(), getContext(), getKey());
         AppDatabase.get().getTrackDao().delete(getKey());
         return this;
     }

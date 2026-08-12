@@ -10,6 +10,7 @@ import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.github.catvod.utils.Prefers;
@@ -283,7 +284,7 @@ public class Config {
     public void delete() {
         AppDatabase.get().getConfigDao().delete(getUrl(), getType());
         History.delete(getId());
-        Keep.delete(getId());
+        Keep.delete(getId(), VodConfig.get().getContext());
     }
 
     @NonNull

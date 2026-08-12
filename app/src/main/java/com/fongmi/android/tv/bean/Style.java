@@ -15,6 +15,10 @@ public class Style implements Parcelable {
     private String type;
     @SerializedName("ratio")
     private float ratio;
+    @SerializedName("layout")
+    private String layout;
+    @SerializedName("theme")
+    private String theme;
 
     public Style(String type) {
         this.type = type;
@@ -28,6 +32,8 @@ public class Style implements Parcelable {
     protected Style(Parcel in) {
         this.type = in.readString();
         this.ratio = in.readFloat();
+        this.layout = in.readString();
+        this.theme = in.readString();
     }
 
     public static Style rect() {
@@ -46,6 +52,14 @@ public class Style implements Parcelable {
 
     public String getType() {
         return TextUtils.isEmpty(type) ? "rect" : type;
+    }
+
+    public String getLayout() {
+        return TextUtils.isEmpty(layout) ? "grid" : layout;
+    }
+
+    public String getTheme() {
+        return TextUtils.isEmpty(theme) ? "" : theme;
     }
 
     public float getRatio() {
@@ -92,6 +106,8 @@ public class Style implements Parcelable {
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(this.type);
         dest.writeFloat(this.ratio);
+        dest.writeString(this.layout);
+        dest.writeString(this.theme);
     }
 
     public static final Creator<Style> CREATOR = new Creator<>() {

@@ -13,6 +13,7 @@ import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.bean.Depot;
 import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Rule;
+import com.fongmi.android.tv.bean.Scenario;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
@@ -30,6 +31,7 @@ import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -42,7 +44,8 @@ public class VodConfig extends BaseConfig {
 
     private List<Doh> doh;
     private List<Rule> rules;
-    private List<Site> sites;
+    private Map<String, List<Site>> siteMap;
+    private List<Scenario> scenarios;
     private List<Parse> parses;
     private List<String> flags;
     private List<String> ads;
@@ -50,6 +53,7 @@ public class VodConfig extends BaseConfig {
     private boolean loadLive;
     private Parse parse;
     private String wall;
+    private String context;
     private Site home;
 
     private static class Loader {
@@ -61,9 +65,11 @@ public class VodConfig extends BaseConfig {
         this.parseAds = new ArrayList<>();
         this.doh = new ArrayList<>();
         this.rules = new ArrayList<>();
-        this.sites = new ArrayList<>();
+        this.siteMap = new HashMap<>();
+        this.scenarios = new ArrayList<>();
         this.flags = new ArrayList<>();
         this.parses = new ArrayList<>();
+        this.context = "vod";
     }
 
     public static VodConfig get() {
@@ -104,8 +110,9 @@ public class VodConfig extends BaseConfig {
     }
 
     public VodConfig init() {
-        this.sites.clear();
-        addLocal(this.sites);
+        this.siteMap.clear();
+        this.siteMap.put("vod", new ArrayList<>());
+        addLocal(this.siteMap.get("vod"));
         return config(Config.vod());
     }
 
@@ -122,11 +129,14 @@ public class VodConfig extends BaseConfig {
         this.parseAds.clear();
         this.doh.clear();
         this.rules.clear();
-        this.sites.clear();
+        this.siteMap.clear();
+        this.scenarios.clear();
         this.flags.clear();
         this.parses.clear();
         this.loadLive = true;
-        addLocal(this.sites);
+        this.context = "vod";
+        this.siteMap.put("vod", new ArrayList<>());
+        addLocal(this.siteMap.get("vod"));
         BaseLoader.get().clear();
         return this;
     }
@@ -205,10 +215,18 @@ public class VodConfig extends BaseConfig {
         initList(object);
         initLive(config, object);
         initWall(config, object);
+        initScenario(object);
         initSite(config, object);
         initParse(config, object);
         config.setLogo(Json.safeString(object, "logo"));
         config.setNotice(Json.safeString(object, "notice"));
+    }
+
+    private void initScenario(JsonObject object) {
+        scenarios.clear();
+        if (object.has("contexts")) {
+            scenarios.addAll(Scenario.arrayFrom(object.getAsJsonArray("contexts").toString()));
+        }
     }
 
     private void initList(JsonObject object) {
@@ -238,16 +256,35 @@ public class VodConfig extends BaseConfig {
 
     private void initSite(Config config, JsonObject object) {
         String spider = Json.safeString(object, "spider");
-        List<Site> items = new ArrayList<>();
+        siteMap.clear();
+        
+        // 1. 解析預設場景 (sites)
+        List<Site> vodSites = new ArrayList<>();
         if (object.has("sites")) {
-            items.addAll(Json.safeListElement(object, "sites").stream().map(e -> Site.objectFrom(e, spider)).distinct().toList());
+            vodSites.addAll(Json.safeListElement(object, "sites").stream().map(e -> Site.objectFrom(e, spider)).distinct().toList());
         }
-        addLocal(items);
-        setSites(items);
+        addLocal(vodSites);
+        siteMap.put("vod", vodSites);
+
+        // 2. 解析擴展場景 (sites_xxx)
+        for (String key : object.keySet()) {
+            if (key.startsWith("sites_")) {
+                String contextId = key.substring(6);
+                List<Site> otherSites = Json.safeListElement(object, key).stream().map(e -> Site.objectFrom(e, spider)).distinct().toList();
+                for (Site site : otherSites) site.setContext(contextId);
+                siteMap.put(contextId, otherSites);
+            }
+        }
+
         BaseLoader.get().parseJar(spider, true);
         AppDatabase.get().getSiteDao().clear();
-        Map<String, Site> sites = Site.findAll().stream().collect(Collectors.toMap(Site::getKey, Function.identity(), (a, b) -> a));
-        getSites().forEach(site -> site.sync(sites.get(site.getKey())));
+        
+        // 同步所有場景的站點數據
+        Map<String, Site> dbSites = Site.findAll().stream().collect(Collectors.toMap(Site::getKey, Function.identity(), (a, b) -> a));
+        for (List<Site> list : siteMap.values()) {
+            list.forEach(site -> site.sync(dbSites.get(site.getKey())));
+        }
+
         String local = Setting.getLocalSpider();
         Site home = getSites().stream().filter(item -> item.getKey().equals(config.getHome())).findFirst().orElse(getSites().get(0));
         if (!local.isEmpty()) home = getSites().stream().filter(item -> item.getApi().equals(local)).findFirst().orElse(home);
@@ -260,11 +297,28 @@ public class VodConfig extends BaseConfig {
     }
 
     public List<Site> getSites() {
-        return sites == null ? Collections.emptyList() : sites;
+        List<Site> items = siteMap.get(context);
+        return items == null ? Collections.emptyList() : items;
     }
 
-    private void setSites(List<Site> sites) {
-        this.sites = sites;
+    public String getContext() {
+        return context;
+    }
+
+    public List<Scenario> getScenarios() {
+        return scenarios == null ? Collections.emptyList() : scenarios;
+    }
+
+    public Scenario getScenario() {
+        return getScenarios().stream().filter(item -> item.getId().equals(context)).findFirst().orElse(new Scenario());
+    }
+
+    public void setContext(String context) {
+        this.context = context;
+        // 切換場景時，通常需要更新首頁站點為該場景的第一個站點
+        if (!getSites().isEmpty()) {
+            setHome(getSites().get(0));
+        }
     }
 
     public List<Parse> getParses() {

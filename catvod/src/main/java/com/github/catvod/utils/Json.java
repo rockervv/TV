@@ -17,10 +17,48 @@ import java.util.Map;
 public class Json {
 
     public static JsonElement parse(String json) {
+        if (TextUtils.isEmpty(json)) throw new com.google.gson.JsonSyntaxException("JSON 內容為空");
         try {
             return JsonParser.parseString(json);
+        } catch (com.google.gson.JsonSyntaxException e) {
+            throw new com.google.gson.JsonSyntaxException(getErrorMessage(json, e.getMessage()), e.getCause());
         } catch (Throwable e) {
-            return new JsonParser().parse(json);
+            throw new com.google.gson.JsonSyntaxException("解析失敗: " + e.getMessage());
+        }
+    }
+
+    private static String getErrorMessage(String json, String error) {
+        try {
+            if (error == null || !error.contains("at line ")) return error;
+            String[] split = error.split("at line ");
+            String infoPart = split[1];
+            String[] info = infoPart.split(" ");
+            int line = Integer.parseInt(info[0]);
+            int col = Integer.parseInt(info[2]);
+            String[] lines = json.split("\\n");
+            if (line > lines.length) return error;
+            
+            String rawContent = lines[line - 1];
+            String content = rawContent.trim();
+            int offset = rawContent.length() - rawContent.replaceAll("^\\s+", "").length();
+            int displayCol = col - offset;
+
+            // 💡 限制長度避免 Toast 撐爆
+            if (content.length() > 60) {
+                int start = Math.max(0, displayCol - 30);
+                int end = Math.min(content.length(), displayCol + 30);
+                content = (start > 0 ? "..." : "") + content.substring(start, end) + (end < content.length() ? "..." : "");
+                displayCol = start > 0 ? displayCol - start + 3 : displayCol;
+            }
+            
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < Math.max(0, displayCol - 1); i++) sb.append(" ");
+            sb.append("⬆️");
+            
+            String cleanError = error.substring(0, error.indexOf("at line")).trim();
+            return "JSON 語法錯誤 (第 " + line + " 行):\n" + content + "\n" + sb + "\n" + cleanError;
+        } catch (Throwable e) {
+            return error;
         }
     }
 

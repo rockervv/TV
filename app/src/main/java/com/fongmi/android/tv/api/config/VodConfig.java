@@ -179,9 +179,13 @@ public class VodConfig extends BaseConfig {
         if (json.equals(config.getJson()) && isLoaded()) return;
         config.setJson(json);
         try {
-            checkJson(config, Json.parse(json).getAsJsonObject());
+            if (TextUtils.isEmpty(json)) throw new Exception("設定檔內容為空 (Empty)");
+            JsonElement element = Json.parse(json);
+            if (element == null || element.isJsonNull()) throw new Exception("設定檔不是有效的 JSON");
+            if (!element.isJsonObject()) throw new Exception("設定檔頂層必須是物件 {} 而非數組 []");
+            checkJson(config, element.getAsJsonObject());
         } catch (Exception e) {
-            throw new Exception(ResUtil.getString(R.string.error_config_parse) + ": " + e.getMessage());
+            throw new Exception(ResUtil.getString(R.string.error_config_parse) + "\n" + e.getMessage());
         }
     }
 

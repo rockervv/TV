@@ -2,6 +2,7 @@ package com.fongmi.android.tv.bean;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
@@ -39,7 +40,9 @@ public class Keep implements Diffable<Keep> {
     private int type;
     @SerializedName("cid")
     private int cid;
+    @NonNull
     @SerializedName("context")
+    @ColumnInfo(defaultValue = "vod")
     private String context;
 
     public static List<Keep> arrayFrom(String str) {
@@ -171,11 +174,12 @@ public class Keep implements Diffable<Keep> {
         this.cid = cid;
     }
 
+    @NonNull
     public String getContext() {
-        return android.text.TextUtils.isEmpty(context) ? "" : context;
+        return android.text.TextUtils.isEmpty(context) ? "vod" : context;
     }
 
-    public void setContext(String context) {
+    public void setContext(@NonNull String context) {
         this.context = context;
     }
 

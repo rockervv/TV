@@ -102,7 +102,9 @@ public class Site implements Parcelable {
     @ColumnInfo(name = "cache")
     private String cache;
 
-    @ColumnInfo(name = "context")
+    @NonNull
+    @SerializedName("context")
+    @ColumnInfo(defaultValue = "vod")
     private String context;
 
     @Ignore
@@ -402,11 +404,12 @@ public class Site implements Parcelable {
         this.cache = cache;
     }
 
+    @NonNull
     public String getContext() {
-        return TextUtils.isEmpty(context) ? "" : context;
+        return TextUtils.isEmpty(context) ? "vod" : context;
     }
 
-    public void setContext(String context) {
+    public void setContext(@NonNull String context) {
         this.context = context;
     }
 

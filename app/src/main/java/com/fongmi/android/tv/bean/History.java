@@ -6,6 +6,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
+import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
@@ -64,7 +65,9 @@ public class History implements Diffable<History> {
     private int scale;
     @SerializedName("cid")
     private int cid;
+    @NonNull
     @SerializedName("context")
+    @ColumnInfo(defaultValue = "vod")
     private String context;
     @SerializedName("lastUpdated")
     private long lastUpdated;
@@ -280,11 +283,12 @@ public class History implements Diffable<History> {
         this.cid = cid;
     }
 
+    @NonNull
     public String getContext() {
-        return TextUtils.isEmpty(context) ? "" : context;
+        return TextUtils.isEmpty(context) ? "vod" : context;
     }
 
-    public void setContext(String context) {
+    public void setContext(@NonNull String context) {
         this.context = context;
     }
 

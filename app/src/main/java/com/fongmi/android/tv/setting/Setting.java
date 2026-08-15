@@ -678,4 +678,12 @@ public class Setting {
     public static void putChaquo(boolean chaquo) {
         Prefers.put("chaquo", chaquo);
     }
+
+    public static boolean isAutoResumeUI() {
+        return Prefers.getBoolean("auto_resume_ui", false);
+    }
+
+    public static void putAutoResumeUI(boolean value) {
+        Prefers.put("auto_resume_ui", value);
+    }
 }

@@ -243,6 +243,15 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mR4 = this::showEmpty;
         setRecyclerView();
         setVideoView();
+        
+        // 💡 預填充：在 UI 顯示前的第一時間從 Intent 載入歷史進度，防止 00:00 閃爍
+        long position = getIntent().getLongExtra("position", 0);
+        long duration = getIntent().getLongExtra("duration", 0);
+        if (position > 0 && duration > 0) {
+            mBinding.widget.exoDuration.setText(Util.timeMs(duration));
+            mBinding.widget.exoPosition.setText(Util.timeMs(position));
+        }
+
         checkCast();
     }
 
@@ -766,6 +775,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     protected void onFullscreenChanged(boolean fullscreen) {
         if (this.fullscreen == fullscreen) return;
         android.util.Log.d("TV_UI", "onFullscreenChanged: " + fullscreen);
+        com.github.catvod.utils.Prefers.put("auto_resume_full", fullscreen);
         if (fullscreen) enterFullscreen();
         else exitFullscreen();
     }
@@ -1102,8 +1112,30 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBinding.widget.getRoot().bringToFront();
         mBinding.widget.getRoot().requestLayout();
         mBinding.widget.size.setText(player().getSizeText());
-        mBinding.widget.exoDuration.setText(player().getDurationTime());
-        mBinding.widget.exoPosition.setText(player().getPositionTime(0));
+
+        // 💡 強化守衛：只有播放器回傳有效長度時才更新，否則死守歷史紀錄數值
+        long pos = player().getPosition();
+        long dur = player().getDuration();
+        long hPos = getIntent().getLongExtra("position", 0);
+        long hDur = getIntent().getLongExtra("duration", 0);
+
+        if (dur > 0) {
+            mBinding.widget.exoDuration.setText(player().getDurationTime());
+            mBinding.widget.exoPosition.setText(player().getPositionTime(0));
+        } else if (hPos > 0 && hDur > 0) {
+            mBinding.widget.exoDuration.setText(Util.timeMs(hDur));
+            mBinding.widget.exoPosition.setText(Util.timeMs(hPos));
+        }
+
+        // 💡 修正冷啟動：延後刷新時間，確保獲取到真實進度
+        if (getIntent().getBooleanExtra("auto_resume", false) || resume_from_background) {
+            App.post(() -> {
+                if (mBinding != null && player() != null && player().getDuration() > 0) {
+                    mBinding.widget.exoDuration.setText(player().getDurationTime());
+                    mBinding.widget.exoPosition.setText(player().getPositionTime(0));
+                }
+            }, 1000);
+        }
     }
 
     private void hideInfo() {
@@ -1252,6 +1284,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     protected void onPrepare() {
+        if (getIntent().getBooleanExtra("auto_resume", false)) showInfo();
         mBinding.widget.status.setVisibility(View.VISIBLE);
         mBinding.widget.status.setText(R.string.play_status_data_success);
         mBinding.widget.status.postDelayed(() -> mBinding.widget.status.setText(R.string.play_status_preparing), 1000);
@@ -1295,6 +1328,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         switch (state) {
             case Player.STATE_BUFFERING:
                 mClock.setCallback(null);
+                if (getIntent().getBooleanExtra("auto_resume", false)) showInfo();
                 if (mBinding.widget.status.getVisibility() == View.VISIBLE || mBinding.widget.progress.getVisibility() == View.VISIBLE) {
                     mBinding.widget.status.setVisibility(View.VISIBLE);
                     mBinding.widget.status.setText(R.string.play_status_preparing);
@@ -1308,6 +1342,12 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
                 mBinding.widget.status.setVisibility(View.GONE);
                 if (!isFullscreen()) hideInfo();
                 if (!isFullscreen()) hideCenter();
+                // 💡 修正冷啟動時間顯示：當準備好時，如果資訊列在，立即更新文字
+                if (mBinding.widget.info.getVisibility() == View.VISIBLE) {
+                    mBinding.widget.size.setText(player().getSizeText());
+                    mBinding.widget.exoDuration.setText(player().getDurationTime());
+                    mBinding.widget.exoPosition.setText(player().getPositionTime(0));
+                }
                 if (com.fongmi.android.tv.setting.PlayerSetting.isRenderEnhance()) applyRender();
                 break;
             case Player.STATE_ENDED:
@@ -1324,8 +1364,14 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         isUpdatingInfo = true;
         try {
             if (isPlaying) {
-                hideCenter();
-                hideInfo();
+                if (getIntent().getBooleanExtra("auto_resume", false) || resume_from_background) {
+                    getIntent().removeExtra("auto_resume");
+                    resume_from_background = false;
+                    App.post(this::hideInfo, 2000);
+                } else {
+                    hideCenter();
+                    hideInfo();
+                }
             } else {
                 showInfo();
             }
@@ -1596,10 +1642,24 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    private boolean resume_from_background;
+
     @Override
     protected void onResume() {
         super.onResume();
         com.github.catvod.utils.Prefers.put("auto_resume", true);
+        com.github.catvod.utils.Prefers.put("auto_resume_full", fullscreen);
+        if (getIntent().getBooleanExtra("auto_resume", false) || (fullscreen && player() != null && !player().isEmpty())) {
+            resume_from_background = true;
+            showInfo();
+            // 💡 強化保險：延後檢查播放狀態，確保隱藏任務生效
+            App.post(() -> {
+                if (mBinding != null && player() != null && player().isPlaying()) {
+                    resume_from_background = false;
+                    hideInfo();
+                }
+            }, 2500);
+        }
     }
 
     @Override

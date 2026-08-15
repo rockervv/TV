@@ -161,6 +161,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     protected void initView() {
         android.util.Log.d("TV_FATAL", "HomeActivity.initView() START");
         Monitor.start("HomeActivity_initView");
+        // 💡 早期攔截：如果開啟了隱藏 UI 且滿足恢復條件，立即隱藏根佈局
+        if (Setting.isAutoResumeUI() && first && com.github.catvod.utils.Prefers.getBoolean("auto_resume", false)) {
+            mBinding.root.setVisibility(View.GONE);
+        }
         setViewModel();
         initConfig();
         mResult = Result.empty();
@@ -820,11 +824,26 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         Monitor.log("HomeActivity_ContentShown");
     }
 
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+        // 💡 保險機制：當從播放畫面返回時，確保首頁 UI 一定恢復可見
+        if (mBinding != null && mBinding.root.getVisibility() != View.VISIBLE) {
+            mBinding.root.setVisibility(View.VISIBLE);
+        }
+    }
+
     private void resumeLatest() {
         if (!first) return;
         first = false;
-        if (!Intent.ACTION_MAIN.equals(getIntent().getAction())) return;
-        if (!com.github.catvod.utils.Prefers.getBoolean("auto_resume", false)) return;
+        if (!Intent.ACTION_MAIN.equals(getIntent().getAction())) {
+            mBinding.root.setVisibility(View.VISIBLE);
+            return;
+        }
+        if (!com.github.catvod.utils.Prefers.getBoolean("auto_resume", false)) {
+            mBinding.root.setVisibility(View.VISIBLE);
+            return;
+        }
         App.execute(() -> {
             History latest = History.getLatest();
             if (latest != null && "vod".equals(latest.getContext())) App.post(() -> {
@@ -832,8 +851,26 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                     VodConfig.get().setContext(latest.getContext());
                     RefreshEvent.history();
                 }
-                VideoActivity.cast(this, latest);
+                boolean full = com.github.catvod.utils.Prefers.getBoolean("auto_resume_full", false);
+                Notify.show("繼續上次播放 [" + latest.getVodName() + " " + latest.getVodRemarks() + "]");
+                if (full) {
+                    Intent intent = new Intent(this, VideoActivity.class);
+                    intent.putExtra("key", latest.getSiteKey());
+                    intent.putExtra("id", latest.getVodId());
+                    intent.putExtra("name", latest.getVodName());
+                    intent.putExtra("pic", latest.getVodPic());
+                    intent.putExtra("position", latest.getPosition());
+                    intent.putExtra("duration", latest.getDuration());
+                    intent.putExtra("cast", true);
+                    intent.putExtra("auto_resume", true);
+                    startActivity(intent);
+                } else {
+                    VideoActivity.start(this, latest.getSiteKey(), latest.getVodId(), latest.getVodName(), latest.getVodPic());
+                }
+                // 💡 無論 A 還是 B，跳轉後都延後恢復首頁可見性，防止視覺閃爍
+                App.post(() -> mBinding.root.setVisibility(View.VISIBLE), 1000);
             });
+            else App.post(() -> mBinding.root.setVisibility(View.VISIBLE));
         });
     }
 

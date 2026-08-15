@@ -76,6 +76,7 @@ public class SettingCustomActivity extends BaseActivity implements MenuKeyCallba
         mBinding.parseWebviewText.setText((parseWebview = ResUtil.getStringArray(R.array.select_parse_webview))[Setting.getParseWebView()]);
         mBinding.configCacheText.setText((configCache = ResUtil.getStringArray(R.array.select_config_cache))[Setting.getConfigCache()]);
         mBinding.dlnaText.setText(getSwitch(Setting.isDlna()));
+        mBinding.autoResumeUIText.setText(getSwitch(Setting.isAutoResumeUI()));
     }
 
     @Override
@@ -101,7 +102,13 @@ public class SettingCustomActivity extends BaseActivity implements MenuKeyCallba
         mBinding.configCache.setOnClickListener(this::setConfigCache);
         mBinding.cacheDir.setOnClickListener(this::setCacheDir);
         mBinding.dlna.setOnClickListener(this::setDlna);
+        mBinding.autoResumeUI.setOnClickListener(this::setAutoResumeUI);
         mBinding.reset.setOnClickListener(this::onReset);
+    }
+
+    private void setAutoResumeUI(View view) {
+        Setting.putAutoResumeUI(!Setting.isAutoResumeUI());
+        mBinding.autoResumeUIText.setText(getSwitch(Setting.isAutoResumeUI()));
     }
 
     private void setQuality(View view) {

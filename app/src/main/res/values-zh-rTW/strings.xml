@@ -118,6 +118,7 @@
     <string name="setting_home_site_lock">主頁站點鎖定</string>
     <string name="setting_incognito">隱身模式</string>
     <string name="setting_site_search">站點搜尋</string>
+    <string name="setting_auto_resume_ui">自動恢復播放時隱藏 UI</string>
     <string name="setting_remove_ad">去除廣告</string>
     <string name="setting_small_window_back_key">小視窗返回鍵</string>
     <string name="setting_home_display_name">首頁顯示站名</string>

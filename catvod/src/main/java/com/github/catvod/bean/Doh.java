@@ -35,8 +35,13 @@ public class Doh {
     }
 
     public static Doh objectFrom(String str) {
-        Doh item = new Gson().fromJson(str, Doh.class);
-        return item == null ? new Doh() : item;
+        if (TextUtils.isEmpty(str)) return new Doh();
+        try {
+            Doh item = new Gson().fromJson(str, Doh.class);
+            return item == null ? new Doh() : item;
+        } catch (Exception e) {
+            return new Doh();
+        }
     }
 
     public static List<Doh> arrayFrom(JsonElement element) {

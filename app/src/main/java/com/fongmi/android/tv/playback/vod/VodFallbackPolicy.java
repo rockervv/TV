@@ -58,7 +58,8 @@ public class VodFallbackPolicy {
         if (viewModel != null) viewModel.setSources(state.getSources());
         if (state.isSelectFirstSource()) nextSource();
         if (items.isEmpty()) {
-            //host.showDetailMessage(com.fongmi.android.tv.utils.ResUtil.getString(com.fongmi.android.tv.R.string.error_play_flag));
+            host.onSearchResult();
+            if (state.isAutoFallback()) host.resetPlaybackForError(com.fongmi.android.tv.utils.ResUtil.getString(com.fongmi.android.tv.R.string.error_play_parse));
             return;
         }
         host.onSearchResult();

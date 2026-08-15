@@ -329,9 +329,10 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     }
 
     private void onCache(View view) {
-        FileUtil.clearCache(new Callback() {
+        FileUtil.clearCache(false, new Callback() {
             @Override
             public void success() {
+                com.fongmi.android.tv.api.CacheManager.clear();
                 VodConfig.get().getConfig().json("").save();
                 setCacheText();
             }
@@ -339,9 +340,10 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     }
 
     private boolean onCacheLongClick(View view) {
-        FileUtil.clearCache(new Callback() {
+        FileUtil.clearCache(true, new Callback() {
             @Override
             public void success() {
+                com.fongmi.android.tv.api.CacheManager.clear();
                 setCacheText();
                 Config config = VodConfig.get().getConfig().json("").save();
                 if (!config.isEmpty()) setConfig(config);

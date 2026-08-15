@@ -1,5 +1,6 @@
 package com.fongmi.android.tv.bean;
 
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.fongmi.android.tv.App;
@@ -126,6 +127,9 @@ public class HistorySyncManager {
             }
 
             List<History> remoteItems = parseHistoryList(jsonData);
+            // 💡 同步前，先將沒有標註場景的遠端資料預設為 vod，防止被誤判為當前人格
+            for (History item : remoteItems) if (TextUtils.isEmpty(item.getContext())) item.setContext("vod");
+
             List<History> sqliteItems = AppDatabase.get().getHistoryDao().getAllForSync();
             List<History> newMergedItems = History.syncLists(sqliteItems, remoteItems);
 

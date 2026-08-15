@@ -396,7 +396,11 @@ public class History implements Diffable<History> {
     public History save(boolean update) {
         if (update) lastUpdated = System.currentTimeMillis();
         if (update) createTime = System.currentTimeMillis();
-        if (TextUtils.isEmpty(context)) context = VodConfig.get().getContext();
+        if (TextUtils.isEmpty(context)) {
+            // 💡 只有在真的沒有場景資訊時，才嘗試補上 VOD 或當前場景
+            String current = VodConfig.get().getContext();
+            context = TextUtils.isEmpty(current) ? "vod" : current;
+        }
         updateTime = System.currentTimeMillis();
         AppDatabase.get().getHistoryDao().insertOrUpdate(this);
         return this;

@@ -19,6 +19,14 @@ public class Scenario {
     @SerializedName("style")
     private Style style;
 
+    public Scenario() {
+    }
+
+    public Scenario(String id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
     public static List<Scenario> arrayFrom(String str) {
         Type listType = TypeToken.getParameterized(List.class, Scenario.class).getType();
         List<Scenario> items = App.gson().fromJson(str, listType);

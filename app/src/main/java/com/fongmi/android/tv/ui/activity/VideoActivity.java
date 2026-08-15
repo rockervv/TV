@@ -96,7 +96,6 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     private FlagAdapter mFlagAdapter;
     private PartAdapter mPartAdapter;
     private CustomKeyDownVod mKeyDown;
-    private Runnable mDataTimer;
     private int mDataCountdown;
     private Runnable mR1;
     private Runnable mR2;
@@ -115,7 +114,22 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBasePosition = -1;
         mSeeking = false;
     };
-    
+
+    private final Runnable mDataTimer = new Runnable() {
+        @Override
+        public void run() {
+            if (mDataCountdown <= 0) {
+                mBinding.widget.status.setText(R.string.play_status_data_timeout);
+                mVod.playbackError(getString(R.string.play_status_data_timeout));
+                hideProgress(); // 🛡️ 強制關閉旋轉動畫
+            } else {
+                mBinding.widget.status.setVisibility(View.VISIBLE);
+                mBinding.widget.status.setText(ResUtil.getString(R.string.play_status_reading, mDataCountdown / 10.0f));
+                mDataCountdown--;
+                App.post(this, 100);
+            }
+        }
+    };
 
     public static void push(FragmentActivity activity, String text) {
         Uri uri = UrlUtil.uri(text);
@@ -229,27 +243,6 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         setRecyclerView();
         setVideoView();
         checkCast();
-        // injectMockData();
-    }
-
-    private void injectMockData() {
-        android.util.Log.d("VideoActivity", "injectMockData() START");
-        Vod vod = new Vod();
-        vod.setName("測試影片 (Mock)");
-        vod.setId("mock_id");
-        vod.setContent("這是一個注入的測試影片內容。播放這段影片以驗證播放器引擎。");
-        vod.setPlayFrom("測試線路");
-        vod.setPlayUrl("第1集$https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
-
-        // Force initialize mHistory for mock data to avoid NPE
-        if (mHistory == null) {
-            mHistory = new History();
-            mHistory.setKey("mock_id");
-            mHistory.setVodName("測試影片 (Mock)");
-        }
-
-        mVod.onDetailResult(Result.vod(vod));
-        android.util.Log.d("VideoActivity", "Mock data injected successfully");
     }
 
     @Override
@@ -393,36 +386,28 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     private void startDataTimer() {
         App.removeCallbacks(mDataTimer);
-        mDataCountdown = 150;
-        mDataTimer = new Runnable() {
-            @Override
-            public void run() {
-                if (mDataCountdown <= 0) {
-                    mBinding.widget.status.setText(R.string.play_status_data_timeout);
-                    mVod.playbackError(getString(R.string.play_status_data_timeout));
-                } else {
-                    mBinding.widget.status.setVisibility(View.VISIBLE);
-                    mBinding.widget.status.setText(ResUtil.getString(R.string.play_status_reading, mDataCountdown / 10.0f));
-                    mDataCountdown--;
-                    App.post(this, 100);
-                }
-            }
-        };
+        mDataCountdown = (int) (getSite().getTimeout() / 100);
         App.post(mDataTimer, 0);
     }
 
     private void stopDataTimer(boolean success) {
         App.removeCallbacks(mDataTimer);
+        mDataCountdown = 0;
         if (success) {
             mBinding.widget.status.setVisibility(View.VISIBLE);
             mBinding.widget.status.setText(R.string.play_status_data_success);
+        } else {
+            mBinding.widget.status.setVisibility(View.GONE);
         }
     }
 
     @Override
     public void requestSearch(List<Site> sites, String keyword) {
-        if (!VodConfig.get().isLoaded()) return; // 🛠️ 配置未載入時禁止搜尋，防止卡死
+        if (!VodConfig.get().isLoaded()) return;
         mQuickAdapter.clear();
+        stopDataTimer(false);
+        mBinding.widget.status.setVisibility(View.VISIBLE);
+        mBinding.widget.status.setText(R.string.play_status_search);
         mViewModel.searchContent(sites, keyword, true);
     }
 
@@ -610,6 +595,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     public void onSearchResult() {
         App.removeCallbacks(mR4);
+        hideProgress();
     }
 
     @Override
@@ -1107,6 +1093,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBinding.widget.getRoot().setTranslationZ(2000f);
         mBinding.widget.info.setVisibility(View.VISIBLE);
         mBinding.widget.center.setVisibility(View.VISIBLE);
+        mBinding.widget.action.setImageResource(R.drawable.ic_widget_play);
         mBinding.exo.setTranslationZ(-100f);
         mBinding.video.bringToFront();
         mBinding.widget.getRoot().bringToFront();
@@ -1343,7 +1330,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     public void onTimeChanged(long time) {
         if (!isOwner() || player() == null || isUpdatingInfo || isScrubbing() || mSeeking) return;
-        if (System.currentTimeMillis() - lastTimeUpdate < 2000) return; // 🛠️ 降低進度更新頻率(2秒)，減輕主線程壓力
+        if (System.currentTimeMillis() - lastTimeUpdate < 2000) return;
         lastTimeUpdate = System.currentTimeMillis();
         if (player().isPlaying()) mVod.onTimeChanged(time, player().getPosition(), player().getDuration());
     }
@@ -1365,7 +1352,6 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private void setMediaOptionVisible() {
-        // PlaybackAction.setMediaOptions(player(), mBinding.control.edition, mBinding.control.chapter);
     }
 
     private MediaMetadata buildMetadata() {
@@ -1523,7 +1509,13 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mKeyDown.resetTime();
         player().seekTo(finalPos);
         mBasePosition = finalPos;
-        if (player().isPlaying()) App.post(mHideCenter, 500);
+        
+        // 💡 邏輯判斷：播放中才隱藏，暫停則恢復 Play 圖標並維持顯示
+        if (player().isPlaying()) {
+            App.post(mHideCenter, 500);
+        } else {
+            mBinding.widget.action.setImageResource(R.drawable.ic_widget_play);
+        }
         App.post(mSeekReset, 2500);
     }
 
@@ -1626,7 +1618,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         if (mBinding == null) return;
         if (mBinding.widget.status.getVisibility() == View.VISIBLE) {
             String currentText = mBinding.widget.status.getText().toString();
-            if (currentText.contains("秒")) {
+            if (currentText.contains("秒") && mDataCountdown > 0) {
                  android.util.Log.d("VideoActivity", "hideProgress: status is currently counting down, ignoring hide request");
                  return;
             }

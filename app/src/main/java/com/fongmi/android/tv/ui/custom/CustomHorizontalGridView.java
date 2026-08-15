@@ -5,7 +5,6 @@ import android.util.AttributeSet;
 import android.view.FocusFinder;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.animation.Animation;
 
@@ -43,9 +42,17 @@ public class CustomHorizontalGridView extends HorizontalGridView {
         if (focused != null) {
             View found = FocusFinder.getInstance().findNextFocus(this, focused, direction);
             if (direction == View.FOCUS_LEFT || direction == View.FOCUS_RIGHT) {
-                if ((found == null || found.getId() != R.id.text) && getScrollState() == SCROLL_STATE_IDLE) {
-                    focused.clearAnimation();
-                    focused.startAnimation(shake);
+                if (found == null || found.getId() != R.id.text) {
+                    // 💡 如果是向左且沒找到下一個項目，嘗試找場景按鈕
+                    if (direction == View.FOCUS_LEFT) {
+                        View scenario = getRootView().findViewById(R.id.scenario);
+                        if (scenario != null && scenario.getVisibility() == View.VISIBLE) return scenario;
+                    }
+                    // 💡 如果沒找到且沒場景按鈕，才播放抖動動畫
+                    if (getScrollState() == SCROLL_STATE_IDLE) {
+                        focused.clearAnimation();
+                        focused.startAnimation(shake);
+                    }
                     return null;
                 }
             }
@@ -55,46 +62,6 @@ public class CustomHorizontalGridView extends HorizontalGridView {
 
     @Override
     public boolean dispatchKeyEvent(@NonNull KeyEvent event) {
-        return super.dispatchKeyEvent(event) || executeKeyEvent(event);
-    }
-
-    public boolean executeKeyEvent(@NonNull KeyEvent event) {
-        if (event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT) return arrowScroll(FOCUS_LEFT);
-        if (event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT) return arrowScroll(FOCUS_RIGHT);
-        return false;
-    }
-
-    public boolean arrowScroll(int direction) {
-        View currentFocused = findFocus();
-        if (currentFocused == this) {
-            currentFocused = null;
-        } else if (currentFocused != null) {
-            boolean isChild = false;
-            for (ViewParent parent = currentFocused.getParent(); parent instanceof ViewGroup; parent = parent.getParent()) {
-                if (parent == this) {
-                    isChild = true;
-                    break;
-                }
-            }
-            if (!isChild) {
-                currentFocused = null;
-            }
-        }
-        boolean handled = false;
-        View nextFocused = FocusFinder.getInstance().findNextFocus(this, currentFocused, direction);
-        if (nextFocused == null || nextFocused == currentFocused) {
-            if (direction == FOCUS_LEFT || direction == FOCUS_RIGHT) {
-                shake(currentFocused);
-                handled = true;
-            }
-        }
-        return handled;
-    }
-
-    private void shake(View currentFocused) {
-        if (currentFocused != null && getScrollState() == SCROLL_STATE_IDLE) {
-            currentFocused.clearAnimation();
-            currentFocused.startAnimation(shake);
-        }
+        return super.dispatchKeyEvent(event);
     }
 }

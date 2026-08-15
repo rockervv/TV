@@ -1,6 +1,8 @@
 package com.fongmi.android.tv.ui.presenter;
 
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -41,6 +43,22 @@ public class TypePresenter extends Presenter {
         holder.binding.text.setCompoundDrawablePadding(ResUtil.dp2px(4));
         holder.binding.text.setCompoundDrawablesWithIntrinsicBounds(0, 0, getIcon(item), 0);
         holder.binding.text.setListener(() -> mListener.onRefresh(item));
+        holder.binding.text.setNextFocusLeftId(item.getTypeId().equals("home") ? R.id.scenario : View.NO_ID);
+        holder.view.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (item.getTypeId().equals("home")) {
+                    android.app.Activity activity = com.fongmi.android.tv.App.activity();
+                    if (activity instanceof com.fongmi.android.tv.ui.activity.HomeActivity) {
+                        View scenario = ((com.fongmi.android.tv.ui.activity.HomeActivity) activity).mBinding.scenario;
+                        if (scenario != null && scenario.getVisibility() == View.VISIBLE) {
+                            scenario.requestFocus();
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        });
         setOnClickListener(holder, view -> mListener.onItemClick(item));
         holder.view.setOnLongClickListener(view -> mListener.onItemLongClick(item));
     }

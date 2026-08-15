@@ -84,6 +84,16 @@ public class CacheManager {
         return null;
     }
 
+    public static void clear() {
+        com.fongmi.android.tv.utils.Task.execute(() -> {
+            for (File file : Path.list(Path.files())) {
+                if (file.getName().startsWith("cache_") && file.getName().endsWith(".json")) {
+                    Path.clear(file);
+                }
+            }
+        });
+    }
+
     public static void put(Site site, Result result) {
         put(site, "home", "1", getExtHash(site.getExt()), result);
     }

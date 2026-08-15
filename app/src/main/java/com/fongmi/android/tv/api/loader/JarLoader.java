@@ -56,7 +56,7 @@ public class JarLoader {
             if (!Path.exists(file) || !file.setReadOnly()) return;
             String cachePath = Path.jar().getAbsolutePath();
             DexClassLoader loader = new DexClassLoader(file.getAbsolutePath(), cachePath, cachePath, App.get().getClassLoader());
-            invokeInit(loader);
+            // 💡 延遲初始化，不再於 load 時立即執行 invokeInit
             invokeProxy(key, loader);
             loaders.put(key, loader);
         } catch (Throwable e) {
@@ -148,6 +148,9 @@ public class JarLoader {
                 DexClassLoader loader = loaders.get(jaKey);
                 if (loader == null) return new SpiderNull();
                 
+                // 💡 只有在真的獲取 Spider 時才執行初始化
+                invokeInit(loader);
+
                 String apiName = api.split(";")[0].trim();
                 if (apiName.startsWith("csp_")) apiName = apiName.substring(4);
 

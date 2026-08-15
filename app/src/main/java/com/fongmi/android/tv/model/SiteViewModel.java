@@ -150,6 +150,7 @@ public class SiteViewModel extends ViewModel {
 
         searches.start(sorted, site -> SearchTask.create(site, keyword, quick), result -> {
             if (result.getList().size() > 0) App.post(() -> search.setValue(result));
+            else if (result.getList().isEmpty()) App.post(() -> search.setValue(Result.empty()));
         });
     }
 

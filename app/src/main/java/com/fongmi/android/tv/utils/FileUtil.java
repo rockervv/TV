@@ -117,8 +117,15 @@ public class FileUtil {
     }
 
     public static void clearCache(Callback callback) {
+        clearCache(false, callback);
+    }
+
+    public static void clearCache(boolean includeImage, Callback callback) {
         Task.execute(() -> {
-            Path.clear(Path.cache());
+            for (File file : Path.list(Path.cache())) {
+                if (!includeImage && file.getName().contains("image_manager_disk_cache")) continue;
+                Path.clear(file);
+            }
             if (callback != null) App.post(callback::success);
         });
     }

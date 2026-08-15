@@ -62,6 +62,9 @@ public class Result implements Parcelable {
     @JsonAdapter(MsgAdapter.class)
     private String msg;
 
+    @SerializedName("error")
+    private String error;
+
     @SerializedName("subs")
     private List<Sub> subs;
     @SerializedName("playUrl")
@@ -220,11 +223,20 @@ public class Result implements Parcelable {
     }
 
     public String getMsg() {
+        if (!TextUtils.isEmpty(error)) return error;
         return TextUtils.isEmpty(msg) || getCode() != 0 ? "" : msg;
     }
 
     public void setMsg(String msg) {
         this.msg = msg;
+    }
+
+    public String getError() {
+        return TextUtils.isEmpty(error) ? "" : error;
+    }
+
+    public void setError(String error) {
+        this.error = error;
     }
 
     public List<Sub> getSubs() {

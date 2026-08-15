@@ -11,6 +11,7 @@ import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.bean.Depot;
+import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Rule;
 import com.fongmi.android.tv.bean.Scenario;
@@ -26,6 +27,7 @@ import com.github.catvod.bean.Header;
 import com.github.catvod.bean.Proxy;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Json;
+import com.github.catvod.utils.Prefers;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -54,7 +56,7 @@ public class VodConfig extends BaseConfig {
     private Parse parse;
     private String wall;
     private String context;
-    private Site home;
+    private Map<String, Site> homeMap;
 
     private static class Loader {
         static volatile VodConfig INSTANCE = new VodConfig();
@@ -66,6 +68,7 @@ public class VodConfig extends BaseConfig {
         this.doh = new ArrayList<>();
         this.rules = new ArrayList<>();
         this.siteMap = new HashMap<>();
+        this.homeMap = new HashMap<>();
         this.scenarios = new ArrayList<>();
         this.flags = new ArrayList<>();
         this.parses = new ArrayList<>();
@@ -123,13 +126,13 @@ public class VodConfig extends BaseConfig {
 
     public VodConfig clear() {
         this.wall = null;
-        this.home = null;
         this.parse = null;
         this.ads.clear();
         this.parseAds.clear();
         this.doh.clear();
         this.rules.clear();
         this.siteMap.clear();
+        this.homeMap.clear();
         this.scenarios.clear();
         this.flags.clear();
         this.parses.clear();
@@ -228,9 +231,34 @@ public class VodConfig extends BaseConfig {
 
     private void initScenario(JsonObject object) {
         scenarios.clear();
+        android.util.Log.d("ScenarioTest", ">>> [Scanning Keys] JSON Top Level Keys: " + object.keySet());
+        
         if (object.has("contexts")) {
             scenarios.addAll(Scenario.arrayFrom(object.getAsJsonArray("contexts").toString()));
+        } 
+        
+        // 💡 檢查是否有透過 sites_xxx 定義但沒在 contexts 定義的場景
+        List<String> existingIds = scenarios.stream().map(Scenario::getId).collect(Collectors.toList());
+        boolean hasVod = existingIds.contains("vod");
+        boolean addedOther = false;
+
+        for (String key : object.keySet()) {
+            if (key.startsWith("sites_")) {
+                String id = key.substring(6);
+                if (!existingIds.contains(id)) {
+                    scenarios.add(new Scenario(id, id.toUpperCase()));
+                    addedOther = true;
+                    android.util.Log.d("ScenarioTest", ">>> Found implicit scenario: " + id);
+                }
+            }
         }
+
+        // 💡 如果有其他場景但缺了 VOD，補上它
+        if ((!scenarios.isEmpty() || addedOther) && !hasVod) {
+            scenarios.add(0, new Scenario("vod", ResUtil.getString(R.string.home_vod)));
+        }
+        
+        android.util.Log.d("ScenarioTest", ">>> Final Scenario Count: " + scenarios.size());
     }
 
     private void initList(JsonObject object) {
@@ -277,22 +305,39 @@ public class VodConfig extends BaseConfig {
                 List<Site> otherSites = Json.safeListElement(object, key).stream().map(e -> Site.objectFrom(e, spider)).distinct().toList();
                 for (Site site : otherSites) site.setContext(contextId);
                 siteMap.put(contextId, otherSites);
+                android.util.Log.d("ScenarioTest", ">>> Loaded " + otherSites.size() + " sites for context: " + contextId);
             }
         }
 
         BaseLoader.get().parseJar(spider, true);
         AppDatabase.get().getSiteDao().clear();
         
+        // 💡 修正同步污染：將那些沒有正確 context 的資料統一歸類為 vod
+        App.execute(() -> {
+            for (History h : AppDatabase.get().getHistoryDao().findAll()) {
+                if (TextUtils.isEmpty(h.getContext())) h.save(false);
+            }
+        });
+
         // 同步所有場景的站點數據
         Map<String, Site> dbSites = Site.findAll().stream().collect(Collectors.toMap(Site::getKey, Function.identity(), (a, b) -> a));
-        for (List<Site> list : siteMap.values()) {
+        for (Map.Entry<String, List<Site>> entry : siteMap.entrySet()) {
+            String ctx = entry.getKey();
+            List<Site> list = entry.getValue();
             list.forEach(site -> site.sync(dbSites.get(site.getKey())));
+            
+            // 💡 獲取該場景的首頁站點
+            String localKey = Prefers.getString("home_site_" + config.getId() + "_" + ctx, ctx.equals("vod") ? config.getHome() : "");
+            Site home = list.stream().filter(item -> item.getKey().equals(localKey)).findFirst().orElse(list.isEmpty() ? new Site() : list.get(0));
+            
+            // 💡 如果是本地 Spider 設定覆蓋
+            String globalLocal = Setting.getLocalSpider();
+            if (ctx.equals("vod") && !globalLocal.isEmpty()) {
+                home = list.stream().filter(item -> item.getApi().equals(globalLocal)).findFirst().orElse(home);
+            }
+            
+            setHome(config, home, ctx, false);
         }
-
-        String local = Setting.getLocalSpider();
-        Site home = getSites().stream().filter(item -> item.getKey().equals(config.getHome())).findFirst().orElse(getSites().get(0));
-        if (!local.isEmpty()) home = getSites().stream().filter(item -> item.getApi().equals(local)).findFirst().orElse(home);
-        setHome(config, home, false);
     }
 
     private void initParse(Config config, JsonObject object) {
@@ -319,10 +364,6 @@ public class VodConfig extends BaseConfig {
 
     public void setContext(String context) {
         this.context = context;
-        // 切換場景時，通常需要更新首頁站點為該場景的第一個站點
-        if (!getSites().isEmpty()) {
-            setHome(getSites().get(0));
-        }
     }
 
     public List<Parse> getParses() {
@@ -392,50 +433,27 @@ public class VodConfig extends BaseConfig {
         return parse == null ? new Parse() : parse;
     }
 
-    public void setParse(Parse parse) {
-        setParse(getConfig(), parse, true);
-    }
-
-    public Site getHome() {
-        return home == null ? new Site() : home;
-    }
-
-    public void setHome(Site site) {
-        setHome(getConfig(), site, true);
-        RefreshEvent.home();
-    }
-
-    public void setHome(String api) {
-        if (api == null || api.isEmpty()) return;
-        for (Site site : getSites()) {
-            if (api.equals(site.getApi())) {
-                home = site;
-                break;
-            }
-        }
-    }
-
-    private void setWall(String wall) {
-        this.wall = wall;
-        boolean load = !TextUtils.isEmpty(wall) && WallConfig.get().needSync(wall);
-        if (load) WallConfig.get().config(Config.find(wall, config.getName(), Config.WALL).update());
-    }
-
-    public String getWall() {
-        return TextUtils.isEmpty(wall) ? "" : wall;
-    }
-
     public Parse getParse(String name) {
         return getParses().stream().filter(item -> item.getName().equals(name)).findFirst().orElse(new Parse());
     }
 
+    public void setParse(Parse parse) {
+        setParse(getConfig(), parse, true);
+    }
+
     public Site getSite(String key) {
+        // 💡 優先從當前場景找
         Site site = getSites().stream().filter(item -> item.getKey().equals(key)).findFirst().orElse(null);
-        if (site == null) {
-            site = new Site();
-            site.setKey(key);
-            // 只有在真的有資料時才設定 API，否則保持為空以便 SiteApi 識別
+        if (site != null) return site;
+        // 💡 找不到則掃描所有場景 (用於跨場景播放或跳轉)
+        for (List<Site> list : siteMap.values()) {
+            for (Site item : list) {
+                if (item.getKey().equals(key)) return item;
+            }
         }
+        // 💡 真的找不到才返回空站點
+        site = new Site();
+        site.setKey(key);
         return site;
     }
 
@@ -447,12 +465,57 @@ public class VodConfig extends BaseConfig {
         if (save) config.save();
     }
 
-    private void setHome(Config config, Site site, boolean save) {
-        home = site;
-        home.setSelected(true);
-        config.setHome(home.getKey());
-        if (save) config.save();
-        getSites().forEach(item -> item.setSelected(home));
+    public String getWall() {
+        return TextUtils.isEmpty(wall) ? "" : wall;
+    }
+
+    private void setWall(String wall) {
+        this.wall = wall;
+        boolean load = !TextUtils.isEmpty(wall) && WallConfig.get().needSync(wall);
+        if (load) WallConfig.get().config(Config.find(wall, config.getName(), Config.WALL).update());
+    }
+
+    public Site getHome() {
+        Site home = homeMap.get(context);
+        return home == null ? new Site() : home;
+    }
+
+    public void setHome(Site site) {
+        setHome(getConfig(), site, context, true);
+        RefreshEvent.home();
+    }
+
+    public void setHome(String api) {
+        if (api == null || api.isEmpty()) return;
+        List<Site> sites = getSites();
+        for (Site site : sites) {
+            if (api.equals(site.getApi())) {
+                setHome(site);
+                return;
+            }
+        }
+        // 💡 如果當前場景沒找到，但在 siteMap 的其他場景有，也允許設定（跨場景本地設定）
+        for (List<Site> list : siteMap.values()) {
+            for (Site site : list) {
+                if (api.equals(site.getApi())) {
+                    setHome(getConfig(), site, site.getContext(), true);
+                    return;
+                }
+            }
+        }
+    }
+
+    private void setHome(Config config, Site site, String context, boolean save) {
+        homeMap.put(context, site);
+        List<Site> sites = siteMap.get(context);
+        if (sites != null) sites.forEach(item -> item.setSelected(item.equals(site)));
+        if (save) {
+            Prefers.put("home_site_" + config.getId() + "_" + context, site.getKey());
+            if (context.equals("vod")) {
+                config.setHome(site.getKey());
+                config.save();
+            }
+        }
     }
 
     private void setGistU(String gistU) {

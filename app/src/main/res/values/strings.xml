@@ -136,6 +136,7 @@
     <string name="play_buffering">串流緩衝準備中…</string>
     <string name="play_timeout_error">資料取得超時…</string>
     <string name="play_status_countdown">資料取得倒數：%1$d</string>
+    <string name="play_status_search">正在搜尋其他線路…</string>
     <string name="play_status_reading">線路資料讀取中…%1$.1f秒</string>
     <string name="play_status_data_success">線路資料取得成功</string>
     <string name="play_status_data_timeout">線路資料讀取超時</string>

@@ -17,13 +17,13 @@ import java.util.Map;
 public class Json {
 
     public static JsonElement parse(String json) {
-        if (TextUtils.isEmpty(json)) throw new com.google.gson.JsonSyntaxException("JSON 內容為空");
+        if (TextUtils.isEmpty(json)) return com.google.gson.JsonNull.INSTANCE;
         try {
             return JsonParser.parseString(json);
         } catch (com.google.gson.JsonSyntaxException e) {
             throw new com.google.gson.JsonSyntaxException(getErrorMessage(json, e.getMessage()), e.getCause());
         } catch (Throwable e) {
-            throw new com.google.gson.JsonSyntaxException("解析失敗: " + e.getMessage());
+            return new JsonParser().parse(json);
         }
     }
 

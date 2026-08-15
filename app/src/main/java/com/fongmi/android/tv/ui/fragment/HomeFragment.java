@@ -101,6 +101,8 @@ public class HomeFragment extends BaseFragment implements VodPresenter.OnClickLi
         if (event.getType() == com.fongmi.android.tv.event.RefreshEvent.Type.CONFIG) {
             showContent();
             getHistory(true);
+        } else if (event.getType() == com.fongmi.android.tv.event.RefreshEvent.Type.HISTORY) {
+            getHistory(true);
         }
     }
 

@@ -33,7 +33,7 @@ import okhttp3.logging.HttpLoggingInterceptor;
 
 public class OkHttp {
 
-    private static final long TIMEOUT = TimeUnit.SECONDS.toMillis(30);
+    private static final long TIMEOUT = TimeUnit.SECONDS.toMillis(60);
 
     private ResponseInterceptor responseInterceptor;
     private RequestInterceptor requestInterceptor;

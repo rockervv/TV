@@ -122,6 +122,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private View mOldView;
     private View mFocus;
     private Clock mClock;
+    private String mContext;
     private int mScrollState;
     private boolean updating;
     private boolean loading;
@@ -289,6 +290,16 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             return true;
         });
         mBinding.scenario.setOnClickListener(v -> ScenarioDialog.create().show(this));
+        
+        // 🛡️ 從場景按鈕回跳選單
+        mBinding.scenario.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                mBinding.recycler.requestFocus();
+                return true;
+            }
+            return false;
+        });
+
         mBinding.recycler.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
@@ -354,6 +365,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void setTitleView() {
         mBinding.homeSiteLock.setVisibility(Setting.isHomeSiteLock() ? View.VISIBLE : View.GONE);
+        mBinding.scenario.setVisibility(VodConfig.get().getScenarios().size() > 1 ? View.VISIBLE : View.GONE);
         if (Setting.getHomeUI() == 0) {
             mBinding.title.setTextSize(24);
             mBinding.clock.setTextSize(24);
@@ -371,8 +383,13 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void setHomeUI() {
-        if (Setting.getHomeUI() == 0) mBinding.recycler.setVisibility(View.GONE);
-        else mBinding.recycler.setVisibility(View.VISIBLE);
+        int visibility = Setting.getHomeUI() == 0 ? View.GONE : View.VISIBLE;
+        mBinding.recycler.setVisibility(visibility);
+        if (VodConfig.get().getScenarios().size() > 1) {
+            mBinding.scenario.setVisibility(visibility);
+        } else {
+            mBinding.scenario.setVisibility(View.GONE);
+        }
     }
 
     private void setViewModel() {
@@ -401,7 +418,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private String getKey() {
-        return getHome().getKey();
+        return VodConfig.get().getContext() + "_" + getHome().getKey();
     }
 
     private List<Filter> getFilter(String typeId) {
@@ -495,12 +512,19 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         boolean busy = current != null && (viewAncestor(current, mBinding.pager) || viewAncestor(current, mBinding.recycler));
 
         boolean siteChanged = !getKey().equals(mResult.getKey());
+        boolean contextChanged = !VodConfig.get().getContext().equals(mContext);
         boolean listChanged = !result.isSameList(mResult);
         boolean typesChanged = false;
 
-        if (!types.isEmpty()) {
+        if (contextChanged) {
+            mContext = VodConfig.get().getContext();
             typesChanged = true;
-            if (mAdapter.size() == types.size() + 1) {
+        }
+
+        if (!types.isEmpty()) {
+            if (typesChanged || mAdapter.size() != types.size() + 1) {
+                typesChanged = true;
+            } else {
                 boolean same = true;
                 for (int i = 0; i < types.size(); i++) {
                     Class oldType = (Class) mAdapter.get(i + 1);
@@ -510,9 +534,9 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                         break;
                     }
                 }
-                if (same) typesChanged = false;
+                if (!same) typesChanged = true;
             }
-        } else if (mAdapter.size() > 1 && siteChanged) {
+        } else if (mAdapter.size() > 1 && (siteChanged || contextChanged)) {
             typesChanged = true;
         }
 
@@ -524,10 +548,12 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             setPager();
             if (mPageAdapter != null) mPageAdapter.notifyDataSetChanged();
             
-            if (mBinding.recycler.getSelectedPosition() != sideMenuPos) mBinding.recycler.setSelectedPosition(sideMenuPos);
-            if (mBinding.pager.getCurrentItem() != pagerPos) mBinding.pager.setCurrentItem(pagerPos, false);
-            
-            App.post(() -> updating = false, 500);
+            // 💡 延後設定分頁位置，確保 notifyDataSetChanged 已經生效
+            mBinding.recycler.post(() -> {
+                if (mBinding.recycler.getSelectedPosition() != sideMenuPos) mBinding.recycler.setSelectedPosition(sideMenuPos);
+                if (mBinding.pager.getCurrentItem() != pagerPos) mBinding.pager.setCurrentItem(pagerPos, false);
+                updating = false;
+            });
         }
 
         HomeFragment homeFragment = getHomeFragment();
@@ -752,14 +778,16 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             @Override
             public void success() {
                 Config config = VodConfig.get().getConfig();
-                int siteCount = VodConfig.get().getSites() != null ? VodConfig.get().getSites().size() : 0;
-                android.util.Log.d("TV_FATAL", "VodConfig load SUCCESS, Site count: " + siteCount);
+                List<Scenario> scenarios = VodConfig.get().getScenarios();
+                android.util.Log.d("ScenarioTest", "VodConfig load SUCCESS. Scenario count: " + scenarios.size());
+                for (Scenario s : scenarios) android.util.Log.d("ScenarioTest", "Found scenario: " + s.getId() + " - " + s.getName());
+
                 Monitor.end("Config_Load");
                 if (!TextUtils.isEmpty(success)) Notify.show(success);
                 Task.execute(HistorySyncManager::setup);
                 setTitle(config);
                 setLogo(config);
-                mBinding.scenario.setVisibility(VodConfig.get().getScenarios().isEmpty() ? View.GONE : View.VISIBLE);
+                mBinding.scenario.setVisibility(scenarios.size() > 1 ? View.VISIBLE : View.GONE);
                 showContent();
                 App.post(() -> {
                     RefreshEvent.history();
@@ -779,6 +807,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void showContent() {
         android.util.Log.d("TV_FATAL", "HomeActivity.showContent() START");
+        if (mBinding != null) {
+            int count = VodConfig.get().getScenarios().size();
+            mBinding.scenario.setVisibility(count > 1 ? View.VISIBLE : View.GONE);
+            android.util.Log.d("ScenarioTest", ">>> showContent: Scenario Count = " + count);
+        }
         checkAction(getIntent());
         setFocus();
         RefreshEvent.config();
@@ -848,13 +881,9 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     public void onRefresh() {
-        FileUtil.clearCache(new Callback() {
-            @Override
-            public void success() {
-                Config config = VodConfig.get().getConfig().json("").save();
-                if (!config.isEmpty()) setConfig(config, ResUtil.getString(R.string.config_refreshed));
-            }
-        });
+        com.fongmi.android.tv.api.CacheManager.clear();
+        Config config = VodConfig.get().getConfig().json("").save();
+        if (!config.isEmpty()) setConfig(config, ResUtil.getString(R.string.config_refreshed));
     }
 
     @Override
@@ -869,15 +898,24 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     public void setScenario(Scenario item) {
+        mContext = item.getId();
         VodConfig.get().setContext(item.getId());
         setScenarioUI(item);
+        if (mBinding != null) {
+            mBinding.pager.setCurrentItem(0, false);
+            mBinding.recycler.setSelectedPosition(0);
+            if (mAdapter.size() > 1) mAdapter.removeItems(1, mAdapter.size() - 1);
+            if (mPageAdapter != null) mPageAdapter.notifyDataSetChanged();
+        }
         onRefreshHome();
+        RefreshEvent.history();
     }
 
     private void setScenarioUI(Scenario item) {
         if (item.getId().isEmpty()) return;
         mBinding.title.setText(item.getName());
-        // TODO: Apply more styles like theme color, background image, etc.
+        // 💡 根據場景樣式動態調整（未來擴充）
+        android.util.Log.d("ScenarioTest", ">>> Applied UI for Scenario: " + item.getName());
     }
 
     @Override
@@ -892,6 +930,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 // 如果已經使用了本地 Spider 作為首頁，則不自動刷新首頁，避免中斷正在進行的請求
                 if (Setting.getLocalSpider().isEmpty()) RefreshEvent.home();
                 setLogo();
+                if (mBinding != null) {
+                    List<Scenario> scenarios = VodConfig.get().getScenarios();
+                    mBinding.scenario.setVisibility(scenarios.size() > 1 ? View.VISIBLE : View.GONE);
+                }
                 if (mAdapter.size() == 0 || getHome().getApi().isEmpty()) {
                     setHomeType();
                     homeContent();

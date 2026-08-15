@@ -377,6 +377,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     public void requestPlayer(VodPlayRequest request) {
         android.util.Log.d("VideoActivity", "requestPlayer: " + request.getTitle());
+        hideError();
         mBinding.widget.title.setText(getString(R.string.detail_title, mBinding.name.getText(), request.getTitle()));
         mViewModel.playerContent(request.getKey(), request.getFlag(), request.getId());
         mBinding.widget.title.setSelected(true);
@@ -1088,6 +1089,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     private void showInfo() {
         if (mSeeking || player() == null || player().getPlayer() == null || !isFullscreen()) return;
+        hideError();
         mBinding.video.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         mBinding.widget.getRoot().setVisibility(View.VISIBLE);
         mBinding.widget.getRoot().setTranslationZ(2000f);
@@ -1267,6 +1269,12 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     protected void onError(String msg) {
+        // 💡 優化：解析失敗等中間過程錯誤不再彈出提示，靜默換線即可
+        if (msg != null && (msg.contains("解析") || msg.contains("失敗"))) {
+            android.util.Log.d("Fallback", "Silent error intercepted: " + msg);
+            mVod.playbackError(msg);
+            return;
+        }
         mVod.playbackError(msg);
     }
 
@@ -1288,6 +1296,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
                 break;
             case Player.STATE_READY:
                 mClock.setCallback(this);
+                hideError();
                 mBinding.video.setBackgroundResource(0);
                 mBinding.exo.setBackgroundResource(0);
                 mBinding.widget.status.setVisibility(View.GONE);
@@ -1509,10 +1518,10 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mKeyDown.resetTime();
         player().seekTo(finalPos);
         mBasePosition = finalPos;
-        
-        // 💡 邏輯判斷：播放中才隱藏，暫停則恢復 Play 圖標並維持顯示
-        if (player().isPlaying()) {
-            App.post(mHideCenter, 500);
+
+        // 💡 修正：使用 getPlayWhenReady 判斷播放意圖，解決長按導致緩衝時 UI 不隱藏的問題
+        if (player().getPlayer().getPlayWhenReady()) {
+            App.post(mHideCenter, 1000);
         } else {
             mBinding.widget.action.setImageResource(R.drawable.ic_widget_play);
         }

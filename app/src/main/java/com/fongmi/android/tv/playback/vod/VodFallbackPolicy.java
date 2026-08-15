@@ -59,7 +59,8 @@ public class VodFallbackPolicy {
         if (state.isSelectFirstSource()) nextSource();
         if (items.isEmpty()) {
             host.onSearchResult();
-            if (state.isAutoFallback()) host.resetPlaybackForError(com.fongmi.android.tv.utils.ResUtil.getString(com.fongmi.android.tv.R.string.error_play_parse));
+            // 💡 搜尋無效時，也不要彈出「解析失敗」的提示
+            if (state.isAutoFallback()) host.resetPlaybackForError("");
             return;
         }
         host.onSearchResult();

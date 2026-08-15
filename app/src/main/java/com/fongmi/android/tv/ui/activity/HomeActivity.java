@@ -128,6 +128,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private boolean loading;
     private boolean confirm;
     private boolean coolDown;
+    private static boolean first = true;
 
     private Site getHome() {
         try {
@@ -814,8 +815,26 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         }
         checkAction(getIntent());
         setFocus();
+        resumeLatest();
         RefreshEvent.config();
         Monitor.log("HomeActivity_ContentShown");
+    }
+
+    private void resumeLatest() {
+        if (!first) return;
+        first = false;
+        if (!Intent.ACTION_MAIN.equals(getIntent().getAction())) return;
+        if (!com.github.catvod.utils.Prefers.getBoolean("auto_resume", false)) return;
+        App.execute(() -> {
+            History latest = History.getLatest();
+            if (latest != null && "vod".equals(latest.getContext())) App.post(() -> {
+                if (!latest.getContext().equals(VodConfig.get().getContext())) {
+                    VodConfig.get().setContext(latest.getContext());
+                    RefreshEvent.history();
+                }
+                VideoActivity.cast(this, latest);
+            });
+        });
     }
 
     private void load(Config config, String success) {

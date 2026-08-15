@@ -110,6 +110,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     private final int[] mRenderIntensities = new int[5];
 
     private final Runnable mHideCenter = this::hideCenter;
+    private final Runnable mShowPlayIcon = this::showPlayIcon;
     private final Runnable mSeekReset = () -> {
         mBasePosition = -1;
         mSeeking = false;
@@ -1152,8 +1153,13 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     private void hideCenter() {
         mBinding.widget.center.setVisibility(View.GONE);
-        mBinding.widget.action.setImageResource(R.drawable.ic_widget_play);
+        showPlayIcon();
+        //mBinding.widget.action.setImageResource(R.drawable.ic_widget_play);
         if (player().isPlaying()) hideInfo();
+    }
+
+    private void showPlayIcon() {
+        mBinding.widget.action.setImageResource(R.drawable.ic_widget_play);
     }
 
     private void setTraffic() {
@@ -1521,9 +1527,9 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
         // 💡 修正：使用 getPlayWhenReady 判斷播放意圖，解決長按導致緩衝時 UI 不隱藏的問題
         if (player().getPlayer().getPlayWhenReady()) {
-            App.post(mHideCenter, 1000);
+            App.post(mHideCenter, 2000);
         } else {
-            mBinding.widget.action.setImageResource(R.drawable.ic_widget_play);
+            App.post(mShowPlayIcon, 2000);
         }
         App.post(mSeekReset, 2500);
     }
@@ -1588,6 +1594,12 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        com.github.catvod.utils.Prefers.put("auto_resume", true);
     }
 
     @Override
@@ -1669,6 +1681,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     protected void onBackPress() {
         if (mBinding == null) return;
         if (!handleBack()) {
+            com.github.catvod.utils.Prefers.put("auto_resume", false);
             mViewModel.stopSearch();
             finish();
         }

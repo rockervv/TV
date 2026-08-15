@@ -105,6 +105,11 @@ public class History implements Diffable<History> {
         return AppDatabase.get().getHistoryDao().find(cid, context, System.currentTimeMillis() - Constant.HISTORY_TIME);
     }
 
+    public static History getLatest() {
+        List<History> all = AppDatabase.get().getHistoryDao().getAll();
+        return all.isEmpty() ? null : all.get(0);
+    }
+
     public static History find(String key) {
         return AppDatabase.get().getHistoryDao().find(VodConfig.getCid(), VodConfig.get().getContext(), key);
     }

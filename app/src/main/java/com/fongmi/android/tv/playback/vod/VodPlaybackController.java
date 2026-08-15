@@ -263,10 +263,19 @@ public class VodPlaybackController {
         historyPolicy.sync(currentHistory());
     }
 
+    private long lastSaveTime;
+
     public void onTimeChanged(long time, long position, long duration) {
         History history = currentHistory();
-        if (position < 0 || duration <= 0) return; // 🛡️ 數據不全時不進行邏輯判斷
+        if (position < 0 || duration <= 0) return;
         historyPolicy.updateTime(history, time, position, duration);
+        
+        // 💡 關鍵修正：每 10 秒強制寫入資料庫一次，防止 adb kill 導致進度丟失
+        if (System.currentTimeMillis() - lastSaveTime > 10000) {
+            lastSaveTime = System.currentTimeMillis();
+            historyPolicy.save(history);
+        }
+
         if (history != null && history.getEnding() > 0 && history.getEnding() + position >= duration) nextEpisode(false);
     }
 

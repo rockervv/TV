@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -38,7 +39,7 @@
                 android:textSize="14sp"
                 tools:text="刷新" />
 
-            <TextView
+            <com.fongmi.android.tv.ui.custom.CustomUpDownView
                 android:id="@+id/player"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -49,9 +50,10 @@
                 android:nextFocusDown="@id/timeBar"
                 android:textColor="@color/white"
                 android:textSize="14sp"
+                app:label="@string/player"
                 tools:text="EXO" />
 
-            <TextView
+            <com.fongmi.android.tv.ui.custom.CustomUpDownView
                 android:id="@+id/decode"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -62,6 +64,7 @@
                 android:nextFocusDown="@id/timeBar"
                 android:textColor="@color/white"
                 android:textSize="14sp"
+                app:label="@string/player_decode"
                 tools:text="硬解" />
 
             <com.fongmi.android.tv.ui.custom.CustomUpDownView
@@ -75,9 +78,10 @@
                 android:nextFocusDown="@id/timeBar"
                 android:textColor="@color/white"
                 android:textSize="14sp"
+                app:label="@string/play_speed"
                 tools:text="1.00" />
 
-            <TextView
+            <com.fongmi.android.tv.ui.custom.CustomUpDownView
                 android:id="@+id/scale"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -88,6 +92,7 @@
                 android:nextFocusDown="@id/timeBar"
                 android:textColor="@color/white"
                 android:textSize="14sp"
+                app:label="@string/player_scale"
                 tools:text="預設" />
 
             <com.fongmi.android.tv.ui.custom.CustomUpDownView

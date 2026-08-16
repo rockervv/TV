@@ -38,6 +38,8 @@ public class Backup {
     private List<Download> download;
     @SerializedName("flagScore")
     private List<FlagScore> flagScore;
+    @SerializedName("favorite")
+    private List<Favorite> favorite;
     @SerializedName("prefers")
     private Map<String, ?> prefers;
 
@@ -53,6 +55,7 @@ public class Backup {
         backup.setDevice(AppDatabase.get().getDeviceDao().findAll());
         backup.setDownload(AppDatabase.get().getDownloadDao().find());
         backup.setFlagScore(AppDatabase.get().getFlagScoreDao().findAll());
+        backup.setFavorite(AppDatabase.get().getFavoriteDao().findAll());
         return backup;
     }
 
@@ -84,6 +87,7 @@ public class Backup {
             AppDatabase.get().getDeviceDao().insertOrUpdate(getDevice());
             AppDatabase.get().getDownloadDao().insertOrUpdate(getDownload());
             AppDatabase.get().getFlagScoreDao().insertOrUpdate(getFlagScore());
+            AppDatabase.get().getFavoriteDao().insertOrUpdate(getFavorite());
         });
         android.util.Log.d("Backup", "database restore SUCCESS, updating prefers");
         SharedPreferences.Editor editor = Prefers.getPrefers().edit();
@@ -178,6 +182,14 @@ public class Backup {
 
     public void setFlagScore(List<FlagScore> flagScore) {
         this.flagScore = flagScore;
+    }
+
+    public List<Favorite> getFavorite() {
+        return favorite == null ? Collections.emptyList() : favorite;
+    }
+
+    public void setFavorite(List<Favorite> favorite) {
+        this.favorite = favorite;
     }
 
     public Map<String, ?> getPrefers() {

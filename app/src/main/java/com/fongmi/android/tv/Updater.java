@@ -26,6 +26,7 @@ import com.google.gson.reflect.TypeToken;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -36,7 +37,13 @@ public class Updater implements Download.Callback {
     private AlertDialog dialog;
     private List<Apk> apks;
     private Apk selected;
+    private WeakReference<Activity> activity;
+    private Callback callback;
     private boolean dev;
+
+    public interface Callback {
+        void onEnd();
+    }
 
     private static class Loader {
         static volatile Updater INSTANCE = new Updater();
@@ -86,6 +93,12 @@ public class Updater implements Download.Callback {
     }
 
     public void start(Activity activity) {
+        start(activity, null);
+    }
+
+    public void start(Activity activity, Callback callback) {
+        this.activity = new WeakReference<>(activity);
+        this.callback = callback;
         Task.execute(() -> doInBackground(activity));
     }
 
@@ -114,8 +127,10 @@ public class Updater implements Download.Callback {
             this.selected = findDefaultApk(object.optString("md5"));
             Log.d("Updater", "URL: " + Github.URL + " name:[" + name + "] code: " + code + " MD5: " + selected.md5 + ", desc:\n" + desc + "\n");
             if (need(code, name)) App.post(() -> show(activity, name, desc));
+            else App.post(this::onEnd);
         } catch (Exception e) {
             Log.d("Updater", url + " error: " + e);
+            App.post(this::onEnd);
         }
     }
 
@@ -161,14 +176,29 @@ public class Updater implements Download.Callback {
     private void cancel(View view) {
         Setting.putUpdate(false);
         dismiss();
+        onEnd();
     }
 
     private void confirm(View view) {
+        File file = getFile();
+        if (!TextUtils.isEmpty(selected.md5) && file.exists() && com.github.catvod.utils.Util.md5(file).equalsIgnoreCase(selected.md5)) {
+            Log.d("Updater", "Local file MD5 match! Skipping download.");
+            success(file);
+            return;
+        }
         binding.confirm.setEnabled(false);
         binding.more.setEnabled(false);
         binding.cancel.setVisibility(View.GONE);
         binding.speed.setVisibility(View.VISIBLE);
-        Download.create(getApkUrl(selected.flavor), getFile(), this).start();
+        Download.create(getApkUrl(selected.flavor), file, this).start();
+    }
+
+    public boolean isShowing() {
+        return dialog != null && dialog.isShowing();
+    }
+
+    private void onEnd() {
+        if (callback != null) callback.onEnd();
     }
 
     private void dismiss() {
@@ -186,21 +216,31 @@ public class Updater implements Download.Callback {
 
     @Override
     public void error(String msg) {
+        Log.e("Updater", "Download error: " + msg);
         Notify.show(msg);
         dismiss();
+        onEnd();
     }
 
     @Override
     public void success(File file) {
+        Log.d("Updater", "Download success: " + file.getAbsolutePath());
         if (!TextUtils.isEmpty(selected.md5) && !com.github.catvod.utils.Util.md5(file).equalsIgnoreCase(selected.md5)) {
-            android.util.Log.e("Updater", "MD5 mismatch! Downloaded: " + com.github.catvod.utils.Util.md5(file) + " Expected: " + selected.md5);
+            Log.e("Updater", "MD5 mismatch! Downloaded: " + com.github.catvod.utils.Util.md5(file) + " Expected: " + selected.md5);
             Notify.show("檔案驗證失敗，請重試");
             file.delete();
             dismiss();
+            onEnd();
             return;
         }
-        FileUtil.openFile(file);
-        dismiss();
+        App.post(() -> {
+            Log.d("Updater", "Opening file for installation...");
+            FileUtil.openFile(activity != null ? activity.get() : null, file);
+            App.post(() -> {
+                Log.d("Updater", "Dismissing dialog. Not calling onEnd to avoid auto-resume competition.");
+                dismiss();
+            }, 6000);
+        }, 500);
     }
 
     private static class Apk {

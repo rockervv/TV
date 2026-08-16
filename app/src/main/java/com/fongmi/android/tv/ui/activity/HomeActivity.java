@@ -171,7 +171,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mClock = Clock.create(mBinding.clock);
         PermissionUtil.requestFile(this, (allGranted, grantedList, deniedList) -> { });
         DLNARendererService.start(this);
-        Updater.get().release().start(this);
+        Updater.get().release().start(this, this::resumeLatest);
         setRecyclerView();
 
         App.execute(() -> Server.get().start());
@@ -819,7 +819,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         }
         checkAction(getIntent());
         setFocus();
-        resumeLatest();
         RefreshEvent.config();
         Monitor.log("HomeActivity_ContentShown");
     }
@@ -892,6 +891,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void setFocus() {
+        if (Updater.get().isShowing()) return;
         setLoading(false);
         mBinding.title.setSelected(true);
         App.post(() -> mBinding.title.setFocusable(true), 500);

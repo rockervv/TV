@@ -84,7 +84,7 @@ public class Download {
             long lastTime = System.currentTimeMillis();
             long lastBytes = 0;
             while ((readBytes = input.read(buffer)) != -1) {
-                if (Thread.interrupted()) return;
+                if (Thread.interrupted()) throw new java.io.IOException("Download interrupted");
                 totalBytes += readBytes;
                 os.write(buffer, 0, readBytes);
                 
@@ -98,6 +98,8 @@ public class Download {
                     lastBytes = totalBytes;
                 }
             }
+            os.flush();
+            os.getFD().sync();
         }
     }
 

@@ -237,6 +237,11 @@ public class SiteApi {
 
     @NonNull
     public static Result detailContent(@NonNull String key, @NonNull String id) {
+        return detailContent(key, id, true);
+    }
+
+    @NonNull
+    public static Result detailContent(@NonNull String key, @NonNull String id, boolean parse) {
         if (!VodConfig.get().isLoaded()) return Result.empty();
         Site site = VodConfig.get().getSite(key);
         if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty();
@@ -251,7 +256,7 @@ public class SiteApi {
                 vod.setPlayFrom(ResUtil.getString(R.string.push));
                 vod.setPic(ResUtil.getString(R.string.push_image));
                 vod.setFlags();
-                Source.get().parse(vod);
+                if (parse) Source.get().parse(vod);
                 return Result.vod(vod);
             } else if (isSpider(site)) {
                 String detailContent = site.recent().spider().detailContent(Arrays.asList(id));
@@ -262,7 +267,7 @@ public class SiteApi {
                 Result result = Result.fromJson(detailContent);
                 result.setKey(key);
                 if (!result.getList().isEmpty()) result.getVod().setFlags();
-                Source.get().parse(result.getVod());
+                if (parse) Source.get().parse(result.getVod());
                 return result;
             } else {
                 ArrayMap<String, String> params = new ArrayMap<>();
@@ -272,7 +277,7 @@ public class SiteApi {
                 Result result = Result.fromType(site.getType(), detailContent);
                 result.setKey(key);
                 if (!result.getList().isEmpty()) result.getVod().setFlags();
-                Source.get().parse(result.getVod());
+                if (parse) Source.get().parse(result.getVod());
                 return result;
             }
         } catch (Throwable e) {

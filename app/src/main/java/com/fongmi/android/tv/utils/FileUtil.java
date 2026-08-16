@@ -1,5 +1,6 @@
 package com.fongmi.android.tv.utils;
 
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -40,11 +41,16 @@ public class FileUtil {
     }
 
     public static void openFile(File file) {
+        openFile(App.get(), file);
+    }
+
+    public static void openFile(Context context, File file) {
+        if (context == null) context = App.get();
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         intent.setDataAndType(getShareUri(file), FileUtil.getMimeType(file.getName()));
-        App.get().startActivity(intent);
+        context.startActivity(intent);
     }
 
     public static void zipFolder(File folder, File zip) {
@@ -146,6 +152,7 @@ public class FileUtil {
     }
 
     private static String getMimeType(String fileName) {
+        if (fileName.endsWith(".apk")) return "application/vnd.android.package-archive";
         String mimeType = URLConnection.guessContentTypeFromName(fileName);
         return TextUtils.isEmpty(mimeType) ? "*/*" : mimeType;
     }

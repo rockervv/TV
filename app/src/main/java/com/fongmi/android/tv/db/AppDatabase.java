@@ -16,6 +16,7 @@ import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Device;
 import com.fongmi.android.tv.bean.Download;
+import com.fongmi.android.tv.bean.Favorite;
 import com.fongmi.android.tv.bean.FlagScore;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Keep;
@@ -25,6 +26,7 @@ import com.fongmi.android.tv.bean.Track;
 import com.fongmi.android.tv.db.dao.ConfigDao;
 import com.fongmi.android.tv.db.dao.DeviceDao;
 import com.fongmi.android.tv.db.dao.DownloadDao;
+import com.fongmi.android.tv.db.dao.FavoriteDao;
 import com.fongmi.android.tv.db.dao.FlagScoreDao;
 import com.fongmi.android.tv.db.dao.HistoryDao;
 import com.fongmi.android.tv.db.dao.KeepDao;
@@ -48,10 +50,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-@Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class}, version = AppDatabase.VERSION)
+@Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class, Favorite.class}, version = AppDatabase.VERSION)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public static final int VERSION = 39;
+    public static final int VERSION = 40;
     public static final String NAME = "tv";
     public static final String SYMBOL = "@@@";
     public static final String BACKUP_SUFFIX = "bk.gz";
@@ -182,6 +184,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 .addMigrations(wrap(MIGRATION_36_37))
                 .addMigrations(wrap(MIGRATION_37_38))
                 .addMigrations(wrap(MIGRATION_38_39))
+                .addMigrations(wrap(MIGRATION_39_40))
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
     }
 
@@ -212,6 +215,8 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract DownloadDao getDownloadDao();
 
     public abstract FlagScoreDao getFlagScoreDao();
+
+    public abstract FavoriteDao getFavoriteDao();
 
     static final Migration MIGRATION_11_12 = new Migration(11, 12) {
         @Override
@@ -433,6 +438,13 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("ALTER TABLE Site ADD COLUMN context TEXT DEFAULT 'vod' NOT NULL");
             database.execSQL("ALTER TABLE History ADD COLUMN context TEXT DEFAULT 'vod' NOT NULL");
             database.execSQL("ALTER TABLE Keep ADD COLUMN context TEXT DEFAULT 'vod' NOT NULL");
+        }
+    };
+
+    static final Migration MIGRATION_39_40 = new Migration(39, 40) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("CREATE TABLE IF NOT EXISTS `Favorite` (`key` TEXT NOT NULL, `vodName` TEXT, `vodPic` TEXT, `vodRemarks` TEXT, `createTime` INTEGER NOT NULL, `order` INTEGER NOT NULL, PRIMARY KEY(`key`))");
         }
     };
 }

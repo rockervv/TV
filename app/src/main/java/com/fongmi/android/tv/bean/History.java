@@ -101,6 +101,10 @@ public class History implements Diffable<History> {
         return get(VodConfig.getCid(), VodConfig.get().getContext());
     }
 
+    public static List<History> getLatestAll() {
+        return AppDatabase.get().getHistoryDao().find(VodConfig.getCid(), VodConfig.get().getContext());
+    }
+
     public static List<History> get(int cid, String context) {
         return AppDatabase.get().getHistoryDao().find(cid, context, System.currentTimeMillis() - Constant.HISTORY_TIME);
     }
@@ -408,6 +412,11 @@ public class History implements Diffable<History> {
         }
         updateTime = System.currentTimeMillis();
         AppDatabase.get().getHistoryDao().insertOrUpdate(this);
+        Favorite favorite = Favorite.find(getKey());
+        if (favorite != null) {
+            favorite.setVodRemarks(getVodRemarks());
+            favorite.save();
+        }
         return this;
     }
 

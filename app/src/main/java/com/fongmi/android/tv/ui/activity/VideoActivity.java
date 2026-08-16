@@ -60,6 +60,7 @@ import com.fongmi.android.tv.ui.custom.CustomKeyDownVod;
 import com.fongmi.android.tv.ui.custom.CustomMovement;
 import com.fongmi.android.tv.ui.custom.PlayerSeekView;
 import com.fongmi.android.tv.ui.dialog.ContentDialog;
+import com.fongmi.android.tv.ui.dialog.FavoriteSwitchDialog;
 import com.fongmi.android.tv.ui.dialog.ParseDialog;
 import com.fongmi.android.tv.ui.dialog.PlayerEngineDialog;
 import com.fongmi.android.tv.ui.dialog.SubTitleView;
@@ -165,12 +166,20 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     public static void start(Activity activity, String key, String id, String name, String pic, String mark) {
-        start(activity, key, id, name, pic, mark, false, false);
+        start(activity, key, id, name, pic, mark, false, false, false);
     }
 
     public static void start(Activity activity, String key, String id, String name, String pic, String mark, boolean collect, boolean cast) {
+        start(activity, key, id, name, pic, mark, collect, cast, false);
+    }
+
+    public static void start(Activity activity, String key, String id, String name, String pic, String mark, boolean collect, boolean cast, boolean favorite) {
+        if (activity instanceof VideoActivity) {
+            ((VideoActivity) activity).finish();
+        }
         Intent intent = new Intent(activity, VideoActivity.class);
         intent.putExtra("collect", collect);
+        intent.putExtra("favorite", favorite);
         intent.putExtra("cast", cast);
         intent.putExtra("mark", mark);
         intent.putExtra("name", name);
@@ -275,6 +284,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBinding.control.text.setDownListener(this::onSubtitleClick);
         mBinding.control.next.setOnClickListener(view -> checkNext());
         mBinding.control.prev.setOnClickListener(view -> checkPrev());
+        mBinding.control.favorite.setOnClickListener(view -> onFavorite());
         mBinding.control.scale.setOnClickListener(view -> onScale());
         mBinding.control.render.setOnClickListener(view -> onRender());
         mBinding.control.render.setOnKeyListener((v, k, e) -> {
@@ -296,6 +306,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBinding.control.loop.setOnClickListener(view -> onRepeat());
         mBinding.control.opening.setOnClickListener(view -> onOpening());
         mBinding.control.save.setOnClickListener(view -> onSave());
+        mBinding.control.favorite.setOnFocusChangeListener((v, f) -> { if (f) mBinding.control.actionScroll.smoothScrollTo(0, 0); });
         mBinding.control.ending.setOnLongClickListener(view -> onEndingReset());
         mBinding.control.opening.setOnLongClickListener(view -> onOpeningReset());
         mBinding.renderControl.standard.setOnClickListener(v -> applyRender(0));
@@ -354,14 +365,15 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     }
 
     private void setVideoView() {
-        setSeekNextFocusDown(R.id.next);
+        setSeekNextFocusDown(R.id.favorite);
         setActionFocusBoundary(mBinding.control.actionLayout);
+        mBinding.control.favorite.setVisibility(View.VISIBLE);
         mBinding.control.scale.setText(ResUtil.getStringArray(R.array.select_scale)[mHistory != null ? mHistory.getScale() : Setting.getScale()]);
         mBinding.control.render.setVisibility(PlayerSetting.isRenderEnhance() ? View.VISIBLE : View.GONE);
         PlaybackAction.setSpeedText(player(), mBinding.control.speed);
         PlaybackAction.setPlaybackMode(player(), mBinding.control.player, mBinding.control.decode);
         updateRenderButton();
-        mBinding.control.next.requestFocus();
+        mBinding.control.favorite.requestFocus();
         setResetText();
     }
 
@@ -487,6 +499,9 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         if (mEpisodeAdapter.getItemCount() > 0) setArrayAdapter(mEpisodeAdapter.getItemCount());
         if (old == null || !Objects.equals(old.getVodName(), history.getVodName())) {
             setPartAdapter();
+        }
+        if (getIntent().getBooleanExtra("favorite", false)) {
+            enterFullscreen();
         }
     }
 
@@ -1054,6 +1069,11 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     private void setEnding(long ending) {
         mViewModel.setEnding(ending);
         mBinding.control.ending.setText(ending <= 0 ? getString(R.string.play_ed) : Util.timeMs(mHistory.getEnding()));
+    }
+
+    private void onFavorite() {
+        FavoriteSwitchDialog.create().history(mHistory).show(this);
+        hideControl();
     }
 
     private void onChoose() {
@@ -1731,7 +1751,12 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
             hideCenter();
             return true;
         } else if (isFullscreen()) {
-            mViewModel.setFullscreen(false);
+            if (getIntent().getBooleanExtra("favorite", false)) {
+                getIntent().putExtra("favorite", false);
+                mViewModel.setFullscreen(false);
+            } else {
+                mViewModel.setFullscreen(false);
+            }
             return true;
         }
         return false;

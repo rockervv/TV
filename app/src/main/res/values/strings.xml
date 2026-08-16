@@ -86,6 +86,7 @@
     <string name="play_scale">預設</string>
     <string name="play_episodes">劇集</string>
     <string name="play_loop">循環</string>
+    <string name="play_favorite">快速切換</string>
     <string name="play_timer">定時</string>
     <string name="play_time">時間</string>
     <string name="play_netspeed">網速</string>
@@ -261,6 +262,21 @@
     <string name="dialog_reset_app_data">所有應用資料將被清除，應用將退出。</string>
     <string name="dialog_restore">還原備份資料？</string>
     <string name="dialog_restore_msg">配置、歷史與設定將被還原。</string>
+
+    <!-- Favorite -->
+    <string name="favorite_history">從歷史 -></string>
+    <string name="favorite_keep">從收藏 -></string>
+    <string name="favorite_add">加入「%1$s」</string>
+    <string name="favorite_full">清單已滿，請先刪除舊項目</string>
+    <string name="favorite_move_up">上移</string>
+    <string name="favorite_move_down">下移</string>
+    <string name="favorite_delete">刪除</string>
+    <string name="favorite_check">檢查更新</string>
+    <string name="favorite_check_all">全部檢查更新</string>
+    <string name="favorite_checking">檢查中...</string>
+    <string name="favorite_checked">檢查完成</string>
+    <string name="favorite_remark">%1$s / %2$s</string>
+    <string name="favorite_add_to">加入</string>
 
     <!-- Error -->
     <string name="error_config_get">配置獲取失敗</string>

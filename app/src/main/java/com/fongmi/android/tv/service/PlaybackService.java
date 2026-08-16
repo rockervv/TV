@@ -91,7 +91,8 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         sessionPlayer = player.getPlayer();
         sessionPlayer.addListener(listener);
 
-        session = new MediaLibrarySession.Builder(this, wrap(sessionPlayer), this).build();
+        session = new MediaLibrarySession.Builder(this, wrap(sessionPlayer), this)
+                .build();
         session.setSessionActivity(buildDefaultIntent());
         session.setSessionActivity(buildDefaultIntent());
         EventBus.getDefault().register(this);

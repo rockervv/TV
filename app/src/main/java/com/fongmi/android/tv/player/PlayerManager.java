@@ -68,7 +68,8 @@ public class PlayerManager implements ParseCallback {
     }
 
     public static MediaMetadata buildMetadata(String title, String artist, String artUri) {
-        Uri artwork = TextUtils.isEmpty(artUri) ? null : Uri.parse(artUri);
+        android.util.Log.d("ExoUtil", "Building Metadata - Title: " + title + " | Artwork URL: " + artUri);
+        android.net.Uri artwork = android.text.TextUtils.isEmpty(artUri) ? null : android.net.Uri.parse(artUri);
         return new MediaMetadata.Builder().setTitle(title).setArtist(artist).setArtworkUri(artwork).build();
     }
 

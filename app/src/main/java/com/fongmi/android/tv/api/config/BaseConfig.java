@@ -121,7 +121,7 @@ public abstract class BaseConfig {
             android.util.Log.d("TV_FATAL", "loadConfig() SUCCESS for Tag: " + getTag());
             App.post(callback::success);
         } catch (Throwable e) {
-            android.util.Log.e("TV_FATAL", "loadConfig() ERROR - Tag: " + getTag() + ", Msg: " + e.getMessage(), e);
+            android.util.Log.d("TV_FATAL", "loadConfig() ERROR - Tag: " + getTag() + ", Msg: " + e.getMessage(), e);
             if (isCanceled(e)) return;
             if (taskId.get() != id) return;
             if (TextUtils.isEmpty(localConfig.getUrl())) App.post(() -> callback.error(""));

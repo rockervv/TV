@@ -275,7 +275,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
 
             @Override
             public void onFailure(Throwable t) {
-                android.util.Log.e("TV_FATAL", "MediaController connection failed", t);
+                android.util.Log.d("TV_FATAL", "MediaController connection failed", t);
             }
         }, ContextCompat.getMainExecutor(this));
     }

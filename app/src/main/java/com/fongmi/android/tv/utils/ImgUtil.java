@@ -172,9 +172,9 @@ public class ImgUtil {
                 if (forbidden) {
                     android.util.Log.d("ImgUtil", "onLoadFailed (403): " + url);
                 } else if (network) {
-                    android.util.Log.w("ImgUtil", "onLoadFailed (Network): " + url);
+                    android.util.Log.d("ImgUtil", "onLoadFailed (Network): " + url);
                 } else {
-                    android.util.Log.e("TV_FATAL", "onLoadFailed: " + url + " error: " + (e != null ? e.getMessage() : "unknown"));
+                    android.util.Log.d("ImgUtil", "onLoadFailed: " + url + " error: " + (e != null ? e.getMessage() : "unknown"));
                 }
                 view.setImageDrawable(getTextDrawable(text, vod));
                 if (!network && !forbidden) failed.add(url);

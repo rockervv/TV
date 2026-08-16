@@ -771,7 +771,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                     }
                 });
             } catch (Throwable e) {
-                android.util.Log.e("TV_FATAL", "initConfig Error: " + e.getMessage());
+                android.util.Log.d("TV_FATAL", "initConfig Error: " + e.getMessage());
                 e.printStackTrace();
                 App.post(() -> {
                     showContent();

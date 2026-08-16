@@ -330,7 +330,7 @@ public class VodPlaybackController {
     }
 
     private void detailEmpty(boolean finish) {
-        android.util.Log.w("TV_FATAL", "VodPlaybackController.detailEmpty: finish=" + finish + " name=" + host.getVodName());
+        android.util.Log.d("TV_FATAL", "VodPlaybackController.detailEmpty: finish=" + finish + " name=" + host.getVodName());
         if (host.isFromCollect() || finish) {
             if (!fallbackPolicy.emptyDetail()) host.finishVod();
         } else if (host.getVodName().isEmpty()) {
@@ -363,7 +363,7 @@ public class VodPlaybackController {
         }
         host.onDetailFallbackCancelled();
         if (item.getFlags().isEmpty()) {
-            android.util.Log.w("TV_FATAL", "VodPlaybackController.detailLoaded: flags are empty!");
+            android.util.Log.d("TV_FATAL", "VodPlaybackController.detailLoaded: flags are empty!");
             fallbackPolicy.emptyFlag();
         } else {
             selectFlag(state.getHistory().getFlag(), true);

@@ -17,7 +17,7 @@ import androidx.core.os.HandlerCompat;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.player.util.ADFilter;
 import com.fongmi.android.tv.ui.activity.CrashActivity;
-import com.fongmi.android.tv.bean.HistorySyncManager;
+import com.fongmi.android.tv.bean.RemoteSyncManager;
 import com.fongmi.android.tv.utils.LanguageUtil;
 import com.fongmi.android.tv.utils.Monitor;
 import com.fongmi.android.tv.utils.Notify;

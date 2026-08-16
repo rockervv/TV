@@ -8,7 +8,11 @@ import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.impl.Diffable;
 import com.google.gson.annotations.SerializedName;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Entity
@@ -24,6 +28,8 @@ public class Favorite implements Diffable<Favorite> {
     private String vodPic;
     @SerializedName("vodRemarks")
     private String vodRemarks;
+    @SerializedName("vodTotal")
+    private String vodTotal;
     @SerializedName("createTime")
     private long createTime;
     @SerializedName("order")
@@ -61,6 +67,24 @@ public class Favorite implements Diffable<Favorite> {
         return AppDatabase.get().getFavoriteDao().findByKey(key);
     }
 
+    public static List<Favorite> syncLists(List<Favorite> local, List<Favorite> remote) {
+        Map<String, Favorite> map = new HashMap<>();
+        for (Favorite item : local) map.put(item.getKey(), item);
+        for (Favorite item : remote) {
+            Favorite old = map.get(item.getKey());
+            if (old == null || item.getCreateTime() > old.getCreateTime()) {
+                map.put(item.getKey(), item);
+            }
+        }
+        List<Favorite> items = new ArrayList<>(map.values());
+        Collections.sort(items, (o1, o2) -> Integer.compare(o1.getOrder(), o2.getOrder()));
+        return items;
+    }
+
+    public static void sync(List<Favorite> items) {
+        for (Favorite item : items) item.save();
+    }
+
     @NonNull
     public String getKey() {
         return key;
@@ -92,6 +116,14 @@ public class Favorite implements Diffable<Favorite> {
 
     public void setVodRemarks(String vodRemarks) {
         this.vodRemarks = vodRemarks;
+    }
+
+    public String getVodTotal() {
+        return vodTotal == null ? "" : vodTotal;
+    }
+
+    public void setVodTotal(String vodTotal) {
+        this.vodTotal = vodTotal;
     }
 
     public long getCreateTime() {
@@ -145,6 +177,6 @@ public class Favorite implements Diffable<Favorite> {
 
     @Override
     public boolean isSameContent(Favorite other) {
-        return Objects.equals(getVodName(), other.getVodName()) && Objects.equals(getVodPic(), other.getVodPic()) && Objects.equals(getVodRemarks(), other.getVodRemarks());
+        return Objects.equals(getVodName(), other.getVodName()) && Objects.equals(getVodPic(), other.getVodPic()) && Objects.equals(getVodRemarks(), other.getVodRemarks()) && Objects.equals(getVodTotal(), other.getVodTotal());
     }
 }

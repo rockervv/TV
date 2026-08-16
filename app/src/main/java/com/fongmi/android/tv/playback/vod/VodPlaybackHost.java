@@ -27,6 +27,8 @@ public interface VodPlaybackHost {
 
     boolean isFromCollect();
 
+    boolean isResume();
+
     boolean isHostFinishing();
 
     boolean isPlayerEmpty();

@@ -9,7 +9,7 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.bean.HistorySyncManager;
+import com.fongmi.android.tv.bean.RemoteSyncManager;
 import com.fongmi.android.tv.databinding.DialogSyncBinding;
 import com.fongmi.android.tv.event.ServerEvent;
 import com.fongmi.android.tv.setting.Setting;
@@ -90,8 +90,8 @@ public class SyncDialog extends BaseAlertDialog {
         Setting.putFtpUri(binding.ftpServer.getText().toString().trim());
         Setting.putGistUrl(binding.syncGistUrl.getText().toString().trim());
         Setting.putGistToken(binding.syncGistToken.getText().toString().trim());
-        HistorySyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword(), Setting.isUseFtp());
-        HistorySyncManager.initGist(Setting.getGistUrl(), Setting.getGistToken(), Setting.isUseGist());
+        RemoteSyncManager.init(Setting.getFtpUri(), Setting.getFtpUsername(), Setting.getFtpPassword(), Setting.isUseFtp());
+        RemoteSyncManager.initGist(Setting.getGistUrl(), Setting.getGistToken(), Setting.isUseGist());
         dismiss();
     }
 

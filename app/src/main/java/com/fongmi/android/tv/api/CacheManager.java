@@ -3,7 +3,7 @@ package com.fongmi.android.tv.api;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.fongmi.android.tv.bean.HistorySyncManager;
+import com.fongmi.android.tv.bean.RemoteSyncManager;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
 import com.github.catvod.utils.Path;
@@ -71,7 +71,7 @@ public class CacheManager {
             // 雲端同步僅針對第一頁與首頁
             if (page.equals("1")) {
                 Log.d(TAG, "Local cache not found for " + site.getName() + ", checking cloud...");
-                String cloudData = HistorySyncManager.downloadCache(local.getName());
+                String cloudData = RemoteSyncManager.downloadCache(local.getName());
                 if (cloudData != null && !cloudData.isEmpty()) {
                     Log.d(TAG, "Loading cloud cache for " + site.getName());
                     Path.write(local, cloudData);
@@ -110,7 +110,7 @@ public class CacheManager {
             Path.write(local, json);
             // 僅同步第一頁與無篩選的首頁到雲端
             if (page.equals("1") && TextUtils.isEmpty(extHash)) {
-                HistorySyncManager.uploadCache(local.getName(), json);
+                RemoteSyncManager.uploadCache(local.getName(), json);
             }
         } catch (Exception e) {
             Log.e(TAG, "Save cache error", e);

@@ -85,6 +85,7 @@ public class SiteApi {
 
     @NonNull
     public static Result homeContent(@NonNull Site site, boolean refresh) {
+        VodConfig.get().ensureLoaded();
         if (!VodConfig.get().isLoaded() || BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty().setTid("");
         SpiderDebug.onSet("SpiderDebug-" + site.getName());
         if (site.getApi().isEmpty() || site.getType() == 0) {
@@ -163,6 +164,7 @@ public class SiteApi {
 
     @NonNull
     public static Result categoryContent(@NonNull String key, @NonNull String tid, @NonNull String page, boolean filter, @NonNull HashMap<String, String> extend, boolean refresh) {
+        VodConfig.get().ensureLoaded();
         if (!VodConfig.get().isLoaded()) return Result.empty().setTid(tid);
         Site site = VodConfig.get().getSite(key);
         if (BaseLoader.get().getJarLoader().isError(site.getJar()) || site.getApi().isEmpty()) return Result.empty().setTid(tid);
@@ -242,6 +244,7 @@ public class SiteApi {
 
     @NonNull
     public static Result detailContent(@NonNull String key, @NonNull String id, boolean parse) {
+        VodConfig.get().ensureLoaded();
         if (!VodConfig.get().isLoaded()) return Result.empty();
         Site site = VodConfig.get().getSite(key);
         if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty();
@@ -287,6 +290,7 @@ public class SiteApi {
 
     @NonNull
     public static Result playerContent(@NonNull String key, @NonNull String flag, @NonNull String id) {
+        VodConfig.get().ensureLoaded();
         Site site = VodConfig.get().getSite(key);
         SpiderDebug.onSet("SpiderDebug-" + site.getName());
         try {
@@ -337,6 +341,7 @@ public class SiteApi {
 
     @NonNull
     public static Result searchContent(@NonNull Site site, @NonNull String keyword, boolean quick, @NonNull String page) {
+        VodConfig.get().ensureLoaded();
         if (BaseLoader.get().getJarLoader().isError(site.getJar())) return Result.empty();
         SpiderDebug.onSet("SpiderDebug-" + site.getName());
         long start = System.currentTimeMillis();

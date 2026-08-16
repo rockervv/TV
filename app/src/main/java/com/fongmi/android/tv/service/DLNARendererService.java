@@ -144,8 +144,9 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
     }
 
     private void updatePosition() {
+        if (!dlnaActive) return;
         PlayerManager player = Server.get().getPlayer();
-        if (player != null && dlnaActive) {
+        if (player != null) {
             avTransportImpl.updatePositionCache(player.getPosition(), player.getDuration());
             notifyState(player);
         }
@@ -172,7 +173,11 @@ public class DLNARendererService extends AndroidUpnpServiceImpl {
 
     @Override
     public void onDestroy() {
-        App.removeCallbacks(positionUpdater);
-        super.onDestroy();
+        try {
+            App.removeCallbacks(positionUpdater);
+            super.onDestroy();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

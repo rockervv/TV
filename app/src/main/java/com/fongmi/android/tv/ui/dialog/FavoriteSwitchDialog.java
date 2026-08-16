@@ -17,6 +17,7 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.bean.Favorite;
 import com.fongmi.android.tv.bean.History;
+import com.fongmi.android.tv.bean.RemoteSyncManager;
 import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.databinding.DialogFavoriteSwitchBinding;
 import com.fongmi.android.tv.ui.activity.VideoActivity;
@@ -81,6 +82,7 @@ public class FavoriteSwitchDialog extends BaseAlertDialog implements FavoriteAda
     @Override
     public void onStart() {
         super.onStart();
+        RemoteSyncManager.SyncFavorite();
         Window window = getDialog() != null ? getDialog().getWindow() : null;
         if (window != null) {
             WindowManager.LayoutParams params = window.getAttributes();
@@ -89,6 +91,12 @@ public class FavoriteSwitchDialog extends BaseAlertDialog implements FavoriteAda
             window.setAttributes(params);
         }
         updateData();
+    }
+
+    @Override
+    public void onDismiss(@NonNull android.content.DialogInterface dialog) {
+        super.onDismiss(dialog);
+        RemoteSyncManager.SyncFavorite();
     }
 
     @Override

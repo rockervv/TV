@@ -56,19 +56,22 @@ public class VodFallbackPolicy {
         items.removeIf(this::mismatch);
         state.setSources(items);
         if (viewModel != null) viewModel.setSources(state.getSources());
-        if (state.isSelectFirstSource()) nextSource();
+        if (state.isSelectFirstSource() && !items.isEmpty()) nextSource();
         if (items.isEmpty()) {
             host.onSearchResult();
             // 💡 搜尋無效時，也不要彈出「解析失敗」的提示
-            if (state.isAutoFallback()) host.resetPlaybackForError("");
+            if (state.isAutoFallback()) {
+                host.resetPlaybackForError("");
+                if (!host.isSiteChangeable() || host.isResume()) host.finishVod();
+            }
             return;
         }
         host.onSearchResult();
     }
 
     private boolean fallbackToNextLineOrSource() {
-        android.util.Log.d("Fallback", "fallbackToNextLineOrSource() - changeable: " + host.isSiteChangeable());
-        if (!host.isSiteChangeable()) return false;
+        android.util.Log.d("Fallback", "fallbackToNextLineOrSource() - changeable: " + host.isSiteChangeable() + " resume: " + host.isResume());
+        if (!host.isSiteChangeable() && !host.isResume()) return false;
         if (fallbackToNextLine()) return true;
         return fallbackToNextSource(false);
     }

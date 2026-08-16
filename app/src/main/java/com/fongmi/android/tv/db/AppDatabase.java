@@ -53,7 +53,7 @@ import java.util.Locale;
 @Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class, Favorite.class}, version = AppDatabase.VERSION)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public static final int VERSION = 40;
+    public static final int VERSION = 41;
     public static final String NAME = "tv";
     public static final String SYMBOL = "@@@";
     public static final String BACKUP_SUFFIX = "bk.gz";
@@ -185,6 +185,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 .addMigrations(wrap(MIGRATION_37_38))
                 .addMigrations(wrap(MIGRATION_38_39))
                 .addMigrations(wrap(MIGRATION_39_40))
+                .addMigrations(wrap(MIGRATION_40_41))
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
     }
 
@@ -445,6 +446,13 @@ public abstract class AppDatabase extends RoomDatabase {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             database.execSQL("CREATE TABLE IF NOT EXISTS `Favorite` (`key` TEXT NOT NULL, `vodName` TEXT, `vodPic` TEXT, `vodRemarks` TEXT, `createTime` INTEGER NOT NULL, `order` INTEGER NOT NULL, PRIMARY KEY(`key`))");
+        }
+    };
+
+    static final Migration MIGRATION_40_41 = new Migration(40, 41) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE Favorite ADD COLUMN vodTotal TEXT DEFAULT NULL");
         }
     };
 }

@@ -304,8 +304,12 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
         mVod.checkId();
     }
 
+    public void saveHistorySync(boolean finish) {
+        if (service() != null && mVod != null) mVod.saveHistory(finish, true, System.currentTimeMillis(), getPlayerPosition(), player().getDuration());
+    }
+
     protected void saveHistory(boolean finish) {
-        if (service() != null && mVod != null) mVod.saveHistory(finish, System.currentTimeMillis(), player().getPosition(), player().getDuration());
+        if (service() != null && mVod != null) mVod.saveHistory(finish, System.currentTimeMillis(), getPlayerPosition(), player().getDuration());
     }
 
     protected void onSave() {
@@ -400,6 +404,11 @@ public abstract class BaseVideoActivity extends PlaybackActivity implements VodP
     @Override
     public boolean isFromCollect() {
         return getIntent().getBooleanExtra("collect", false);
+    }
+
+    @Override
+    public boolean isResume() {
+        return getIntent().getBooleanExtra("auto_resume", false) || getIntent().hasExtra("position") || getIntent().getBooleanExtra("favorite", false) || isFromCollect();
     }
 
     @Override

@@ -36,7 +36,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewpager.widget.ViewPager;
 
-import com.fongmi.android.tv.bean.HistorySyncManager;
+import com.fongmi.android.tv.bean.RemoteSyncManager;
 import com.fongmi.android.tv.service.DLNARendererService;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
@@ -166,12 +166,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             mBinding.root.setVisibility(View.GONE);
         }
         setViewModel();
-        initConfig();
         mResult = Result.empty();
         mClock = Clock.create(mBinding.clock);
         PermissionUtil.requestFile(this, (allGranted, grantedList, deniedList) -> { });
         DLNARendererService.start(this);
-        Updater.get().release().start(this, this::resumeLatest);
+        initConfig(() -> Updater.get().release().start(this, this::resumeLatest));
         setRecyclerView();
 
         App.execute(() -> Server.get().start());
@@ -718,6 +717,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     public void initConfig() {
+        initConfig(null);
+    }
+
+    public void initConfig(Runnable callback) {
         android.util.Log.d("TV_FATAL", "HomeActivity.initConfig() START");
         String local = Setting.getLocalSpider();
         boolean hasCache = false;
@@ -757,10 +760,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                     android.util.Log.d("TV_FATAL", "Posting to main thread for load()");
                     Monitor.start("Config_Load");
                     if (vod != null && !vod.isEmpty()) {
-                        VodConfig.get().config(vod).load(getCallback());
+                        VodConfig.get().config(vod).load(getCallback(callback));
                     } else {
                         android.util.Log.d("TV_FATAL", "Vod config is empty, skip load");
                         showContent();
+                        if (callback != null) callback.run();
                     }
                     if (live != null && !live.isEmpty() && (vod == null || !live.getUrl().equals(vod.getUrl()))) {
                         LiveConfig.get().config(live).load();
@@ -769,16 +773,27 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             } catch (Throwable e) {
                 android.util.Log.e("TV_FATAL", "initConfig Error: " + e.getMessage());
                 e.printStackTrace();
-                App.post(this::showContent);
+                App.post(() -> {
+                    showContent();
+                    if (callback != null) callback.run();
+                });
             }
         });
     }
 
     private Callback getCallback() {
-        return getCallback("");
+        return getCallback("", null);
     }
 
     private Callback getCallback(String success) {
+        return getCallback(success, null);
+    }
+
+    private Callback getCallback(Runnable callback) {
+        return getCallback("", callback);
+    }
+
+    private Callback getCallback(String success, Runnable callback) {
         return new Callback() {
             @Override
             public void success() {
@@ -789,11 +804,12 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
                 Monitor.end("Config_Load");
                 if (!TextUtils.isEmpty(success)) Notify.show(success);
-                Task.execute(HistorySyncManager::setup);
+                Task.execute(RemoteSyncManager::setup);
                 setTitle(config);
                 setLogo(config);
                 mBinding.scenario.setVisibility(scenarios.size() > 1 ? View.VISIBLE : View.GONE);
                 showContent();
+                if (callback != null) callback.run();
                 App.post(() -> {
                     RefreshEvent.history();
                     RefreshEvent.home();
@@ -806,6 +822,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 Monitor.end("Config_Load");
                 Notify.show(msg);
                 showContent();
+                if (callback != null) callback.run();
             }
         };
     }
@@ -877,7 +894,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         if (config.getType() == 0) {
             HomeFragment fragment = getHomeFragment();
             if (fragment != null && fragment.mBinding != null) fragment.mBinding.progressLayout.showProgress();
-            VodConfig.load(config, getCallback(success));
+            VodConfig.load(config, getCallback(success, null));
         }
     }
 

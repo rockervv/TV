@@ -39,10 +39,20 @@ public class VodHistoryPolicy {
     }
 
     public void save(History history, boolean exit) {
-        if (history != null && history.canSave() && !Setting.isIncognito()) Task.execute(() -> {
+        save(history, exit, false);
+    }
+
+    public void save(History history, boolean exit, boolean sync) {
+        if (history == null || !history.canSave() || Setting.isIncognito()) return;
+        if (sync) {
             history.merge().save();
             if (exit) RefreshEvent.history();
-        });
+        } else {
+            Task.execute(() -> {
+                history.merge().save();
+                if (exit) RefreshEvent.history();
+            });
+        }
     }
 
     public void sync(History history) {

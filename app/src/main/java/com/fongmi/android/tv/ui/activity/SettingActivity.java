@@ -15,7 +15,7 @@ import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.bean.Config;
-import com.fongmi.android.tv.bean.HistorySyncManager;
+import com.fongmi.android.tv.bean.RemoteSyncManager;
 import com.fongmi.android.tv.bean.Live;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.ActivitySettingBinding;
@@ -270,7 +270,7 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
     }
 
     private void onSync(View view) {
-        HistorySyncManager.SyncAll();
+        RemoteSyncManager.SyncAll();
     }
 
     private void setWallDefault(View view) {

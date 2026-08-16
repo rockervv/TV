@@ -17,6 +17,8 @@ import com.fongmi.android.tv.bean.Favorite;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.bean.Result;
+import com.fongmi.android.tv.bean.Vod;
+import com.fongmi.android.tv.bean.Flag;
 import com.fongmi.android.tv.databinding.AdapterFavoriteSwitchBinding;
 import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -153,6 +155,11 @@ public class FavoriteAdapter extends RecyclerView.Adapter<FavoriteAdapter.ViewHo
             return "";
         }
 
+        public String getTotal() {
+            if (favorite != null) return favorite.getVodTotal();
+            return "";
+        }
+
         public History getHistory() {
             if (history != null) return history;
             if (h == null) h = History.find(getKey());
@@ -241,9 +248,16 @@ public class FavoriteAdapter extends RecyclerView.Adapter<FavoriteAdapter.ViewHo
                 if (index == -1) return;
                 if (result.getList().isEmpty()) {
                     mErrors.put(item.getKey(), true);
-                } else if (result.getVod() != null && !TextUtils.isEmpty(result.getVod().getRemarks())) {
-                    mTotal.put(item.getKey(), result.getVod().getRemarks());
-                    if (!result.getVod().getRemarks().equals(item.getRemarks())) {
+                } else if (result.getVod() != null) {
+                    Vod vod = result.getVod();
+                    int count = 0;
+                    for (Flag flag : vod.getFlags()) count = Math.max(count, flag.getEpisodes().size());
+                    int remarksCount = Util.getNumber(vod.getRemarks());
+                    String total = count > 1 ? String.valueOf(count) : (remarksCount > 1 ? String.valueOf(remarksCount) : vod.getRemarks());
+                    mTotal.put(item.getKey(), total);
+                    item.favorite.setVodTotal(total);
+                    item.favorite.save();
+                    if (!vod.getRemarks().equals(item.getRemarks())) {
                         mUpdates.put(item.getKey(), true);
                     } else {
                         mUpdates.remove(item.getKey());
@@ -301,11 +315,14 @@ public class FavoriteAdapter extends RecyclerView.Adapter<FavoriteAdapter.ViewHo
             holder.binding.name.setText(item.getName());
             History history = item.getHistory();
             String watched = item.getRemarks();
-            String total = mTotal.getOrDefault(item.getKey(), "");
-            if (history != null && history.getDuration() > 0 && (Util.getNumber(watched) == -1 || Util.getNumber(total) == 1)) {
+            String total = mTotal.getOrDefault(item.getKey(), item.getTotal());
+            int watchedNum = Util.getNumber(watched);
+            if (history != null && history.getDuration() > 0 && (watchedNum == -1 || Util.getNumber(total) == 1)) {
                 holder.binding.remark.setText(ResUtil.getString(R.string.favorite_remark, Util.timeMs(history.getPosition()), Util.timeMs(history.getDuration())));
             } else if (TextUtils.isEmpty(total)) {
                 holder.binding.remark.setText(watched);
+            } else if (watchedNum != -1) {
+                holder.binding.remark.setText(ResUtil.getString(R.string.favorite_episode_remark, watchedNum, total));
             } else {
                 holder.binding.remark.setText(ResUtil.getString(R.string.favorite_remark, watched, total));
             }

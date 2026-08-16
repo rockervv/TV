@@ -276,6 +276,7 @@
     <string name="favorite_checking">檢查中...</string>
     <string name="favorite_checked">檢查完成</string>
     <string name="favorite_remark">%1$s / %2$s</string>
+    <string name="favorite_episode_remark">第 %1$d/%2$s 集</string>
     <string name="favorite_add_to">加入</string>
 
     <!-- Error -->

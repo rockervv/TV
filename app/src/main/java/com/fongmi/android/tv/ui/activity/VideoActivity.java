@@ -175,6 +175,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     public static void start(Activity activity, String key, String id, String name, String pic, String mark, boolean collect, boolean cast, boolean favorite) {
         if (activity instanceof VideoActivity) {
+            ((VideoActivity) activity).saveHistorySync(true);
             ((VideoActivity) activity).finish();
         }
         Intent intent = new Intent(activity, VideoActivity.class);

@@ -13,7 +13,7 @@ import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
 //import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.bean.History;
-import com.fongmi.android.tv.bean.HistorySyncManager;
+import com.fongmi.android.tv.bean.RemoteSyncManager;
 import com.fongmi.android.tv.databinding.ActivityHistoryBinding;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.ui.adapter.HistoryAdapter;
@@ -35,7 +35,7 @@ public class HistoryActivity extends BaseActivity implements HistoryAdapter.OnCl
     }
 
     private void doSync() {
-        HistorySyncManager.SyncHistory();
+        RemoteSyncManager.SyncHistory();
     }
 
 
@@ -109,7 +109,7 @@ public class HistoryActivity extends BaseActivity implements HistoryAdapter.OnCl
 
     @Override
     public boolean onLongClick() {
-        if (mAdapter.isDelete()) HistorySyncManager.SyncHistory();
+        if (mAdapter.isDelete()) RemoteSyncManager.SyncHistory();
         mAdapter.setDelete(!mAdapter.isDelete());
         return true;
     }

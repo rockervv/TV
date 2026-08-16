@@ -49,8 +49,15 @@ public abstract class BaseConfig {
     protected abstract boolean isLoaded();
 
     public synchronized void ensureLoaded() {
+        if (isLoaded()) return;
+        if (future != null && !future.isDone()) {
+            try {
+                future.get(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Throwable ignored) {
+            }
+        }
+        if (isLoaded()) return;
         try {
-            if (isLoaded()) return;
             if (config == null) config = defaultConfig();
             Server.get().start();
             load(config);

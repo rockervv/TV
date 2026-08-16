@@ -23,7 +23,7 @@ import java.util.List;
 
 public class FtpManager {
 
-    private static final String TAG = "HistorySyncManager";
+    private static final String TAG = "RemoteSyncManager";
     //private static final String GIST_TOKEN = "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";
     //private static final String GIST_URL = "https://api.github.com/gists/1de074cade4ca85c981c801a45eaac5e";
 

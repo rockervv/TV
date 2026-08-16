@@ -78,16 +78,16 @@
         android:id="@+id/lineLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/black"
+        android:background="@color/white"
         android:visibility="gone">
 
         <View
             android:id="@+id/line"
             android:layout_width="match_parent"
-            android:layout_height="2px"
+            android:layout_height="2dp"
             android:layout_marginTop="4dp"
             android:layout_marginBottom="4dp"
-            android:background="@color/white_20" />
+            android:background="@color/black" />
 
     </FrameLayout>
 

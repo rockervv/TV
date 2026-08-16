@@ -66,6 +66,7 @@ public class Download {
 
     private void doInBackground() {
         try (Response res = OkHttp.newCall(url, tag).execute()) {
+            if (!res.isSuccessful()) throw new IOException("Unexpected code " + res);
             download(res.body().byteStream(), getLength(res));
             if (callback != null) App.post(() -> callback.success(file));
         } catch (Exception e) {
@@ -73,7 +74,6 @@ public class Download {
             if (callback != null) App.post(() -> callback.error(e.getMessage()));
             else throw new RuntimeException(e.getMessage(), e);
         }
-
     }
 
     private void download(InputStream is, double length) throws IOException {

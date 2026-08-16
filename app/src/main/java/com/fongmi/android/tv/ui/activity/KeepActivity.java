@@ -11,7 +11,7 @@ import com.fongmi.android.tv.Product;
 //import com.fongmi.android.tv.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Config;
-import com.fongmi.android.tv.bean.HistorySyncManager;
+import com.fongmi.android.tv.bean.RemoteSyncManager;
 import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.databinding.ActivityKeepBinding;
 import com.fongmi.android.tv.event.RefreshEvent;
@@ -54,7 +54,7 @@ public class KeepActivity extends BaseActivity implements KeepAdapter.OnClickLis
 
     private void doSync()
     {
-        HistorySyncManager.SyncKeep();
+        RemoteSyncManager.SyncKeep();
     }
 
     private void setRecyclerView() {

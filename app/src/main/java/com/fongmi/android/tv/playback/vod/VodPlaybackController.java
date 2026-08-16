@@ -193,6 +193,7 @@ public class VodPlaybackController {
         if (!fallbackPolicy.playbackError()) {
             state.setRecovering(false);
             host.resetPlaybackForError(msg);
+            if (!host.isSiteChangeable() || host.isResume()) host.finishVod();
         }
     }
 
@@ -254,9 +255,13 @@ public class VodPlaybackController {
     }
 
     public void saveHistory(boolean exit, long time, long position, long duration) {
+        saveHistory(exit, false, time, position, duration);
+    }
+
+    public void saveHistory(boolean exit, boolean sync, long time, long position, long duration) {
         History history = exit ? historyForExit() : currentHistory();
         if (position > 0 && duration > 0) historyPolicy.updateTime(history, time, position, duration);
-        historyPolicy.save(history, exit);
+        historyPolicy.save(history, exit, sync);
     }
 
     public void syncHistory() {
@@ -327,7 +332,10 @@ public class VodPlaybackController {
         } else {
             host.renderFallbackName(host.getVodName());
             host.onDetailFallbackScheduled();
-            if (!fallbackPolicy.emptyDetail()) host.showDetailMessage(com.fongmi.android.tv.utils.ResUtil.getString(com.fongmi.android.tv.R.string.error_play_flag));
+            if (!fallbackPolicy.emptyDetail()) {
+                host.showDetailMessage(com.fongmi.android.tv.utils.ResUtil.getString(com.fongmi.android.tv.R.string.error_play_flag));
+                if (!host.isSiteChangeable() || host.isResume()) host.finishVod();
+            }
         }
     }
 

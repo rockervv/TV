@@ -75,6 +75,7 @@ public class FavoriteSwitchDialog extends BaseAlertDialog implements FavoriteAda
                 if (adapter == null) return;
                 Log.d("FavoriteSwitch", "updateData: level=" + adapter.getLevel() + ", favs=" + favorites.size() + ", history=" + histories.size());
                 adapter.build(history, favorites, histories, keeps);
+                if (adapter.getLevel() == FavoriteAdapter.LEVEL_MAIN) adapter.checkUpdateAll();
             });
         });
     }

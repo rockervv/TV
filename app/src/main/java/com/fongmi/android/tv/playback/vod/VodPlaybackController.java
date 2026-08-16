@@ -10,11 +10,14 @@ import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Vod;
+import com.fongmi.android.tv.bean.FlagScore;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.utils.ResUtil;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.fongmi.android.tv.model.PlaybackViewModel;
 
@@ -90,6 +93,7 @@ public class VodPlaybackController {
         state.setQuality(result);
         state.setPlayingRequest(request);
         state.setUseParse(result.isUseParse());
+        FlagScore.find(host.getVodKey(), request.getFlag()).increment();
         if (viewModel != null) {
             viewModel.setQuality(result);
             viewModel.setUseParse(state.isUseParse());
@@ -154,12 +158,14 @@ public class VodPlaybackController {
     public void mergeFlags(List<Flag> items) {
         if (items.isEmpty()) return;
         if (!state.hasFlags()) {
+            sortFlags(items);
             state.setFlags(items);
             if (viewModel != null) viewModel.setFlags(state.getFlags());
             return;
         }
         Flag activated = state.getFlag();
         for (Flag item : items) mergeFlag(activated, item);
+        sortFlags(state.getFlags());
         if (viewModel != null) viewModel.setFlags(state.getFlags());
     }
 
@@ -343,6 +349,7 @@ public class VodPlaybackController {
         android.util.Log.d("TV_FATAL", "VodPlaybackController.detailLoaded: " + item.getVodName() + " Flags: " + item.getFlags().size() + " Content: " + (item.getContent().length() > 20 ? item.getContent().substring(0, 20) : item.getContent()));
         item.checkPic(host.getVodPic());
         item.checkName(host.getVodName());
+        sortFlags(item.getFlags());
         state.setFlags(item.getFlags());
         History history = historyPolicy.findOrCreate(host.getHistoryKey(), host.getVodMark(), item);
         if (history.getOpening() < 0 || history.getOpening() > 600000) history.setOpening(0);
@@ -415,5 +422,16 @@ public class VodPlaybackController {
         int current = state.getFlag().getPosition();
         int position = Math.min(Math.max(current + offset, 0), episodes.size() - 1);
         return episodes.get(position);
+    }
+
+    private void sortFlags(List<Flag> flags) {
+        List<FlagScore> scores = AppDatabase.get().getFlagScoreDao().findBySite(host.getVodKey());
+        Map<String, Integer> scoreMap = new HashMap<>();
+        for (FlagScore score : scores) scoreMap.put(score.getFlagName(), score.getScore());
+        Collections.sort(flags, (f1, f2) -> {
+            int s1 = scoreMap.getOrDefault(f1.getFlag(), 0);
+            int s2 = scoreMap.getOrDefault(f2.getFlag(), 0);
+            return Integer.compare(s2, s1);
+        });
     }
 }

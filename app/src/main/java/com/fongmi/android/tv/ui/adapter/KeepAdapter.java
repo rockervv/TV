@@ -7,24 +7,34 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Product;
+import com.fongmi.android.tv.api.SiteApi;
+import com.fongmi.android.tv.bean.Favorite;
 import com.fongmi.android.tv.bean.Keep;
+import com.fongmi.android.tv.bean.Result;
+import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.databinding.AdapterVodBinding;
 import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Task;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class KeepAdapter extends RecyclerView.Adapter<KeepAdapter.ViewHolder> {
 
     private final OnClickListener mListener;
     private final List<Keep> mItems;
+    private final Set<String> mChecking;
     private int width, height;
     private boolean delete;
 
     public KeepAdapter(OnClickListener listener) {
         this.mItems = new ArrayList<>();
+        this.mChecking = new HashSet<>();
         this.mListener = listener;
         setLayoutSize();
     }
@@ -49,6 +59,35 @@ public class KeepAdapter extends RecyclerView.Adapter<KeepAdapter.ViewHolder> {
         mItems.clear();
         mItems.addAll(items);
         notifyDataSetChanged();
+        checkUpdateAll();
+    }
+
+    public void checkUpdateAll() {
+        for (Keep item : new ArrayList<>(mItems)) {
+            checkUpdate(item);
+        }
+    }
+
+    private void checkUpdate(Keep item) {
+        if (mChecking.contains(item.getKey())) return;
+        mChecking.add(item.getKey());
+        Task.execute(() -> {
+            Result result = SiteApi.detailContent(item.getSiteKey(), item.getVodId(), false);
+            App.post(() -> {
+                mChecking.remove(item.getKey());
+                if (result.getVod() != null) {
+                    Vod vod = result.getVod();
+                    item.setVodPic(vod.getPic());
+                    item.save();
+                    Favorite favorite = Favorite.find(item.getKey());
+                    if (favorite != null) {
+                        favorite.setVodPic(vod.getPic());
+                        favorite.save();
+                    }
+                    notifyItemChanged(mItems.indexOf(item));
+                }
+            });
+        });
     }
 
     public void delete(Keep item) {

@@ -390,8 +390,23 @@ public class History implements Diffable<History> {
     }
 
     public void replace(String key) {
+        String oldKey = getKey();
         delete();
         setKey(key);
+        Favorite favorite = Favorite.find(oldKey);
+        if (favorite != null) {
+            favorite.delete();
+            favorite.setKey(key);
+            favorite.save();
+        }
+        Keep keep = Keep.find(oldKey);
+        if (keep != null) {
+            keep.delete();
+            keep.setKey(key);
+            Site site = VodConfig.get().getSite(getSiteKey());
+            if (!TextUtils.isEmpty(site.getName())) keep.setSiteName(site.getName());
+            keep.save();
+        }
     }
 
     public History save(int cid) {
@@ -415,7 +430,13 @@ public class History implements Diffable<History> {
         Favorite favorite = Favorite.find(getKey());
         if (favorite != null) {
             favorite.setVodRemarks(getVodRemarks());
+            favorite.setVodPic(getVodPic());
             favorite.save();
+        }
+        Keep keep = Keep.find(getKey());
+        if (keep != null) {
+            keep.setVodPic(getVodPic());
+            keep.save();
         }
         return this;
     }

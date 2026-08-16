@@ -256,7 +256,13 @@ public class FavoriteAdapter extends RecyclerView.Adapter<FavoriteAdapter.ViewHo
                     String total = count > 1 ? String.valueOf(count) : (remarksCount > 1 ? String.valueOf(remarksCount) : vod.getRemarks());
                     mTotal.put(item.getKey(), total);
                     item.favorite.setVodTotal(total);
+                    item.favorite.setVodPic(vod.getPic());
                     item.favorite.save();
+                    Keep keep = Keep.find(item.getKey());
+                    if (keep != null) {
+                        keep.setVodPic(vod.getPic());
+                        keep.save();
+                    }
                     if (!vod.getRemarks().equals(item.getRemarks())) {
                         mUpdates.put(item.getKey(), true);
                     } else {

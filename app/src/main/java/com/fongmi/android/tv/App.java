@@ -155,15 +155,36 @@ public class App extends Application implements Application.ActivityLifecycleCal
     }
 
     private void setupExceptionHandler() {
-        Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
-        Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
-            if (isSpiderError(e)) {
-                Log.e("SpiderWatcher", "Intercepted external spider error on thread [" + t.getName() + "]: " + e.getMessage());
-            } else if (defaultHandler != null && !defaultHandler.getClass().getName().startsWith("cat.ereza.customactivityoncrash")) {
-                defaultHandler.uncaughtException(t, e);
+        CaocConfig.Builder.create()
+                .backgroundMode(CaocConfig.BACKGROUND_MODE_SHOW_CUSTOM)
+                .errorActivity(CrashActivity.class)
+                .apply();
+
+        Thread.UncaughtExceptionHandler caocHandler = Thread.getDefaultUncaughtExceptionHandler();
+        
+        // 🛠️ 確保 UI 執行緒崩潰時也能精確導向 CrashActivity，防止黑屏掛起
+        new Handler(Looper.getMainLooper()).post(() -> {
+            while (true) {
+                try {
+                    Looper.loop();
+                } catch (Throwable e) {
+                    if (isSpiderError(e)) {
+                        Log.e("SpiderWatcher", "Intercepted UI thread spider error: " + e.getMessage());
+                    } else if (caocHandler != null) {
+                        caocHandler.uncaughtException(Thread.currentThread(), e);
+                    }
+                }
             }
         });
-        CaocConfig.Builder.create().backgroundMode(CaocConfig.BACKGROUND_MODE_SHOW_CUSTOM).errorActivity(CrashActivity.class).apply();
+
+        // 🛠️ 其他執行緒的崩潰攔截
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
+            if (isSpiderError(e)) {
+                Log.e("SpiderWatcher", "Intercepted background thread spider error [" + t.getName() + "]: " + e.getMessage());
+            } else if (caocHandler != null) {
+                caocHandler.uncaughtException(t, e);
+            }
+        });
     }
 
     private void initTools() {
@@ -178,9 +199,19 @@ public class App extends Application implements Application.ActivityLifecycleCal
         if (e == null) return false;
         String msg = String.valueOf(e.getMessage());
         if (e instanceof org.json.JSONException && (msg.contains("<html>") || msg.contains("<HTML>") || msg.contains("<!DOCTYPE"))) return true;
+        
+        // 🛠️ 強化檢查：如果是 NPE 且發生在 App Core 邏輯中，優先視為 App 錯誤而非 Spider 錯誤
+        if (e instanceof NullPointerException) {
+            for (StackTraceElement element : e.getStackTrace()) {
+                if (element.getClassName().startsWith("com.fongmi.android.tv.ui") || 
+                    element.getClassName().startsWith("com.fongmi.android.tv.player")) return false;
+            }
+        }
+
         for (StackTraceElement element : e.getStackTrace()) {
             if (element.getClassName().contains("com.github.catvod.spider")) return true;
             if (element.getClassName().contains("com.fongmi.quickjs.crawler")) return true;
+            if (element.getClassName().contains("com.github.catvod.parser")) return true;
         }
         Throwable cause = e.getCause();
         return isSpiderError(cause);

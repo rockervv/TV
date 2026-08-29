@@ -61,9 +61,13 @@ public class VodPlaybackState {
         return sources;
     }
 
+    public void addSources(List<Vod> items) {
+        for (Vod item : items) if (!sources.contains(item)) sources.add(item);
+    }
+
     public void setSources(List<Vod> items) {
         sources.clear();
-        sources.addAll(items);
+        addSources(items);
     }
 
     public Vod removeFirstSource() {

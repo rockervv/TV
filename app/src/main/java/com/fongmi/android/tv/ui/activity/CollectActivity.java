@@ -114,7 +114,7 @@ public class CollectActivity extends BaseActivity {
 
     private void setSite() {
         mSites = new ArrayList<>();
-        for (Site site : VodConfig.get().getSites()) if (site.isSearchable()) mSites.add(site);
+        for (Site site : VodConfig.get().getSites()) if (site.isSearchable() && !site.isBlacklist()) mSites.add(site);
         Site home = VodConfig.get().getHome();
         if (!mSites.contains(home)) return;
         mSites.remove(home);

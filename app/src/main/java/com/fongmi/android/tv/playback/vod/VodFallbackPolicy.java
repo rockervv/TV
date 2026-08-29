@@ -54,18 +54,10 @@ public class VodFallbackPolicy {
     public void onSearchResult(Result result) {
         List<Vod> items = new ArrayList<>(result.getList());
         items.removeIf(this::mismatch);
-        state.setSources(items);
+        items.removeIf(item -> !isPass(VodConfig.get().getSite(item.getSiteKey())));
+        state.addSources(items);
         if (viewModel != null) viewModel.setSources(state.getSources());
-        if (state.isSelectFirstSource() && !items.isEmpty()) nextSource();
-        if (items.isEmpty()) {
-            host.onSearchResult();
-            // 💡 搜尋無效時，也不要彈出「解析失敗」的提示
-            if (state.isAutoFallback()) {
-                host.resetPlaybackForError("");
-                if (!host.isSiteChangeable() || host.isResume()) host.finishVod();
-            }
-            return;
-        }
+        if (state.isSelectFirstSource() && !state.getSources().isEmpty()) nextSource();
         host.onSearchResult();
     }
 
@@ -101,13 +93,17 @@ public class VodFallbackPolicy {
     }
 
     private void nextSource() {
-        if (!state.hasSources()) return;
-        Vod item = state.removeFirstSource();
-        if (viewModel != null) viewModel.setSources(state.getSources());
-        host.showSwitchSource(item);
-        state.addFailedId(host.getVodId());
-        state.setSelectFirstSource(false);
-        controller.fallbackSource(item);
+        while (state.hasSources()) {
+            Vod item = state.removeFirstSource();
+            if (isPass(VodConfig.get().getSite(item.getSiteKey()))) {
+                if (viewModel != null) viewModel.setSources(state.getSources());
+                host.showSwitchSource(item);
+                state.addFailedId(host.getVodId());
+                state.setSelectFirstSource(false);
+                controller.fallbackSource(item);
+                return;
+            }
+        }
     }
 
     private List<Site> getSearchableSites() {
@@ -117,8 +113,10 @@ public class VodFallbackPolicy {
     }
 
     private boolean isPass(Site item) {
+        if (item.isBlacklist()) return false;
+        if (!item.isSearchable()) return false;
         if (state.isAutoFallback() && !item.isChangeable()) return false;
-        return item.isSearchable();
+        return true;
     }
 
     private boolean mismatch(Vod item) {

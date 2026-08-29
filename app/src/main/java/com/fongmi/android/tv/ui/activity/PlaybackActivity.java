@@ -17,6 +17,7 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
+import androidx.lifecycle.Lifecycle;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
@@ -245,6 +246,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
             onError(ResUtil.getString(R.string.error_play_url));
         } else {
             attachSurface();
+            if (PlayerSetting.isBackgroundOff() && !getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) wasPlaying = true;
             if (result.needParse() || useParse) {
                 player().parse(key, result, useParse, metadata, startPositionMs);
             } else {
@@ -483,9 +485,14 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     @Override
     public void onIsPlayingChanged(boolean isPlaying) {
         if (!isOwner()) return;
-        if (isPlaying) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        else if (!isBuffering()) getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        onPlayingChanged(isPlaying);
+        if (isPlaying && PlayerSetting.isBackgroundOff() && !getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) {
+            wasPlaying = true;
+            mController.pause();
+        } else {
+            if (isPlaying) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else if (!isBuffering()) getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            onPlayingChanged(isPlaying);
+        }
     }
 
     @Override

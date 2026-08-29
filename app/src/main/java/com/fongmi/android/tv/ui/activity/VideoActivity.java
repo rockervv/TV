@@ -205,7 +205,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     private void setScale(int scale) {
         if (mVod != null) mVod.setScale(scale);
         mBinding.control.scale.setText(ResUtil.getStringArray(R.array.select_scale)[scale]);
-        player().setScale(scale);
+        if (player() != null) player().setScale(scale);
         mBinding.exo.setResizeMode(scale);
     }
 
@@ -372,8 +372,8 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBinding.control.favorite.setVisibility(View.VISIBLE);
         mBinding.control.scale.setText(ResUtil.getStringArray(R.array.select_scale)[mHistory != null ? mHistory.getScale() : Setting.getScale()]);
         mBinding.control.render.setVisibility(PlayerSetting.isRenderEnhance() ? View.VISIBLE : View.GONE);
-        PlaybackAction.setSpeedText(player(), mBinding.control.speed);
-        PlaybackAction.setPlaybackMode(player(), mBinding.control.player, mBinding.control.decode);
+        if (player() != null) PlaybackAction.setSpeedText(player(), mBinding.control.speed);
+        if (player() != null) PlaybackAction.setPlaybackMode(player(), mBinding.control.player, mBinding.control.decode);
         updateRenderButton();
         mBinding.control.favorite.requestFocus();
         setResetText();

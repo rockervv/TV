@@ -153,6 +153,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     protected void onServiceConnected() {
         PlaybackAction.setPlaybackMode(player(), mBinding.control.action.player, mBinding.control.action.decode);
         PlaybackAction.setSpeedText(player(), mBinding.control.action.speed);
+        setScale(LiveSetting.getScale());
         checkLive();
     }
 
@@ -229,7 +230,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void setScale(int scale) {
         LiveSetting.putScale(scale);
-        player().setScale(scale);
+        if (player() != null) player().setScale(scale);
         mBinding.player.setResizeMode(scale);
         mBinding.control.action.scale.setText(ResUtil.getStringArray(R.array.select_scale)[scale]);
     }

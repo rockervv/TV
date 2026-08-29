@@ -161,26 +161,10 @@ public class App extends Application implements Application.ActivityLifecycleCal
                 .apply();
 
         Thread.UncaughtExceptionHandler caocHandler = Thread.getDefaultUncaughtExceptionHandler();
-        
-        // 🛠️ 確保 UI 執行緒崩潰時也能精確導向 CrashActivity，防止黑屏掛起
-        new Handler(Looper.getMainLooper()).post(() -> {
-            while (true) {
-                try {
-                    Looper.loop();
-                } catch (Throwable e) {
-                    if (isSpiderError(e)) {
-                        Log.e("SpiderWatcher", "Intercepted UI thread spider error: " + e.getMessage());
-                    } else if (caocHandler != null) {
-                        caocHandler.uncaughtException(Thread.currentThread(), e);
-                    }
-                }
-            }
-        });
-
-        // 🛠️ 其他執行緒的崩潰攔截
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
-            if (isSpiderError(e)) {
-                Log.e("SpiderWatcher", "Intercepted background thread spider error [" + t.getName() + "]: " + e.getMessage());
+            // 🛠️ 只有背景執行緒的爬蟲錯誤才靜默攔截；主執行緒的任何錯誤都導向 CrashActivity
+            if (isSpiderError(e) && !Looper.getMainLooper().getThread().equals(t)) {
+                Log.e("SpiderWatcher", "Intercepted background spider error [" + t.getName() + "]: " + e.getMessage());
             } else if (caocHandler != null) {
                 caocHandler.uncaughtException(t, e);
             }

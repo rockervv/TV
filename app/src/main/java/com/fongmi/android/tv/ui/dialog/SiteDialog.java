@@ -16,6 +16,7 @@ import com.fongmi.android.tv.impl.SiteCallback;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.adapter.SiteAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -59,10 +60,14 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
         return builder().setView(getBinding().getRoot());
     }
 
+    private DescHelper descHelper;
+
     @Override
     protected void initView() {
         this.callback = (SiteCallback) getActivity();
+        this.descHelper = DescHelper.create(binding.descLayout.descCard, binding.descLayout.desc);
         this.adapter = new SiteAdapter(this);
+        this.adapter.setDescHelper(descHelper);
         if (type == 3) {
             binding.action.setVisibility(View.VISIBLE);
             setType(0);
@@ -71,6 +76,16 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
         }
         setRecyclerView();
         setMode();
+        initDesc();
+    }
+
+    private void initDesc() {
+        descHelper.put(R.id.search, R.string.desc_site_search)
+                .put(R.id.change, R.string.desc_site_change)
+                .put(R.id.select, R.string.desc_site_select)
+                .put(R.id.cancel, R.string.desc_site_cancel)
+                .put(R.id.mode, R.string.desc_site_mode)
+                .bind(binding.getRoot());
     }
 
     @Override

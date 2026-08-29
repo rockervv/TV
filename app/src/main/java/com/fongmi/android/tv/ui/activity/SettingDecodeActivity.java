@@ -7,10 +7,12 @@ import android.view.View;
 
 import androidx.viewbinding.ViewBinding;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.databinding.ActivitySettingDecodeBinding;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.utils.DescHelper;
 
 public class SettingDecodeActivity extends BaseActivity {
 
@@ -29,6 +31,13 @@ public class SettingDecodeActivity extends BaseActivity {
     protected void initView(Bundle savedInstanceState) {
         mBinding.tunnel.requestFocus();
         refresh();
+        initDesc();
+    }
+
+    private void initDesc() {
+        DescHelper.create(mBinding.descLayout.descCard, mBinding.descLayout.desc)
+                .put(R.id.tunnel, R.string.desc_decode_tunnel)
+                .bind(mBinding.getRoot());
     }
 
     @Override

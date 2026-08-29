@@ -14,6 +14,7 @@ import com.fongmi.android.tv.databinding.DialogSyncBinding;
 import com.fongmi.android.tv.event.ServerEvent;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -48,8 +49,11 @@ public class SyncDialog extends BaseAlertDialog {
         return builder().setView(getBinding().getRoot());
     }
 
+    private DescHelper descHelper;
+
     @Override
     protected void initView() {
+        this.descHelper = DescHelper.create(binding.descLayout.descCard, binding.descLayout.desc);
         binding.ftpServer.setText(Setting.getFtpUri());
         binding.ftpUsername.setText(Setting.getFtpUsername());
         binding.ftpPassword.setText(Setting.getFtpPassword());
@@ -59,6 +63,13 @@ public class SyncDialog extends BaseAlertDialog {
         binding.syncGistToken.setText(Setting.getGistToken());
         binding.ftpServer.requestFocus();
         com.fongmi.android.tv.utils.Util.showKeyboard(binding.ftpServer);
+        initDesc();
+    }
+
+    private void initDesc() {
+        descHelper.put(R.id.syncUseFtp, R.string.desc_sync_setting)
+                .put(R.id.syncUseGist, R.string.desc_sync_setting)
+                .bind(binding.getRoot());
     }
 
     @Override

@@ -1,5 +1,68 @@
 <resources xmlns:tools="http://schemas.android.com/tools" xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2" tools:ignore="MissingTranslation">
 
+    <!-- Setting Description -->
+    <string name="desc_vod">[點擊] 切換配置\n[長按] 編輯配置網址</string>
+    <string name="desc_vod_home">點擊選擇當前配置下的首頁站台</string>
+    <string name="desc_vod_history">點擊查看該配置的歷史切換記錄</string>
+    <string name="desc_live">[點擊] 切換直播配置\n[長按] 編輯配置網址</string>
+    <string name="desc_live_home">點擊選擇直播首頁</string>
+    <string name="desc_live_history">點擊查看直播歷史記錄</string>
+    <string name="desc_wall">[點擊] 切換桌布配置\n[長按] 編輯配置網址</string>
+    <string name="desc_wall_default">點擊切換至下一個預設內建桌布</string>
+    <string name="desc_wall_refresh">點擊立即重新載入當前桌布</string>
+    <string name="desc_cache">[點擊] 清理應用程式暫存快取\n[長按] 清理全部快取及重置配置</string>
+    <string name="desc_category_cache">開啟後會快取影片分類列表以加快載入速度</string>
+    <string name="desc_proxy">點擊設定全域網路代理</string>
+    <string name="desc_doh">點擊選擇 DNS over HTTPS 服務</string>
+    <string name="desc_version">[點擊] 檢查更新\n[長按] 進入開發者模式</string>
+    <string name="desc_custom">[點擊] 進入介面與功能自定義設定\n[長按] 進入站台測試介面</string>
+    <string name="desc_backup">[點擊] 立即執行資料庫備份\n[長按] 切換自動備份模式</string>
+    <string name="desc_restore">點擊從備份檔案還原資料</string>
+    <string name="desc_player">點擊進入播放核心相關設定</string>
+    <string name="desc_spider">點擊進入爬蟲與指令碼引擎設定</string>
+    <string name="desc_about">顯示版本與硬體架構資訊</string>
+    <string name="desc_sync_setting">點擊設定遠端同步功能</string>
+    <string name="desc_sync">點擊立即執行所有裝置同步</string>
+
+    <string name="desc_site_item">[點擊] 切換為首頁站台\n[長按] 切換該站台黑名單</string>
+    <string name="desc_site_search">設定「全域搜尋」站台 (config.json若設定不可搜尋的站台則無法啟用)</string>
+    <string name="desc_site_change">設定播放時支援的「換線/切換」站台</string>
+    <string name="desc_site_select">根據當前模式（搜尋或切換）一次開啟所有站台</string>
+    <string name="desc_site_cancel">根據當前模式（搜尋或切換）一次關閉所有站台</string>
+    <string name="desc_site_mode">切換站台列表的顯示方式（單行列表或多欄網格）</string>
+
+    <string name="desc_live_item">點擊設定為直播首頁</string>
+    <string name="desc_live_pass">[點擊] 切換跳過載入\n[長按] 批量切換所有來源</string>
+    <string name="desc_live_boot">[點擊] 設定開機啟動\n[長按] 批量切換所有來源</string>
+
+    <string name="desc_config_info">顯示目前遠端推送的網址與連接埠，可手機掃碼輸入</string>
+    <string name="desc_config_text">手動輸入或貼上配置的網址路徑</string>
+    <string name="desc_config_storage">點擊從裝置內部儲存空間選擇本地設定檔 (json)</string>
+    <string name="desc_config_positive">儲存並立即載入該配置</string>
+    <string name="desc_config_negative">放棄更改並返回</string>
+
+    <string name="desc_history_text">立即載入該歷史配置或備份檔案</string>
+    <string name="desc_history_delete">從裝置中永久刪除該記錄或檔案</string>
+
+    <string name="desc_player_engine">切換 ExoPlayer 或 mpv 播放引擎</string>
+    <string name="desc_player_reset">切換播放失敗時的處理方式（刷新或重播）</string>
+    <string name="desc_player_caption">[點擊] 切換外掛字幕\n[長按] 進入系統字幕設定</string>
+    <string name="desc_player_speed">設定全域預設播放倍速</string>
+    <string name="desc_player_mpv_conf">僅在 mpv 引擎下可用，自定義 mpv 指令參數</string>
+    <string name="desc_player_render">切換影片渲染技術 (Surface/Texture 等)</string>
+    <string name="desc_player_decode">進入硬體解碼與通道細項設定</string>
+
+    <string name="desc_spider_local">使用內建本地爬蟲模組</string>
+    <string name="desc_spider_quickjs">切換內建 JS 爬蟲引擎開關</string>
+    <string name="desc_spider_chaquo">切換內建 Python 爬蟲引擎開關</string>
+
+    <string name="desc_custom_speed">[點擊] 增加倍速\n[長按] 恢復 1.0 倍速</string>
+    <string name="desc_custom_home_ui">切換首頁顯示風格（列表、網格等）</string>
+    <string name="desc_custom_reset">點擊清除所有應用程式數據（慎用）</string>
+
+    <string name="desc_decode_tunnel">開啟後在支援的裝置上提供更流暢的 4K 播放</string>
+    <string name="desc_preload_setting">開啟後在播放時提前緩衝下一集數據</string>
+
     <!-- App -->
     <string name="app_name">OK影視</string>
     <string name="app_exit">再按一次返回鍵退出</string>

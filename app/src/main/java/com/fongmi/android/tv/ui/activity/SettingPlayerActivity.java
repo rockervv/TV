@@ -18,6 +18,7 @@ import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.MpvConfDialog;
 import com.fongmi.android.tv.ui.dialog.SpeedDialog;
 import com.fongmi.android.tv.ui.dialog.UaDialog;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
@@ -64,6 +65,19 @@ public class SettingPlayerActivity extends BaseActivity implements UaCallback, S
         mBinding.captionText.setText((caption = ResUtil.getStringArray(R.array.select_caption))[PlayerSetting.isCaption() ? 1 : 0]);
         mBinding.normalizeText.setText(Setting.getSwitch(Setting.isNormalize()));
         mBinding.renderEnhanceText.setText(Setting.getSwitch(PlayerSetting.isRenderEnhance()));
+        initDesc();
+    }
+
+    private void initDesc() {
+        DescHelper.create(mBinding.descLayout.descCard, mBinding.descLayout.desc)
+                .put(R.id.engine, R.string.desc_player_engine)
+                .put(R.id.reset, R.string.desc_player_reset)
+                .put(R.id.caption, R.string.desc_player_caption)
+                .put(R.id.speed, R.string.desc_player_speed)
+                .put(R.id.mpvConf, R.string.desc_player_mpv_conf)
+                .put(R.id.render, R.string.desc_player_render)
+                .put(R.id.decode, R.string.desc_player_decode)
+                .bind(mBinding.getRoot());
     }
 
     @Override

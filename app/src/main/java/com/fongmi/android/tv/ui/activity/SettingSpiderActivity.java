@@ -11,6 +11,7 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ActivitySettingSpiderBinding;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 
@@ -34,6 +35,15 @@ public class SettingSpiderActivity extends BaseActivity {
     protected void initView(Bundle savedInstanceState) {
         mBinding.localSpider.requestFocus();
         setOtherText();
+        initDesc();
+    }
+
+    private void initDesc() {
+        DescHelper.create(mBinding.descLayout.descCard, mBinding.descLayout.desc)
+                .put(R.id.local_spider, R.string.desc_spider_local)
+                .put(R.id.quickjs, R.string.desc_spider_quickjs)
+                .put(R.id.chaquo, R.string.desc_spider_chaquo)
+                .bind(mBinding.getRoot());
     }
 
     private void setOtherText() {

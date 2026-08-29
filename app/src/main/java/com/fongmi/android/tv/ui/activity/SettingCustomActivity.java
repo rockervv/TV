@@ -22,6 +22,7 @@ import com.fongmi.android.tv.ui.dialog.CacheDirDialog;
 import com.fongmi.android.tv.ui.dialog.DisplayDialog;
 import com.fongmi.android.tv.ui.dialog.LanguageDialog;
 import com.fongmi.android.tv.ui.dialog.MenuKeyDialog;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.LanguageUtil;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
@@ -77,6 +78,15 @@ public class SettingCustomActivity extends BaseActivity implements MenuKeyCallba
         mBinding.configCacheText.setText((configCache = ResUtil.getStringArray(R.array.select_config_cache))[Setting.getConfigCache()]);
         mBinding.dlnaText.setText(getSwitch(Setting.isDlna()));
         mBinding.autoResumeUIText.setText(getSwitch(Setting.isAutoResumeUI()));
+        initDesc();
+    }
+
+    private void initDesc() {
+        DescHelper.create(mBinding.descLayout.descCard, mBinding.descLayout.desc)
+                .put(R.id.speed, R.string.desc_custom_speed)
+                .put(R.id.homeUI, R.string.desc_custom_home_ui)
+                .put(R.id.reset, R.string.desc_custom_reset)
+                .bind(mBinding.getRoot());
     }
 
     @Override

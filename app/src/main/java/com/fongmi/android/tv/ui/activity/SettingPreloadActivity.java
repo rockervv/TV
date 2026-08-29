@@ -14,6 +14,7 @@ import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.PreloadDialog;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.FileUtil;
 
 public class SettingPreloadActivity extends BaseActivity {
@@ -33,6 +34,13 @@ public class SettingPreloadActivity extends BaseActivity {
     protected void initView(Bundle savedInstanceState) {
         mBinding.preload.requestFocus();
         refresh();
+        initDesc();
+    }
+
+    private void initDesc() {
+        DescHelper.create(mBinding.descLayout.descCard, mBinding.descLayout.desc)
+                .put(R.id.preload, R.string.desc_preload_setting)
+                .bind(mBinding.getRoot());
     }
 
     @Override

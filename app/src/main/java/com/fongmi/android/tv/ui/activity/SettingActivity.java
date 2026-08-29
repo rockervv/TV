@@ -41,6 +41,7 @@ import com.fongmi.android.tv.ui.dialog.LiveDialog;
 import com.fongmi.android.tv.ui.dialog.ProxyDialog;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.ui.dialog.SyncDialog;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
@@ -90,6 +91,34 @@ public class SettingActivity extends BaseActivity implements BackupCallback, Con
         mBinding.versionText.setText(BuildConfig.VERSION_NAME);
         setCacheText();
         setOtherText();
+        initDesc();
+    }
+
+    private void initDesc() {
+        DescHelper.create(mBinding.descLayout.descCard, mBinding.descLayout.desc)
+                .put(R.id.vod, R.string.desc_vod)
+                .put(R.id.vodHome, R.string.desc_vod_home)
+                .put(R.id.vodHistory, R.string.desc_vod_history)
+                .put(R.id.live, R.string.desc_live)
+                .put(R.id.liveHome, R.string.desc_live_home)
+                .put(R.id.liveHistory, R.string.desc_live_history)
+                .put(R.id.wall, R.string.desc_wall)
+                .put(R.id.wallDefault, R.string.desc_wall_default)
+                .put(R.id.wallRefresh, R.string.desc_wall_refresh)
+                .put(R.id.cache, R.string.desc_cache)
+                .put(R.id.category_cache, R.string.desc_category_cache)
+                .put(R.id.proxy, R.string.desc_proxy)
+                .put(R.id.doh, R.string.desc_doh)
+                .put(R.id.version, R.string.desc_version)
+                .put(R.id.custom, R.string.desc_custom)
+                .put(R.id.backup, R.string.desc_backup)
+                .put(R.id.restore, R.string.desc_restore)
+                .put(R.id.player, R.string.desc_player)
+                .put(R.id.spider, R.string.desc_spider)
+                .put(R.id.about, R.string.desc_about)
+                .put(R.id.sync_setting, R.string.desc_sync_setting)
+                .put(R.id.sync, R.string.desc_sync)
+                .bind(mBinding.getRoot());
     }
 
     private void setOtherText() {

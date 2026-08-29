@@ -9,10 +9,12 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.AdapterSiteBinding;
+import com.fongmi.android.tv.utils.DescHelper;
 
 import java.util.List;
 
@@ -20,11 +22,16 @@ public class SiteAdapter extends RecyclerView.Adapter<SiteAdapter.ViewHolder> {
 
     private final OnClickListener mListener;
     private final List<Site> mItems;
+    private DescHelper descHelper;
     private int type;
 
     public SiteAdapter(OnClickListener listener) {
         this.mListener = listener;
         this.mItems = VodConfig.get().getSites();
+    }
+
+    public void setDescHelper(DescHelper descHelper) {
+        this.descHelper = descHelper;
     }
 
     public interface OnClickListener {
@@ -71,8 +78,15 @@ public class SiteAdapter extends RecyclerView.Adapter<SiteAdapter.ViewHolder> {
         holder.binding.getRoot().setOnLongClickListener(v -> setLongListener(item));
         holder.binding.getRoot().setOnClickListener(v -> setListener(item, position));
         holder.binding.text.setGravity(Setting.getSiteMode() == 0 ? Gravity.CENTER : Gravity.START);
+        holder.binding.getRoot().setOnFocusChangeListener((v, hasFocus) -> onFocusChange(hasFocus));
         if (item.isBlacklist()) holder.binding.text.setPaintFlags(holder.binding.text.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
         else holder.binding.text.setPaintFlags(holder.binding.text.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
+    }
+
+    private void onFocusChange(boolean hasFocus) {
+        if (descHelper == null) return;
+        if (hasFocus) descHelper.show(R.string.desc_site_item);
+        else descHelper.hide();
     }
 
     private boolean getChecked(Site item) {

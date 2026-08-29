@@ -11,6 +11,7 @@ import com.fongmi.android.tv.databinding.DialogHistoryBinding;
 import com.fongmi.android.tv.impl.BackupCallback;
 import com.fongmi.android.tv.ui.adapter.BackupAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.github.catvod.utils.Path;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -22,6 +23,7 @@ public class BackupDialog extends BaseAlertDialog implements BackupAdapter.OnCli
     private DialogHistoryBinding binding;
     private BackupCallback callback;
     private BackupAdapter adapter;
+    private DescHelper descHelper;
 
     public static BackupDialog create() {
         return new BackupDialog();
@@ -65,7 +67,9 @@ public class BackupDialog extends BaseAlertDialog implements BackupAdapter.OnCli
 
     @Override
     protected void initView() {
-        adapter = new BackupAdapter(this);
+        this.descHelper = DescHelper.create(binding.descLayout.descCard, binding.descLayout.desc);
+        this.adapter = new BackupAdapter(this);
+        this.adapter.setDescHelper(descHelper);
         binding.recycler.setHasFixedSize(true);
         binding.recycler.addItemDecoration(new SpaceItemDecoration(1, ResUtil.isPad() ? 8 : 16));
         binding.recycler.setAdapter(adapter.addAll());

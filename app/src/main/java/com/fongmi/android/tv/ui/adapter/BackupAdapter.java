@@ -6,7 +6,9 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.AdapterBackupBinding;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.github.catvod.utils.Path;
 
 import com.orhanobut.logger.Logger;
@@ -19,10 +21,15 @@ import java.util.List;
 public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.ViewHolder> {
 
     private final OnClickListener mListener;
+    private DescHelper descHelper;
     private List<String> mItems;
 
     public BackupAdapter(OnClickListener listener) {
         this.mListener = listener;
+    }
+
+    public void setDescHelper(DescHelper descHelper) {
+        this.descHelper = descHelper;
     }
 
     public interface OnClickListener {
@@ -72,6 +79,14 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.ViewHolder
         holder.binding.text.setText(item.replace(".bk.gz", "").replace(".tv.backup", "").replace(".bk", ""));
         holder.binding.text.setOnClickListener(v -> mListener.onTextClick(item));
         holder.binding.delete.setOnClickListener(v -> mListener.onDeleteClick(item));
+        holder.binding.text.setOnFocusChangeListener((v, hasFocus) -> onFocusChange(hasFocus, R.string.desc_history_text));
+        holder.binding.delete.setOnFocusChangeListener((v, hasFocus) -> onFocusChange(hasFocus, R.string.desc_history_delete));
+    }
+
+    private void onFocusChange(boolean hasFocus, int resId) {
+        if (descHelper == null) return;
+        if (hasFocus) descHelper.show(resId);
+        else descHelper.hide();
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

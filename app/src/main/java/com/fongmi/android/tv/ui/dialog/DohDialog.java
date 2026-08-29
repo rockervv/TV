@@ -9,6 +9,7 @@ import com.fongmi.android.tv.databinding.DialogDohBinding;
 import com.fongmi.android.tv.impl.DohCallback;
 import com.fongmi.android.tv.ui.adapter.DohAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.github.catvod.bean.Doh;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -17,6 +18,7 @@ public class DohDialog extends BaseAlertDialog implements DohAdapter.OnClickList
     private DialogDohBinding binding;
     private DohCallback callback;
     private DohAdapter adapter;
+    private DescHelper descHelper;
 
     public static DohDialog create() {
         return new DohDialog();
@@ -48,7 +50,9 @@ public class DohDialog extends BaseAlertDialog implements DohAdapter.OnClickList
     @Override
     protected void initView() {
         this.callback = (DohCallback) getActivity();
+        this.descHelper = DescHelper.create(binding.descLayout.descCard, binding.descLayout.desc);
         this.adapter = new DohAdapter(this);
+        this.adapter.setDescHelper(descHelper);
         binding.recycler.setAdapter(adapter);
         binding.recycler.setHasFixedSize(true);
         binding.recycler.addItemDecoration(new SpaceItemDecoration(1, 16));

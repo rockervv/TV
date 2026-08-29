@@ -3,18 +3,21 @@ package com.fongmi.android.tv.ui.dialog;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.bean.Live;
 import com.fongmi.android.tv.databinding.DialogLiveBinding;
 import com.fongmi.android.tv.impl.LiveListener;
 import com.fongmi.android.tv.ui.adapter.LiveAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class LiveDialog extends BaseAlertDialog implements LiveAdapter.OnClickListener {
 
     private DialogLiveBinding binding;
     private LiveAdapter adapter;
+    private DescHelper descHelper;
     private boolean action;
 
     public static LiveDialog create() {
@@ -42,8 +45,10 @@ public class LiveDialog extends BaseAlertDialog implements LiveAdapter.OnClickLi
 
     @Override
     protected void initView() {
-        adapter = new LiveAdapter(this);
-        adapter.setAction(action);
+        this.descHelper = DescHelper.create(binding.descLayout.descCard, binding.descLayout.desc);
+        this.adapter = new LiveAdapter(this);
+        this.adapter.setDescHelper(descHelper);
+        this.adapter.setAction(action);
         binding.recycler.setAdapter(adapter);
         binding.recycler.setHasFixedSize(true);
         binding.recycler.setItemAnimator(null);

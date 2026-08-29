@@ -6,8 +6,10 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.databinding.AdapterDohBinding;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.github.catvod.bean.Doh;
 
 import java.util.List;
@@ -16,11 +18,16 @@ public class DohAdapter extends RecyclerView.Adapter<DohAdapter.ViewHolder> {
 
     private final OnClickListener mListener;
     private final List<Doh> mItems;
+    private DescHelper descHelper;
     private int select;
 
     public DohAdapter(OnClickListener listener) {
         this.mItems = VodConfig.get().getDoh();
         this.mListener = listener;
+    }
+
+    public void setDescHelper(DescHelper descHelper) {
+        this.descHelper = descHelper;
     }
 
     public void setSelect(int select) {
@@ -53,6 +60,13 @@ public class DohAdapter extends RecyclerView.Adapter<DohAdapter.ViewHolder> {
         holder.binding.text.setText(item.getName());
         holder.binding.text.setActivated(select == position);
         holder.binding.text.setOnClickListener(v -> mListener.onItemClick(item));
+        holder.binding.text.setOnFocusChangeListener((v, hasFocus) -> onFocusChange(hasFocus));
+    }
+
+    private void onFocusChange(boolean hasFocus) {
+        if (descHelper == null) return;
+        if (hasFocus) descHelper.show(R.string.desc_doh);
+        else descHelper.hide();
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

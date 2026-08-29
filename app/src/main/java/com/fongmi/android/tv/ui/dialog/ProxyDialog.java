@@ -17,6 +17,7 @@ import com.fongmi.android.tv.impl.ProxyCallback;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.QRCode;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -53,9 +54,12 @@ public class ProxyDialog extends BaseAlertDialog {
         return builder().setView(getBinding().getRoot());
     }
 
+    private DescHelper descHelper;
+
     @Override
     protected void initView() {
         this.callback = (ProxyCallback) getActivity();
+        this.descHelper = DescHelper.create(binding.descLayout.descCard, binding.descLayout.desc);
         this.append = true;
         String text = Setting.getProxy();
         binding.text.setText(text);
@@ -64,6 +68,15 @@ public class ProxyDialog extends BaseAlertDialog {
         com.fongmi.android.tv.utils.Util.showKeyboard(binding.text);
         binding.code.setImageBitmap(QRCode.getBitmap(Server.get().getAddress(3), 200, 0));
         binding.info.setText(ResUtil.getString(R.string.push_info, Server.get().getAddress()).replace("，", "\n"));
+        initDesc();
+    }
+
+    private void initDesc() {
+        descHelper.put(R.id.info, R.string.desc_config_info)
+                .put(R.id.text, R.string.desc_config_text)
+                .put(R.id.positive, R.string.desc_config_positive)
+                .put(R.id.negative, R.string.desc_config_negative)
+                .bind(binding.getRoot());
     }
 
     @Override

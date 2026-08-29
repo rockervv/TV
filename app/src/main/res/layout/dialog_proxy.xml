@@ -82,4 +82,13 @@
             android:textSize="14sp" />
 
     </LinearLayout>
+
+    <include
+        android:id="@+id/desc_layout"
+        layout="@layout/view_desc_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/code"
+        android:layout_marginTop="16dp" />
+
 </RelativeLayout>

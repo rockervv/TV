@@ -7,19 +7,26 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.databinding.AdapterConfigBinding;
+import com.fongmi.android.tv.utils.DescHelper;
 
 import java.util.List;
 
 public class ConfigAdapter extends RecyclerView.Adapter<ConfigAdapter.ViewHolder> {
 
     private final OnClickListener listener;
+    private DescHelper descHelper;
     private List<Config> mItems;
     private boolean readOnly;
 
     public ConfigAdapter(OnClickListener listener) {
         this.listener = listener;
+    }
+
+    public void setDescHelper(DescHelper descHelper) {
+        this.descHelper = descHelper;
     }
 
     public interface OnClickListener {
@@ -67,6 +74,14 @@ public class ConfigAdapter extends RecyclerView.Adapter<ConfigAdapter.ViewHolder
         holder.binding.text.setOnClickListener(v -> listener.onTextClick(item));
         holder.binding.delete.setVisibility(readOnly ? View.GONE : View.VISIBLE);
         holder.binding.delete.setOnClickListener(v -> listener.onDeleteClick(item));
+        holder.binding.text.setOnFocusChangeListener((v, hasFocus) -> onFocusChange(hasFocus, R.string.desc_history_text));
+        holder.binding.delete.setOnFocusChangeListener((v, hasFocus) -> onFocusChange(hasFocus, R.string.desc_history_delete));
+    }
+
+    private void onFocusChange(boolean hasFocus, int resId) {
+        if (descHelper == null) return;
+        if (hasFocus) descHelper.show(resId);
+        else descHelper.hide();
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {

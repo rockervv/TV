@@ -7,9 +7,11 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.bean.Live;
 import com.fongmi.android.tv.databinding.AdapterLiveBinding;
+import com.fongmi.android.tv.utils.DescHelper;
 
 import java.util.List;
 
@@ -17,11 +19,16 @@ public class LiveAdapter extends RecyclerView.Adapter<LiveAdapter.ViewHolder> {
 
     private final OnClickListener mListener;
     private final List<Live> mItems;
+    private DescHelper descHelper;
     private boolean action;
 
     public LiveAdapter(OnClickListener listener) {
         this.mListener = listener;
         this.mItems = LiveConfig.get().getLives();
+    }
+
+    public void setDescHelper(DescHelper descHelper) {
+        this.descHelper = descHelper;
     }
 
     public void setAction(boolean action) {
@@ -67,6 +74,15 @@ public class LiveAdapter extends RecyclerView.Adapter<LiveAdapter.ViewHolder> {
         holder.binding.pass.setOnClickListener(v -> mListener.onPassClick(position, item));
         holder.binding.boot.setOnLongClickListener(v -> mListener.onBootLongClick(item));
         holder.binding.pass.setOnLongClickListener(v -> mListener.onPassLongClick(item));
+        holder.binding.text.setOnFocusChangeListener((v, hasFocus) -> onFocusChange(hasFocus, R.string.desc_live_item));
+        holder.binding.boot.setOnFocusChangeListener((v, hasFocus) -> onFocusChange(hasFocus, R.string.desc_live_boot));
+        holder.binding.pass.setOnFocusChangeListener((v, hasFocus) -> onFocusChange(hasFocus, R.string.desc_live_pass));
+    }
+
+    private void onFocusChange(boolean hasFocus, int resId) {
+        if (descHelper == null) return;
+        if (hasFocus) descHelper.show(resId);
+        else descHelper.hide();
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

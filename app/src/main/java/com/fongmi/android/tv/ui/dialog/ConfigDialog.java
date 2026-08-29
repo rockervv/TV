@@ -19,6 +19,7 @@ import com.fongmi.android.tv.event.ServerEvent;
 import com.fongmi.android.tv.impl.ConfigCallback;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
+import com.fongmi.android.tv.utils.DescHelper;
 import com.fongmi.android.tv.utils.QRCode;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.UrlUtil;
@@ -70,9 +71,12 @@ public class ConfigDialog extends BaseAlertDialog {
         return builder().setView(getBinding().getRoot());
     }
 
+    private DescHelper descHelper;
+
     @Override
     protected void initView() {
         this.callback = (ConfigCallback) getActivity();
+        this.descHelper = DescHelper.create(binding.descLayout.descCard, binding.descLayout.desc);
         this.append = true;
         binding.text.setText(url = getUrl());
         binding.text.setSelection(TextUtils.isEmpty(url) ? 0 : url.length());
@@ -82,6 +86,16 @@ public class ConfigDialog extends BaseAlertDialog {
         binding.code.setImageBitmap(QRCode.getBitmap(Server.get().getAddress(3), 200, 0));
         binding.info.setText(ResUtil.getString(R.string.push_info, Server.get().getAddress()).replace("，", "\n"));
         binding.storage.setVisibility(PermissionX.isGranted(requireActivity(), Manifest.permission.WRITE_EXTERNAL_STORAGE) ? View.GONE : View.VISIBLE);
+        initDesc();
+    }
+
+    private void initDesc() {
+        descHelper.put(R.id.info, R.string.desc_config_info)
+                .put(R.id.text, R.string.desc_config_text)
+                .put(R.id.storage, R.string.desc_config_storage)
+                .put(R.id.positive, R.string.desc_config_positive)
+                .put(R.id.negative, R.string.desc_config_negative)
+                .bind(binding.getRoot());
     }
 
     @Override

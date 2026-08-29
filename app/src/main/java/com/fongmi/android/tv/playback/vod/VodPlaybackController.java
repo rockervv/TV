@@ -11,6 +11,7 @@ import com.fongmi.android.tv.bean.Parse;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.bean.FlagScore;
+import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.utils.ResUtil;
 
@@ -94,6 +95,8 @@ public class VodPlaybackController {
         state.setPlayingRequest(request);
         state.setUseParse(result.isUseParse());
         FlagScore.find(host.getVodKey(), request.getFlag()).increment();
+        Site site = Site.find(host.getVodKey());
+        if (site != null) site.incrementScore();
         if (viewModel != null) {
             viewModel.setQuality(result);
             viewModel.setUseParse(state.isUseParse());

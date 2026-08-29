@@ -318,7 +318,7 @@
                 android:paddingEnd="24dp"
                 android:visibility="gone" />
 
-            <androidx.leanback.widget.HorizontalGridView
+            <androidx.leanback.widget.VerticalGridView
                 android:id="@+id/quick"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

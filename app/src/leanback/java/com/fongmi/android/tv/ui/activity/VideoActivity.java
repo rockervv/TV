@@ -303,8 +303,9 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBinding.part.setHorizontalSpacing(ResUtil.dp2px(8));
         mBinding.part.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
         mBinding.part.setAdapter(mPartAdapter = new PartAdapter(item -> mVod.search(item, false)));
+        mBinding.quick.setNumColumns(ResUtil.isPad() ? 5 : 4);
+        mBinding.quick.setVerticalSpacing(ResUtil.dp2px(8));
         mBinding.quick.setHorizontalSpacing(ResUtil.dp2px(8));
-        mBinding.quick.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
         mBinding.quick.setAdapter(mQuickAdapter = new QuickAdapter(this));
     }
 

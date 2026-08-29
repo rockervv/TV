@@ -89,6 +89,8 @@ public class VodFallbackPolicy {
     private boolean fallbackToNextSource(boolean force) {
         android.util.Log.d("Fallback", "fallbackToNextSource() - hasSources: " + state.hasSources() + " auto: " + state.isAutoFallback() + " force: " + force);
         if (!state.hasSources()) {
+            Site site = Site.find(host.getVodKey());
+            if (site != null) site.decrementScore();
             search(host.getVodName(), true);
             return true;
         } else if (state.isAutoFallback() || force) {

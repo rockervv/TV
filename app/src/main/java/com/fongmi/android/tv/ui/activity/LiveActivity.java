@@ -434,6 +434,7 @@ public class LiveActivity extends PlaybackActivity implements NavAdapter.OnClick
     private void hideUI() {
         App.removeCallbacks(mR4);
         mBinding.nav.setVisibility(View.GONE);
+        mBinding.indicator.setVisibility(View.GONE);
         if (isGone(mBinding.recycler)) return;
         mBinding.recycler.setVisibility(View.GONE);
         setPosition();
@@ -442,6 +443,8 @@ public class LiveActivity extends PlaybackActivity implements NavAdapter.OnClick
     private void showUI() {
         if (isVisible(mBinding.recycler) || mGroupAdapter.getItemCount() == 0) return;
         mBinding.recycler.setVisibility(View.VISIBLE);
+        mBinding.indicator.setVisibility(View.VISIBLE);
+        mBinding.indicator.setAlpha(0.3f);
         setPosition();
         setUITimer();
         hideEpg();
@@ -990,6 +993,8 @@ public class LiveActivity extends PlaybackActivity implements NavAdapter.OnClick
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (isVisible(mBinding.control.getRoot())) setR1Callback();
         if (isVisible(mBinding.control.getRoot())) mFocus2 = getCurrentFocus();
+        if (mBinding.group.hasFocus()) mBinding.indicator.setAlpha(1.0f);
+        else mBinding.indicator.setAlpha(0.3f);
         if (KeyUtil.isLeftKey(event) && event.getAction() == KeyEvent.ACTION_DOWN && mBinding.group.hasFocus()) {
             showNav();
             return true;
@@ -1005,12 +1010,14 @@ public class LiveActivity extends PlaybackActivity implements NavAdapter.OnClick
     private void showNav() {
         if (isVisible(mBinding.nav)) return;
         mBinding.nav.setVisibility(View.VISIBLE);
+        mBinding.indicator.setVisibility(View.GONE);
         mBinding.nav.requestFocus();
     }
 
     private void hideNav() {
         if (isGone(mBinding.nav)) return;
         mBinding.nav.setVisibility(View.GONE);
+        mBinding.indicator.setVisibility(View.VISIBLE);
         mBinding.group.requestFocus();
     }
 

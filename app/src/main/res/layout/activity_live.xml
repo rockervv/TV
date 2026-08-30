@@ -61,6 +61,19 @@
             tools:itemCount="3"
             tools:listitem="@layout/adapter_nav" />
 
+        <ImageView
+            android:id="@+id/indicator"
+            android:layout_width="16dp"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="-12dp"
+            android:alpha="0.3"
+            android:paddingTop="24dp"
+            android:paddingBottom="24dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_keyboard_left"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
         <com.fongmi.android.tv.ui.custom.CustomLiveListView
             android:id="@+id/group"
             android:layout_width="0dp"

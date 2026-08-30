@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.net.http.SslError;
 import android.text.TextUtils;
 import android.view.ViewGroup;
+import android.webkit.ConsoleMessage;
 import android.webkit.CookieManager;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
@@ -35,6 +36,7 @@ import com.orhanobut.logger.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -96,6 +98,10 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
 
     private void start(String url, Map<String, String> headers) {
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true);
+        if (url.contains("youtube.com")) {
+            CookieManager.getInstance().removeAllCookies(null);
+            CookieManager.getInstance().flush();
+        }
         checkHeader(url, headers);
         loadUrl(url, headers);
     }
@@ -143,6 +149,14 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
     private WebChromeClient webChromeClient() {
         return new WebChromeClient() {
             @Override
+            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                if (consoleMessage.message().startsWith(">>>")) {
+                    android.util.Log.d("CustomWebView", consoleMessage.message());
+                }
+                return super.onConsoleMessage(consoleMessage);
+            }
+
+            @Override
             public Bitmap getDefaultVideoPoster() {
                 try {
                     return BitmapFactory.decodeResource(App.get().getResources(), R.drawable.ic_logo);
@@ -171,7 +185,12 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
     }
 
     private List<String> getScript(String url) {
-        List<String> script = new ArrayList<>(Sniffer.getScript(Uri.parse(url)));
+        List<String> script = new ArrayList<>();
+        if (url.contains("youtube.com")) {
+            // Force YouTube to use HLS instead of DASH by disabling MediaSource
+            script.add("window.MediaSource = null; window.WebKitMediaSource = null;");
+        }
+        script.addAll(Sniffer.getScript(Uri.parse(url)));
         if (TextUtils.isEmpty(click) || script.contains(click)) return script;
         script.add(0, click);
         return script;
@@ -187,6 +206,7 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
     }
 
     private boolean isAd(String host) {
+        if (host.contains("doubleclick.net") || host.contains("googlesyndication.com") || host.contains("googleadservices.com") || host.contains("ad.youtube.com")) return true;
         for (String ad : VodConfig.get().getAds()) if (host.contains(ad)) return true;
         for (String ad : LiveConfig.get().getAds()) if (host.contains(ad)) return true;
         for (String ad : VodConfig.get().getAds()) if (Pattern.compile(ad).matcher(host).find()) return true;
@@ -214,22 +234,40 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
     }
 
     private void onParseSuccess(Map<String, String> headers, String url) {
-        if (callback != null) callback.onParseSuccess(headers, url, from);
-        App.post(() -> stop(false));
-        callback = null;
+        App.post(() -> {
+            Map<String, String> newHeaders = new HashMap<>();
+            if (headers != null) newHeaders.putAll(headers);
+            if (url.contains("youtube.com") || url.contains("googlevideo.com")) {
+                String cookie = CookieManager.getInstance().getCookie(url);
+                if (!TextUtils.isEmpty(cookie)) newHeaders.put("Cookie", cookie);
+                newHeaders.put("User-Agent", getSettings().getUserAgentString());
+                newHeaders.put("Referer", "https://www.youtube.com/");
+            }
+            android.util.Log.d("CustomWebView", ">>> [Final Headers] UA: " + newHeaders.get("User-Agent"));
+            if (callback != null) callback.onParseSuccess(newHeaders, url, from);
+            // 延遲停止 WebView，確保 Cookie 與請求 Session 在 HLS 握手期間依然有效
+            App.post(() -> {
+                stop(false);
+                callback = null;
+            }, 5000);
+        });
     }
 
     private void onParseError() {
-        if (callback != null) callback.onParseError();
-        callback = null;
+        App.post(() -> {
+            if (callback != null) callback.onParseError();
+            stop(true);
+            callback = null;
+        });
     }
 
     public void stop(boolean error) {
         hideDialog();
         stopLoading();
-        loadUrl(BLANK);
         App.removeCallbacks(timer);
-        if (error) onParseError();
-        else callback = null;
+        if (error) {
+            loadUrl(BLANK);
+            destroy();
+        }
     }
 }

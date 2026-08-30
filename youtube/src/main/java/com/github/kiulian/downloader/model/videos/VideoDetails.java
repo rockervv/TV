@@ -28,13 +28,13 @@ public class VideoDetails extends AbstractVideoDetails {
         title = json.getString("title");
         author = json.getString("author");
         isLive = json.getBooleanValue("isLive");
-        isHLS = !isLive;
+        isHLS = isLive || liveHLSUrl != null;
 
         keywords = json.containsKey("keywords") ? json.getJSONArray("keywords").toJavaList(String.class) : new ArrayList<String>();
         shortDescription = json.getString("shortDescription");
         averageRating = json.getIntValue("averageRating");
         viewCount = json.getLongValue("viewCount");
-        isLiveContent = json.getBooleanValue("isLiveContent");
+        isLiveContent = json.getBooleanValue("isLiveContent") || isLive;
         liveUrl = liveHLSUrl;
         hlsUrl = liveHLSUrl;
     }

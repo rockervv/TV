@@ -119,6 +119,7 @@
     <string name="setting_incognito">隱身模式</string>
     <string name="setting_site_search">站點搜尋</string>
     <string name="setting_auto_resume_ui">自動恢復播放時隱藏 UI</string>
+    <string name="setting_adblock_live">直播廣告過濾</string>
     <string name="setting_remove_ad">去除廣告</string>
     <string name="setting_small_window_back_key">小視窗返回鍵</string>
     <string name="setting_home_display_name">首頁顯示站名</string>
@@ -135,6 +136,8 @@
     <string name="setting_storage">權限</string>
     <string name="setting_normalize">音量標準化</string>
     <string name="setting_category_cache">分類快取</string>
+    <string name="player_tunnel">隧道模式 (隧穿)</string>
+    <string name="desc_decode_tunnel">開啟後在支援的裝置上提供更流暢的 4K 播放 (隧穿模式)</string>
     <string name="setting_off">關閉</string>
     <string name="setting_on">開啟</string>
     <string name="update_more">更多版本</string>

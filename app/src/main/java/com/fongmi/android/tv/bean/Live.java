@@ -35,7 +35,7 @@ public class Live {
 
     @Ignore
     @SerializedName("type")
-    private int type;
+    private String type;
 
     @NonNull
     @PrimaryKey
@@ -151,11 +151,11 @@ public class Live {
         return AppDatabase.get().getLiveDao().find(name);
     }
 
-    public int getType() {
-        return type;
+    public String getType() {
+        return TextUtils.isEmpty(type) ? "" : type;
     }
 
-    public void setType(int type) {
+    public void setType(String type) {
         this.type = type;
     }
 

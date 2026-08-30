@@ -18,7 +18,9 @@ class LiveFallbackPolicy {
 
     void playbackError() {
         Channel channel = state.getChannel();
+        android.util.Log.w("LiveDebug", ">>> [playbackError] Fallback Triggered. Auto-Change: " + LiveSetting.isChange());
         if (!LiveSetting.isChange() || channel == null || channel.isLast()) return;
+        android.util.Log.i("LiveDebug", ">>> [playbackError] Attempting next line...");
         controller.nextLine(true);
     }
 

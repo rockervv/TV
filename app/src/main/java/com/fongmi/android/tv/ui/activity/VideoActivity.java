@@ -469,6 +469,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     public void startPlayback(Result result, boolean useParse, long startPositionMs, History history, Episode episode) {
         android.util.Log.d("VideoActivity", "startPlayback: " + result.getUrl());
+        if (player() != null) player().setLive(false);
         startPlayer(getHistoryKey(), result, useParse, getSite().getTimeout(), startPositionMs, VodPlaybackMedia.metadata(history, episode));
     }
 

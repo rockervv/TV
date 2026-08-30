@@ -686,4 +686,12 @@ public class Setting {
     public static void putAutoResumeUI(boolean value) {
         Prefers.put("auto_resume_ui", value);
     }
+
+    public static boolean isAdblockLive() {
+        return Prefers.getBoolean("adblock_live", false);
+    }
+
+    public static void putAdblockLive(boolean adblock) {
+        Prefers.put("adblock_live", adblock);
+    }
 }

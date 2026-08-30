@@ -51,7 +51,8 @@ public class PlayerManager implements ParseCallback {
     private PlaySpec spec;
     private Player player;
     private long timeoutRemaining;
-
+    private boolean videoRendered;
+    private boolean live;
     private long pendingStartPositionMs;
     private boolean initTrack;
     private int retry;
@@ -120,15 +121,15 @@ public class PlayerManager implements ParseCallback {
 
     public String getM3u8Content(boolean fetch) {
         if (TextUtils.isEmpty(getUrl())) return "";
-        String url = getUrl();
+        String m3u8Url = getUrl();
         try {
-            if (url.startsWith(Server.get().getAddress())) {
-                url = java.net.URLDecoder.decode(url.split("url=")[1].split("&")[0], StandardCharsets.UTF_8.name());
+            if (m3u8Url.startsWith(Server.get().getAddress())) {
+                m3u8Url = java.net.URLDecoder.decode(m3u8Url.split("url=")[1].split("&")[0], StandardCharsets.UTF_8.name());
             }
         } catch (Exception ignored) {
         }
-        if (fetch) return M3U8.fetch(url, getHeaders());
-        return M3U8.getCache(url);
+        if (fetch) return M3U8.fetch(m3u8Url, getHeaders());
+        return M3U8.getCache(m3u8Url);
     }
 
     public String getKey() {
@@ -166,7 +167,11 @@ public class PlayerManager implements ParseCallback {
     }
 
     public boolean isLive() {
-        return engine.isLive();
+        return live || engine.isLive();
+    }
+
+    public void setLive(boolean live) {
+        this.live = live;
     }
 
     public boolean isVod() {
@@ -233,9 +238,9 @@ public class PlayerManager implements ParseCallback {
     }
 
     public String getPositionTime(long position, long delta) {
-        position += delta;
+        long current = position + delta;
         long duration = Math.max(0, getDuration());
-        return Util.timeMs(Math.max(0, Math.min(position, duration)));
+        return Util.timeMs(Math.max(0, Math.min(current, duration)));
     }
 
     public long getDuration() {
@@ -377,9 +382,11 @@ public class PlayerManager implements ParseCallback {
     }
 
     private void handleFallback(PlaybackException e) {
-        if (++retry > 2) {
+        if (++retry > 3) {
             callback.onError(engine.getErrorMessage(e));
-        } else if (retry == 2 && engine.getType() == PlayerEngine.Type.EXO && MpvPlayerEngine.isAvailable()) {
+        } else if (e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT) {
+            startCurrent(getPosition());
+        } else if (retry == 3 && engine.getType() == PlayerEngine.Type.EXO && MpvPlayerEngine.isAvailable()) {
             setEngine(PlayerSetting.ENGINE_MPV);
             startCurrent(getPosition());
         } else {
@@ -395,7 +402,12 @@ public class PlayerManager implements ParseCallback {
     }
 
     private void handleFormat(PlaybackException e) {
-        spec.setFormat(ExoUtil.getMimeType(e.errorCode));
+        String mimeType = ExoUtil.getMimeType(e.errorCode);
+        if (TextUtils.equals(mimeType, spec.getFormat())) {
+            callback.onError(engine.getErrorMessage(e));
+            return;
+        }
+        spec.setFormat(mimeType);
         startCurrent(getPosition());
     }
 
@@ -456,6 +468,7 @@ public class PlayerManager implements ParseCallback {
 
     public void start(PlaySpec spec, long timeout, long startPositionMs) {
         this.spec = spec;
+        spec.setLive(isLive());
         setMediaItem(timeout, startPositionMs);
     }
 
@@ -468,6 +481,7 @@ public class PlayerManager implements ParseCallback {
         startTimeout(Constant.TIMEOUT_PLAY);
         pendingStartPositionMs = startPositionMs;
         spec = PlaySpec.fromParse(result, key, metadata);
+        spec.setLive(isLive());
         parseJob = ParseJob.create(this).start(result, useParse);
     }
 
@@ -480,7 +494,10 @@ public class PlayerManager implements ParseCallback {
     private void setMediaItem(long timeout, long startPositionMs) {
         if (spec == null || spec.getUrl() == null) return;
         App.removeCallbacks(runnable);
+        this.videoRendered = false;
+        android.util.Log.d("PlayerManager", "setMediaItem: URL=" + spec.getUrl() + " | Live=" + spec.isLive());
         ensureEngine(spec.checkUa().checkProxy());
+        android.util.Log.d("PlayerManager", "setMediaItem After Proxy: URL=" + spec.getUrl());
         engine.start(spec, startPositionMs);
         if (timeout > 0) App.post(runnable, timeout);
         callback.onPrepare();
@@ -498,7 +515,19 @@ public class PlayerManager implements ParseCallback {
     @Override
     public void onParseSuccess(Map<String, String> headers, String url, String from) {
         if (!TextUtils.isEmpty(from)) Notify.show(ResUtil.getString(R.string.parse_from, from));
-        if (headers != null) headers.remove(HttpHeaders.RANGE);
+        if (headers == null) headers = new HashMap<>();
+        headers.remove(HttpHeaders.RANGE);
+        headers.remove(HttpHeaders.CONNECTION);
+        headers.remove(HttpHeaders.UPGRADE_INSECURE_REQUESTS);
+        // 針對特定 IPTV 跳轉腳本與 YouTube 的通用優化
+        if (url.contains("googlevideo.com")) {
+            headers.put(HttpHeaders.REFERER, "https://www.youtube.com/");
+            setFormat(url.contains("dash") ? androidx.media3.common.MimeTypes.APPLICATION_MPD : androidx.media3.common.MimeTypes.APPLICATION_M3U8);
+        } else if (url.contains(".php") || url.contains("/live/")) {
+            // 修正 3003 錯誤：PHP 跳轉網址通常是 HLS
+            setFormat(androidx.media3.common.MimeTypes.APPLICATION_M3U8);
+        }
+        android.util.Log.d("PlayerManager", "onParseSuccess: URL=" + url + " | Format=" + (spec != null ? spec.getFormat() : "null"));
         if (spec != null) spec.setHeaders(headers);
         if (spec != null) spec.setUrl(url);
         startCurrent(pendingStartPositionMs);
@@ -529,11 +558,40 @@ public class PlayerManager implements ParseCallback {
         }
     }
 
+    private String getConciseMsg(Throwable e) {
+        if (e == null) return "";
+        String msg = "";
+        Throwable cause = e.getCause();
+        while (cause != null) {
+            String causeMsg = cause.getMessage();
+            if (causeMsg != null && !causeMsg.isEmpty()) {
+                msg = causeMsg;
+                break;
+            }
+            cause = cause.getCause();
+        }
+        return msg;
+    }
+
     private final Player.Listener listener = new Player.Listener() {
+
+        private final Runnable videoCheckRunnable = () -> {
+            if (!videoRendered && isPlaying() && !isReleased()) {
+                android.util.Log.w("PlayerManager", ">>> [Video Render] Stalled detected! Forcing reconnect...");
+                startCurrent(getPosition());
+            }
+        };
 
         @Override
         public void onPlaybackStateChanged(int state) {
             android.util.Log.d("PlayerManager", "onPlaybackStateChanged: " + state);
+            if (state == Player.STATE_READY) {
+                android.util.Log.d("PlayerManager", "Player is READY. Video Rendered: " + videoRendered);
+                if (!videoRendered) {
+                    App.removeCallbacks(videoCheckRunnable);
+                    App.post(videoCheckRunnable, 15000);
+                }
+            }
             if (state == Player.STATE_READY || state == Player.STATE_ENDED) {
                 android.util.Log.d("PlayerManager", "onPlaybackStateChanged: removing timers due to READY/ENDED");
                 App.removeCallbacks(runnable);
@@ -544,11 +602,21 @@ public class PlayerManager implements ParseCallback {
 
         @Override
         public void onVideoSizeChanged(@NonNull VideoSize size) {
+            android.util.Log.d("PlayerManager", ">>> [Video Size] " + size.width + "x" + size.height);
             videoSize = size;
         }
 
         @Override
         public void onTracksChanged(@NonNull Tracks tracks) {
+            android.util.Log.d("PlayerManager", "onTracksChanged: " + tracks.getGroups().size() + " groups");
+            for (Tracks.Group group : tracks.getGroups()) {
+                if (group.getType() == androidx.media3.common.C.TRACK_TYPE_VIDEO) {
+                    for (int i = 0; i < group.length; i++) {
+                        androidx.media3.common.Format f = group.getTrackFormat(i);
+                        android.util.Log.d("PlayerManager", ">>> [Track Video] " + f.width + "x" + f.height + " | Codec: " + f.sampleMimeType + " | Color: " + f.colorInfo + " | ID: " + f.id + " | Selected: " + group.isTrackSelected(i) + " | Supported: " + group.isTrackSupported(i));
+                    }
+                }
+            }
             if (tracks.isEmpty() || initTrack) return;
             setTrack(Track.find(getKey()));
             callback.onTracksChanged();
@@ -557,8 +625,20 @@ public class PlayerManager implements ParseCallback {
 
         @Override
         public void onPlayerError(@NonNull PlaybackException e) {
+            android.util.Log.d("PlayerManager", ">>> [Playback Error] Code: " + e.errorCode + " | Message: " + e.getMessage() + " | Cause: " + getConciseMsg(e));
             App.removeCallbacks(runnable);
             if (spec == null) return;
+
+            // 當發生解析錯誤時，印出 M3U8 內容幫助 Debug
+            if (e.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED || e.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED) {
+                new Thread(() -> {
+                    String content = getM3u8Content(true);
+                    if (!TextUtils.isEmpty(content)) {
+                        android.util.Log.d("PlayerManager", ">>> [M3U8 Content Debug]\n" + (content.length() > 1000 ? content.substring(0, 1000) : content));
+                    }
+                }).start();
+            }
+
             switch (engine.handleError(e)) {
                 case SEEK -> handleSeek();
                 case FORMAT -> handleFormat(e);
@@ -570,6 +650,9 @@ public class PlayerManager implements ParseCallback {
 
         @Override
         public void onRenderedFirstFrame() {
+            videoRendered = true;
+            App.removeCallbacks(videoCheckRunnable);
+            android.util.Log.d("PlayerManager", ">>> [Video Render] First Frame Rendered!");
             if (PlayerSetting.isMpvStats()) setStats(true);
         }
     };

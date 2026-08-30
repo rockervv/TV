@@ -21,6 +21,7 @@ android {
 
 dependencies {
     api project(':common')
+    api project(':youtube')
     api libs.annotation
     api libs.brotli
     api libs.bundles.okhttp

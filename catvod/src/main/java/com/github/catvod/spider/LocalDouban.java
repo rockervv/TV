@@ -63,9 +63,9 @@ public class LocalDouban extends Spider {
             List<String> typeNames = Arrays.asList("熱門電影", "熱播劇集", "電影篩選", "電視篩選", "電影榜單", "電視劇榜單",  "熱播綜藝");
             for (int i = 0; i < typeIds.size(); i++) classes.add(new Class(typeIds.get(i), typeNames.get(i)));
             
-            String recommendUrl = "http://api.douban.com/api/v2/subject_collection/subject_real_time_hotest/items" + apikey;
+            String recommendUrl = siteUrl + "/subject_collection/subject_real_time_hotest/items" + apikey;
             String json = OkHttp.string(recommendUrl, getHeader());
-            if (TextUtils.isEmpty(json)) return Result.string(classes, new ArrayList<>(), getFilterData());
+            if (TextUtils.isEmpty(json) || !json.startsWith("{")) return Result.string(classes, new ArrayList<>(), getFilterData());
             JSONObject jsonObject = new JSONObject(json);
             JSONArray items = jsonObject.optJSONArray("subject_collection_items");
             

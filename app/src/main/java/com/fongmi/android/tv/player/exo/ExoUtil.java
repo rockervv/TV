@@ -8,6 +8,7 @@ import android.util.Log;
 import android.view.accessibility.CaptioningManager;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
@@ -42,9 +43,39 @@ import java.util.Map;
 
 public class ExoUtil {
 
+    static {
+        androidx.media3.common.util.Log.setLogger(new androidx.media3.common.util.Log.Logger() {
+            @Override
+            public void d(@NonNull String tag, @NonNull String message, @Nullable Throwable throwable) {
+                Log.d(tag, message, throwable);
+            }
+
+            @Override
+            public void i(@NonNull String tag, @NonNull String message, @Nullable Throwable throwable) {
+                Log.i(tag, message, throwable);
+            }
+
+            @Override
+            public void w(@NonNull String tag, @NonNull String message, @Nullable Throwable throwable) {
+                Log.w(tag, message, throwable);
+            }
+
+            @Override
+            public void e(@NonNull String tag, @NonNull String message, @Nullable Throwable throwable) {
+                if (throwable instanceof PlaybackException pe) {
+                    if (pe.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED || pe.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED || pe.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED || pe.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
+                        return;
+                    }
+                }
+                Log.e(tag, message, throwable);
+            }
+        });
+    }
+
     @androidx.media3.common.util.UnstableApi
     @SuppressWarnings("RestrictedApi")
     public static ExoPlayer buildPlayer(int decode, Player.Listener listener) {
+        Log.d("ExoUtil", "buildPlayer decode: " + decode);
         ExoPlayer player = new ExoPlayer.Builder(App.get())
                 .setTrackSelector(buildTrackSelector())
                 .setRenderersFactory(buildPlaybackRenderersFactory(decode))
@@ -56,6 +87,7 @@ public class ExoUtil {
 
             @Override
             public void onAudioSessionIdChanged(@NonNull EventTime eventTime, int audioSessionId) {
+                Log.d("ExoUtil", "onAudioSessionIdChanged: " + audioSessionId);
                 if (Setting.isNormalize()) {
                     try {
                         if (loudnessEnhancer != null) loudnessEnhancer.release();
@@ -69,7 +101,28 @@ public class ExoUtil {
             }
 
             @Override
+            public void onPlaybackStateChanged(@NonNull EventTime eventTime, int state) {
+                Log.d("ExoUtil", "onPlaybackStateChanged: " + state + " | VideoSize: " + player.getVideoSize().width + "x" + player.getVideoSize().height);
+            }
+
+            @Override
+            public void onRenderedFirstFrame(@NonNull EventTime eventTime, @NonNull Object output, long renderTimeMs) {
+                Log.d("ExoUtil", "onRenderedFirstFrame! Output: " + output);
+            }
+
+            @Override
+            public void onVideoDecoderInitialized(@NonNull EventTime eventTime, @NonNull String decoderName, long initializedTimestampMs, long initializationDurationMs) {
+                Log.d("ExoUtil", "Video Decoder Initialized: " + decoderName + " in " + initializationDurationMs + "ms");
+            }
+
+            @Override
+            public void onAudioDecoderInitialized(@NonNull EventTime eventTime, @NonNull String decoderName, long initializedTimestampMs, long initializationDurationMs) {
+                Log.d("ExoUtil", "Audio Decoder Initialized: " + decoderName + " in " + initializationDurationMs + "ms");
+            }
+
+            @Override
             public void onPlayerReleased(@NonNull EventTime eventTime) {
+                Log.d("ExoUtil", "onPlayerReleased");
                 if (loudnessEnhancer != null) {
                     loudnessEnhancer.release();
                     loudnessEnhancer = null;
@@ -78,18 +131,21 @@ public class ExoUtil {
 
             @Override
             public void onLoadStarted(@NonNull EventTime eventTime, @NonNull LoadEventInfo loadEventInfo, @NonNull MediaLoadData mediaLoadData) {
-                if (loadEventInfo.uri.toString().contains(".ts")) {
-                    Log.d("ExoUtil", "TS Source: " + loadEventInfo.uri);
-                }
+                Log.d("ExoUtil", "onLoadStarted: " + loadEventInfo.uri);
             }
 
             @Override
             public void onPlayerError(@NonNull EventTime eventTime, @NonNull PlaybackException error) {
-                String url = (player.getCurrentMediaItem() != null && player.getCurrentMediaItem().localConfiguration != null) 
-                    ? player.getCurrentMediaItem().localConfiguration.uri.toString() : "Unknown";
-                Log.e("ExoUtil", "Playback Error: " + error.getErrorCodeName() + " (" + error.errorCode + ")");
-                Log.e("ExoUtil", "Failed URL: " + url);
-                Log.e("ExoUtil", "Error Cause: " + error.getMessage());
+                String url = (player.getCurrentMediaItem() != null && player.getCurrentMediaItem().localConfiguration != null)
+                        ? player.getCurrentMediaItem().localConfiguration.uri.toString() : "Unknown";
+                Log.d("ExoUtil", "Playback Error: " + error.getErrorCodeName() + " (" + error.errorCode + ")");
+                Log.d("ExoUtil", "Failed URL: " + url);
+                Log.d("ExoUtil", "Error Cause: " + getConciseMsg(error));
+            }
+
+            @Override
+            public void onDroppedVideoFrames(@NonNull EventTime eventTime, int droppedFrames, long elapsedMs) {
+                if (droppedFrames > 10) Log.w("ExoUtil", "Dropped frames: " + droppedFrames + " in " + elapsedMs + "ms");
             }
         });
         player.setAudioAttributes(AudioAttributes.DEFAULT, true);
@@ -100,6 +156,7 @@ public class ExoUtil {
     }
 
     public static void setRender(ExoPlayer player, int mode, int intensity) {
+        if (!PlayerSetting.isRenderEnhance()) return;
         Log.d("ExoUtil", "setRender mode: " + mode + " intensity: " + intensity);
         if (mode == 0) {
             Log.d("ExoUtil", "Standard mode, clearing effects");
@@ -158,7 +215,7 @@ public class ExoUtil {
     }
 
     private static int getRenderMode(int decode) {
-        return decode == PlayerEngine.HARD ? DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER;
+        return decode == com.fongmi.android.tv.player.engine.PlayerEngine.HARD ? DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER;
     }
 
     private static TrackSelector buildTrackSelector() {
@@ -168,6 +225,8 @@ public class ExoUtil {
         builder.setPreferredTextLanguages(LangUtil.getPreferredTextLanguages());
         builder.setTunnelingEnabled(PlayerSetting.isTunnelingEnabled());
         builder.setForceHighestSupportedBitrate(true);
+        builder.setExceedVideoConstraintsIfNecessary(true);
+        builder.setExceedRendererCapabilitiesIfNecessary(true);
         trackSelector.setParameters(builder.build());
         return trackSelector;
     }
@@ -244,6 +303,21 @@ public class ExoUtil {
         public void onOffloadBufferFull() {
             if (listener != null) listener.onOffloadBufferFull();
         }
+    }
+
+    private static String getConciseMsg(Throwable e) {
+        if (e == null) return "";
+        String msg = e.getMessage() != null ? e.getMessage() : "";
+        Throwable cause = e.getCause();
+        while (cause != null) {
+            String causeMsg = cause.getMessage();
+            if (causeMsg != null && !causeMsg.isEmpty() && !causeMsg.contains(msg) && !msg.contains(causeMsg)) {
+                msg += " (" + causeMsg + ")";
+                break;
+            }
+            cause = cause.getCause();
+        }
+        return msg;
     }
 
     public static void setSubtitleView(PlayerView playerView) {

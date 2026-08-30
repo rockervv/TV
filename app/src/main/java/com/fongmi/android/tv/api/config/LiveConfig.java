@@ -17,6 +17,7 @@ import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.setting.LiveSetting;
+import com.fongmi.android.tv.utils.LiveUtil;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.bean.Header;
 import com.github.catvod.bean.Proxy;
@@ -143,7 +144,9 @@ public class LiveConfig extends BaseConfig {
 
     private void parseText(Config config, String text) {
         Live live = new Live(UrlUtil.getName(config.getUrl()), config.getUrl()).sync();
-        lives = new ArrayList<>(List.of(live));
+        setLives(new ArrayList<>());
+        getLives().add(LiveUtil.getMyLive());
+        getLives().add(live);
         LiveParser.text(live, text);
         setHome(config, live, false);
     }
@@ -187,9 +190,12 @@ public class LiveConfig extends BaseConfig {
     private void initLive(Config config, JsonObject object) {
         String spider = Json.safeString(object, "spider");
         BaseLoader.get().parseJar(spider, false);
-        setLives(Json.safeListElement(object, "lives").stream().map(e -> Live.objectFrom(e, spider)).distinct().collect(Collectors.toCollection(ArrayList::new)));
-        Map<String, Live> items = Live.findAll().stream().collect(Collectors.toMap(Live::getName, Function.identity()));
-        getLives().forEach(live -> live.sync(items.get(live.getName())));
+        List<Live> items = Json.safeListElement(object, "lives").stream().map(e -> Live.objectFrom(e, spider)).collect(Collectors.toList());
+        Map<String, Live> dbLives = Live.findAll().stream().collect(Collectors.toMap(Live::getName, Function.identity()));
+        items.forEach(live -> live.sync(dbLives.get(live.getName())));
+        setLives(new ArrayList<>());
+        getLives().add(LiveUtil.getMyLive());
+        getLives().addAll(items);
         setHome(config, getLives().isEmpty() ? new Live() : getLives().stream().filter(item -> item.getName().equals(config.getHome())).findFirst().orElse(getLives().get(0)), false);
     }
 

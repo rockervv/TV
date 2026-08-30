@@ -28,6 +28,7 @@ public class PlaySpec {
     private String key;
     private String url;
     private Drm drm;
+    private boolean live;
 
     private PlaySpec(String key, String url, Map<String, String> headers, String format, Drm drm, List<Sub> subs, MediaMetadata metadata) {
         this.key = key;
@@ -95,6 +96,14 @@ public class PlaySpec {
         return subs;
     }
 
+    public boolean isLive() {
+        return live;
+    }
+
+    public void setLive(boolean live) {
+        this.live = live;
+    }
+
     public MediaMetadata getMetadata() {
         return metadata == null ? MediaMetadata.EMPTY : metadata;
     }
@@ -106,11 +115,19 @@ public class PlaySpec {
     public PlaySpec checkUa() {
         if (headers == null) headers = new HashMap<>();
         if (headers.keySet().stream().noneMatch(HttpHeaders.USER_AGENT::equalsIgnoreCase)) headers.put(HttpHeaders.USER_AGENT, Setting.getUa().isEmpty() ? PlayerHelper.getDefaultUa() : Setting.getUa());
+        if (url != null && url.contains("googlevideo.com")) headers.put(HttpHeaders.REFERER, "https://www.youtube.com/");
         return this;
     }
 
     public PlaySpec checkProxy() {
-        if (url != null && url.toLowerCase().contains(".m3u8")) {
+        if (url == null) return this;
+        if (url.contains("googlevideo.com")) {
+            this.format = url.contains("dash") ? androidx.media3.common.MimeTypes.APPLICATION_MPD : androidx.media3.common.MimeTypes.APPLICATION_M3U8;
+        } else if (url.contains(".php") || url.contains("/live/")) {
+            this.format = androidx.media3.common.MimeTypes.APPLICATION_M3U8;
+            this.live = true;
+        }
+        if (!live && url.toLowerCase().contains(".m3u8") && !url.contains("googlevideo.com")) {
             String proxyurl = Server.get().getAddress("/m3u8?url=");
             if (!url.startsWith(proxyurl)) {
                 try {

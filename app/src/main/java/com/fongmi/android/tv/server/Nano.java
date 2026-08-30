@@ -28,6 +28,34 @@ import fi.iki.elonen.NanoHTTPD;
 
 public class Nano extends NanoHTTPD {
 
+    static {
+        java.util.logging.Logger nanoLogger = java.util.logging.Logger.getLogger(NanoHTTPD.class.getName());
+        nanoLogger.setUseParentHandlers(false);
+        for (java.util.logging.Handler handler : nanoLogger.getHandlers()) nanoLogger.removeHandler(handler);
+        nanoLogger.addHandler(new java.util.logging.Handler() {
+            @Override
+            public void publish(java.util.logging.LogRecord record) {
+                Throwable t = record.getThrown();
+                boolean isBrokenPipe = t instanceof java.net.SocketException || (t != null && t.getMessage() != null && (t.getMessage().contains("Broken pipe") || t.getMessage().contains("Connection reset")));
+                if (isBrokenPipe) {
+                    android.util.Log.d("NanoHTTPD", record.getMessage() + (t.getMessage() != null ? ": " + t.getMessage() : ""));
+                } else if (record.getLevel().intValue() >= java.util.logging.Level.SEVERE.intValue()) {
+                    android.util.Log.e("NanoHTTPD", record.getMessage(), t);
+                } else {
+                    android.util.Log.d("NanoHTTPD", record.getMessage());
+                }
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() throws SecurityException {
+            }
+        });
+    }
+
     private static final String INDEX = "index.html";
 
     private List<Process> process;

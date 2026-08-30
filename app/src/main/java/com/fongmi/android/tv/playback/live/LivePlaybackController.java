@@ -43,6 +43,7 @@ public class LivePlaybackController {
 
     public void selectChannel(Channel channel) {
         if (channel == null) return;
+        android.util.Log.d("LiveDebug", ">>> [selectChannel] " + channel.getName() + " (Line: " + (channel.getIndex() + 1) + ")");
         state.setChannel(channel);
         if (viewModel != null) viewModel.setChannel(channel);
         host.renderChannelSelection(channel);
@@ -110,6 +111,7 @@ public class LivePlaybackController {
     }
 
     public void playbackError(String msg) {
+        android.util.Log.e("LiveDebug", ">>> [playbackError] Msg: " + msg);
         host.resetPlaybackForError(msg);
         fallbackPolicy.playbackError();
     }

@@ -102,6 +102,21 @@ public class Result {
         return this;
     }
 
+    public Result url(Object url) {
+        this.url = url;
+        return this;
+    }
+
+    public Result header(Map<String, String> header) {
+        this.header = new Gson().toJson(header);
+        return this;
+    }
+
+    public Result parse(int parse) {
+        this.parse = parse;
+        return this;
+    }
+
     public String string() {
         return toString();
     }

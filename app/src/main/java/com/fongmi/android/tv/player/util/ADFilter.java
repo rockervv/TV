@@ -25,13 +25,25 @@ public class ADFilter {
     private static final Pattern PATTERN_URL_CLEAN = Pattern.compile("[\\s\\u200B\\u00A0]+");
 
     public static String Process(String url, BufferedReader reader) {
-        M3U8AdFilterResult result = parseAndFilterM3U8(url, reader);
+        M3U8AdFilterResult result = parseAndFilterM3U8(url, readLines(reader));
         notifyAdSegmentsFiltered(result.adSegmentCount, result.adDurationSeconds);
         return result.filteredContent;
     }
 
     public static String Process(String url, BufferedReader reader, Handler handler) {
-        M3U8AdFilterResult result = parseAndFilterM3U8(url, reader);
+        M3U8AdFilterResult result = parseAndFilterM3U8(url, readLines(reader));
+        handler.post(() -> notifyAdSegmentsFiltered(result.adSegmentCount, result.adDurationSeconds));
+        return result.filteredContent;
+    }
+
+    public static String Process(String url, String content) {
+        M3U8AdFilterResult result = parseAndFilterM3U8(url, content);
+        notifyAdSegmentsFiltered(result.adSegmentCount, result.adDurationSeconds);
+        return result.filteredContent;
+    }
+
+    public static String Process(String url, String content, Handler handler) {
+        M3U8AdFilterResult result = parseAndFilterM3U8(url, content);
         handler.post(() -> notifyAdSegmentsFiltered(result.adSegmentCount, result.adDurationSeconds));
         return result.filteredContent;
     }
@@ -57,8 +69,7 @@ public class ADFilter {
         return false;
     }
 
-    private static M3U8AdFilterResult parseAndFilterM3U8(String url, BufferedReader reader) {
-        Log.d("M3U8Parser", "Analyzing M3U8 Content: " + url);
+    private static List<String> readLines(BufferedReader reader) {
         List<String> lines = new ArrayList<>();
         try {
             String line;
@@ -68,7 +79,21 @@ public class ADFilter {
         } catch (IOException e) {
             Log.e("M3U8Parser", "IOException: " + e.getMessage());
         }
+        return lines;
+    }
 
+    private static M3U8AdFilterResult parseAndFilterM3U8(String url, String content) {
+        List<String> lines = new ArrayList<>();
+        if (content != null) {
+            for (String line : content.split("\n")) {
+                lines.add(line.trim());
+            }
+        }
+        return parseAndFilterM3U8(url, lines);
+    }
+
+    private static M3U8AdFilterResult parseAndFilterM3U8(String url, List<String> lines) {
+        Log.d("M3U8Parser", "Analyzing M3U8 Content: " + url);
         String rawContent = String.join("\n", lines);
         if (rawContent.contains("#EXT-X-STREAM-INF")) {
             Log.d("M3U8Parser", "Master Playlist detected, skipping filter.");
@@ -191,18 +216,34 @@ public class ADFilter {
         double totalDuration = 0.0;
         boolean processedFirstMediaBlock = false;
         Long globalLastNum = null;
+        String lastEmittedConfig = "";
+        boolean needDiscontinuity = false;
 
-        for (M3U8Block block : blocks) {
+        for (int i = 0; i < blocks.size(); i++) {
+            M3U8Block block = blocks.get(i);
             if (block.lines.isEmpty()) continue;
             
             totalDuration += block.duration;
             boolean isAd = false;
+            boolean isSandwichAd = false;
+            boolean sequenceJump = false;
 
             if (block.segmentCount > 0) {
                 boolean configMismatch = !mainConfig.isEmpty() && !block.configFeature.equals(mainConfig);
                 boolean isLikelyLongVideo = block.duration > 120 || block.segmentCount > 30;
                 boolean continuous = globalLastNum != null && block.firstNum != null && Math.abs(block.firstNum - globalLastNum) <= 1;
-                boolean sequenceJump = globalLastNum != null && block.firstNum != null && !continuous;
+                sequenceJump = globalLastNum != null && block.firstNum != null && !continuous;
+
+                // Sandwich Ad detection: if current block is a jump, but a future block is continuous with previous
+                if (sequenceJump) {
+                    for (int j = i + 1; j < Math.min(i + 4, blocks.size()); j++) {
+                        M3U8Block futureBlock = blocks.get(j);
+                        if (futureBlock.firstNum != null && globalLastNum != null && Math.abs(futureBlock.firstNum - globalLastNum) <= 1) {
+                            isSandwichAd = true;
+                            break;
+                        }
+                    }
+                }
 
                 if (block.hasCueAd) {
                     isAd = true;
@@ -210,7 +251,7 @@ public class ADFilter {
                     isAd = true;
                 } else if (isLikelyLongVideo) {
                     isAd = false;
-                } else if (block.hasSequenceJump || configMismatch || sequenceJump) {
+                } else if (isSandwichAd || block.hasSequenceJump || configMismatch || sequenceJump) {
                     isAd = true;
                 } else if (block.duration > 0 && block.duration < 25) {
                     if (block.hasStartDiscontinuity && processedFirstMediaBlock) {
@@ -226,16 +267,46 @@ public class ADFilter {
             }
 
             if (isAd) {
-                adCount ++;
+                adCount++;
                 adDuration += block.duration;
-                Log.d("M3U8Parser", "Filtered Block (AD): Duration=" + block.duration + ", Segments=" + block.segmentCount + ", Cue=" + block.hasCueAd + ", ConfigMismatch=" + (!mainConfig.isEmpty() && !block.configFeature.equals(mainConfig)));
+                Log.d("M3U8Parser", "Filtered Block (AD): Duration=" + block.duration + ", Segments=" + block.segmentCount + ", Cue=" + block.hasCueAd + ", Sandwich=" + isSandwichAd + ", SequenceJump=" + sequenceJump);
+                if (block.segmentCount > 0) {
+                    needDiscontinuity = true;
+                }
                 if (block.hasEndList) {
                     output.append("#EXT-X-ENDLIST\n");
                 }
             } else {
+                if (block.segmentCount > 0) {
+                    boolean continuous = globalLastNum != null && block.firstNum != null && Math.abs(block.firstNum - globalLastNum) <= 1;
+                    if (needDiscontinuity && !block.hasStartDiscontinuity && !continuous) {
+                        output.append("#EXT-X-DISCONTINUITY\n");
+                    }
+                    needDiscontinuity = false;
+
+                    // Ensure KEY/MAP tags are emitted if they changed or were skipped
+                    if (!block.configFeature.isEmpty() && !block.configFeature.equals(lastEmittedConfig)) {
+                        boolean alreadyHasConfig = false;
+                        for (String line : block.lines) {
+                            if (line.equals(block.configFeature)) {
+                                alreadyHasConfig = true;
+                                break;
+                            }
+                        }
+                        if (!alreadyHasConfig) {
+                            output.append(block.configFeature).append("\n");
+                            lastEmittedConfig = block.configFeature;
+                        }
+                    }
+                }
+
                 for (String line : block.lines) {
                     output.append(line).append("\n");
+                    if (line.startsWith("#EXT-X-KEY") || line.startsWith("#EXT-X-MAP")) {
+                        lastEmittedConfig = line;
+                    }
                 }
+
                 if (block.segmentCount > 0) {
                     processedFirstMediaBlock = true;
                     if (block.lastNum != null) globalLastNum = block.lastNum;

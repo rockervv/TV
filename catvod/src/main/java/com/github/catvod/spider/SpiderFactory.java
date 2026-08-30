@@ -11,6 +11,7 @@ public class SpiderFactory {
 
     static {
         spiders.put("loc_Douban", LocalDouban.class);
+        spiders.put("youtube", Youtube.class);
     }
 
     public static Set<String> getKeys() {

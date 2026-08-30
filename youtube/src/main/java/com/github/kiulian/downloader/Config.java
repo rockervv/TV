@@ -28,8 +28,8 @@ public class Config {
         }
     };
 
-    private static final String DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36";
-    private static final String DEFAULT_ACCEPT_LANG = "en-US,en;";
+    private static final String DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+    private static final String DEFAULT_ACCEPT_LANG = "en-US,en;q=0.9";
     private static final int DEFAULT_RETRY_ON_FAILURE = 0;
 
     private Map<String, String> headers;
@@ -56,7 +56,7 @@ public class Config {
         setHeader("Accept-language", DEFAULT_ACCEPT_LANG);
     }
 
-    static Config buildDefault() {
+    public static Config buildDefault() {
         return new Config();
     }
 

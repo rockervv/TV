@@ -243,6 +243,7 @@
     <string name="setting_incognito">隱身模式</string>
     <string name="setting_site_search">站點搜尋</string>
     <string name="setting_auto_resume_ui">自動恢復播放時隱藏首頁</string>
+    <string name="setting_adblock_live">直播廣告過濾</string>
     <string name="setting_remove_ad">去除廣告</string>
     <string name="setting_small_window_back_key">小視窗返回鍵</string>
     <string name="setting_home_display_name">首頁顯示站名</string>
@@ -302,7 +303,7 @@
     <string name="player_video_decode">視訊軟解</string>
     <string name="player_aac_track">偏好 aac 軌道</string>
     <string name="player_dv7_fallback">DV7 回退</string>
-    <string name="player_tunnel">隧道模式</string>
+    <string name="player_tunnel">隧道模式 (隧穿)</string>
     <string name="player_ua">User-Agent</string>
 
     <!-- Search -->

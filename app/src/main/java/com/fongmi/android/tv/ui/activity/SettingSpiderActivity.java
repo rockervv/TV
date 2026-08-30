@@ -50,6 +50,7 @@ public class SettingSpiderActivity extends BaseActivity {
         mBinding.localSpiderText.setText(getLocalSpiderName());
         mBinding.quickjsText.setText(Setting.getSwitch(Setting.isQuickJS()));
         mBinding.chaquoText.setText(Setting.getSwitch(Setting.isChaquo()));
+        mBinding.adblockLiveText.setText(Setting.getSwitch(Setting.isAdblockLive()));
     }
 
     private String getLocalSpiderName() {
@@ -64,6 +65,7 @@ public class SettingSpiderActivity extends BaseActivity {
         mBinding.localSpider.setOnClickListener(this::onLocalSpider);
         mBinding.quickjs.setOnClickListener(this::onQuickJS);
         mBinding.chaquo.setOnClickListener(this::onChaquo);
+        mBinding.adblockLive.setOnClickListener(this::onAdblockLive);
     }
 
     private void onLocalSpider(View view) {
@@ -103,5 +105,10 @@ public class SettingSpiderActivity extends BaseActivity {
         mBinding.chaquoText.setText(Setting.getSwitch(!current));
         com.fongmi.android.tv.api.loader.BaseLoader.get().clear();
         if (current) Notify.show("關閉 Python 建議重啟應用程式以釋放記憶體");
+    }
+
+    private void onAdblockLive(View view) {
+        Setting.putAdblockLive(!Setting.isAdblockLive());
+        mBinding.adblockLiveText.setText(Setting.getSwitch(Setting.isAdblockLive()));
     }
 }

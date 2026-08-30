@@ -66,6 +66,12 @@ public class Channel {
     private Integer playerType;
     @SerializedName("drm")
     private Drm drm;
+    @SerializedName("origin_config")
+    private String originConfig;
+    @SerializedName("origin_group")
+    private String originGroup;
+    @SerializedName("origin_name")
+    private String originName;
 
     private boolean selected;
     private Group group;
@@ -249,6 +255,30 @@ public class Channel {
         this.drm = drm;
     }
 
+    public String getOriginConfig() {
+        return TextUtils.isEmpty(originConfig) ? "" : originConfig;
+    }
+
+    public void setOriginConfig(String originConfig) {
+        this.originConfig = originConfig;
+    }
+
+    public String getOriginGroup() {
+        return TextUtils.isEmpty(originGroup) ? "" : originGroup;
+    }
+
+    public void setOriginGroup(String originGroup) {
+        this.originGroup = originGroup;
+    }
+
+    public String getOriginName() {
+        return TextUtils.isEmpty(originName) ? "" : originName;
+    }
+
+    public void setOriginName(String originName) {
+        this.originName = originName;
+    }
+
     public Group getGroup() {
         return group;
     }
@@ -401,6 +431,9 @@ public class Channel {
         setDrm(item.getDrm());
         setEpg(item.getEpg());
         setUa(item.getUa());
+        setOriginConfig(item.getOriginConfig());
+        setOriginGroup(item.getOriginGroup());
+        setOriginName(item.getOriginName());
         return this;
     }
 

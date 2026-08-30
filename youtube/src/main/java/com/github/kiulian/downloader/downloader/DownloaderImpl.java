@@ -1,3 +1,4 @@
+// FINAL_FIX_VERSION_V11
 package com.github.kiulian.downloader.downloader;
 
 import com.github.kiulian.downloader.Config;
@@ -62,36 +63,26 @@ public class DownloaderImpl implements Downloader {
                 }
                 int responseCode = urlConnection.getResponseCode();
                 if (responseCode != 200) {
-                    YoutubeException.DownloadException e = new YoutubeException.DownloadException("Failed to download: HTTP " + responseCode);
-                    if (callback != null) {
-                        callback.onError(e);
-                    }
+                    String errorBody = "";
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(urlConnection.getErrorStream(), "UTF-8"))) {
+                        StringBuilder errorSb = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) errorSb.append(line);
+                        errorBody = errorSb.toString();
+                    } catch (Exception ignored) {}
+                    
+                    String msg = "HTTP " + responseCode + (errorBody.isEmpty() ? "" : ": " + errorBody);
+                    android.util.Log.e("Youtube", "Download failed: " + msg);
+                    
+                    YoutubeException.DownloadException e = new YoutubeException.DownloadException("Failed to download: " + msg);
+                    if (callback != null) callback.onError(e);
                     throw e;
                 }
 
-                int contentLength = urlConnection.getContentLength();
-                if (contentLength == 0) {
-                    YoutubeException.DownloadException e = new YoutubeException.DownloadException("Failed to download: Response is empty");
-                    if (callback != null) {
-                        callback.onError(e);
-                    }
-                    throw e;
-                }
-
-                BufferedReader br = null;
-                try {
-                    InputStream in = urlConnection.getInputStream();
-                    if (config.isCompressionEnabled() && "gzip".equals(urlConnection.getHeaderField("content-encoding"))) {
-                        in = new GZIPInputStream(in);
-                    }
-                    br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "UTF-8"))) {
                     String inputLine;
-                    while ((inputLine = br.readLine()) != null)
-                        result.append(inputLine).append('\n');
-                } finally {
-                    closeSilently(br);
+                    while ((inputLine = br.readLine()) != null) result.append(inputLine).append('\n');
                 }
-                // reset error in case of successful retry
                 exception = null;
             } catch (IOException e) {
                 exception = e;
@@ -100,16 +91,12 @@ public class DownloaderImpl implements Downloader {
         } while (exception != null && maxRetries > 0);
 
         if (exception != null) {
-            if (callback != null) {
-                callback.onError(exception);
-            }
+            if (callback != null) callback.onError(exception);
             throw exception;
         }
 
         String resultString = result.toString();
-        if (callback != null) {
-            callback.onFinished(resultString);
-        }
+        if (callback != null) callback.onFinished(resultString);
         return resultString;
     }
 
@@ -186,10 +173,10 @@ public class DownloaderImpl implements Downloader {
                 exception = null;
             } catch (IOException e) {
                 exception = e;
-            } finally {
-                closeSilently(os);
             }
-        } while (exception != null && maxRetries > 0);
+        } while (exception != null && maxRetries-- > 0);
+
+        closeSilently(os);
 
         if (exception != null) {
             if (callback != null) {
@@ -298,28 +285,12 @@ public class DownloaderImpl implements Downloader {
         return done;
     }
 
-
     private HttpURLConnection openConnection(String httpUrl, Map<String, String> headers, Proxy proxy, boolean acceptCompression) throws IOException {
         URL url = new URL(httpUrl);
-
-        HttpURLConnection urlConnection;
-        if (proxy != null) {
-            urlConnection = (HttpURLConnection) url.openConnection(proxy);
-        } else if (config.getProxy() != null) {
-            urlConnection = (HttpURLConnection) url.openConnection(config.getProxy());
-        } else {
-            urlConnection = (HttpURLConnection) url.openConnection();
-        }
-        for (Map.Entry<String, String> entry : config.getHeaders().entrySet()) {
-            urlConnection.setRequestProperty(entry.getKey(), entry.getValue());
-        }
-        if (acceptCompression) {
-            urlConnection.setRequestProperty("Accept-Encoding", "gzip");
-        }
+        HttpURLConnection urlConnection = (HttpURLConnection) (proxy != null ? url.openConnection(proxy) : url.openConnection());
+        for (Map.Entry<String, String> entry : config.getHeaders().entrySet()) urlConnection.setRequestProperty(entry.getKey(), entry.getValue());
         if (headers != null) {
-            for (Map.Entry<String, String> entry : headers.entrySet()) {
-                urlConnection.setRequestProperty(entry.getKey(), entry.getValue());
-            }
+            for (Map.Entry<String, String> entry : headers.entrySet()) urlConnection.setRequestProperty(entry.getKey(), entry.getValue());
         }
         return urlConnection;
     }

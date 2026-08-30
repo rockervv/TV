@@ -195,6 +195,7 @@ public class VodConfig extends BaseConfig {
 
     @Override
     public boolean isLoaded() {
+        if (!Setting.getLocalSpider().isEmpty()) return !getSites().isEmpty();
         return getSites().stream().anyMatch(s -> !s.getKey().endsWith("_local"));
     }
 

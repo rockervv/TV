@@ -1,25 +1,26 @@
 package com.fongmi.android.tv.server.process;
 
+import android.util.LruCache;
+
 import androidx.media3.common.util.Log;
 
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.player.util.ADFilter;
 import com.fongmi.android.tv.server.Nano;
 import com.fongmi.android.tv.server.Server;
+import com.fongmi.android.tv.setting.Setting;
 import com.github.catvod.net.OkHttp;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.Map;
 import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 
 import fi.iki.elonen.NanoHTTPD;
 import okhttp3.Headers;
 import okhttp3.Response;
-import android.util.LruCache;
 
 public class M3U8 implements Process {
 
@@ -63,30 +64,44 @@ public class M3U8 implements Process {
                 headersBuilder.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             }
             try (Response response = OkHttp.newCall(targetUrl, headersBuilder.build()).execute()) {
-                if (!response.isSuccessful()) return "";
+                if (!response.isSuccessful() || response.body() == null) return "";
                 BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
-                String filtered = ADFilter.Process(targetUrl, reader).trim();
-                if (filtered.startsWith("\uFEFF")) filtered = filtered.substring(1);
-                if (!filtered.contains("#EXT-X-ENDLIST") && isVod(targetUrl, filtered)) {
-                    filtered = filtered.trim() + "\n#EXT-X-ENDLIST\n";
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line).append("\n");
+                String raw = sb.toString().trim();
+
+                String filtered;
+                if (Setting.isAdblockLive() || isVod(targetUrl, raw)) {
+                    filtered = ADFilter.Process(targetUrl, raw).trim();
+                } else {
+                    filtered = raw;
                 }
+
+                if (filtered.startsWith("\uFEFF")) filtered = filtered.substring(1);
+
+                // Add ENDLIST back if it was in the original and lost or if it's a VOD
+                if (!filtered.contains("#EXT-X-ENDLIST") && raw.contains("#EXT-X-ENDLIST")) {
+                    filtered = filtered + "\n#EXT-X-ENDLIST\n";
+                }
+
                 StringBuilder result = new StringBuilder();
                 URL baseUrl = new URL(response.request().url().toString());
-                String[] lines = filtered.split("\\n");
+                String[] filteredLines = filtered.split("\\n");
                 String proxyUrlPrefix = Server.get().getAddress("/m3u8?url=");
-                for (String content : lines) {
-                    content = content.trim();
-                    if (content.isEmpty()) {
+                for (String fLine : filteredLines) {
+                    fLine = fLine.trim();
+                    if (fLine.isEmpty()) {
                         result.append("\n");
                         continue;
                     }
-                    if (content.startsWith("#")) {
-                        if (content.contains("URI=\"")) {
-                            content = resolveTagUri(content, baseUrl);
+                    if (fLine.startsWith("#")) {
+                        if (fLine.contains("URI=\"")) {
+                            fLine = resolveTagUri(fLine, baseUrl);
                         }
-                        result.append(content).append("\n");
+                        result.append(fLine).append("\n");
                     } else {
-                        String resolvedUrl = new URL(baseUrl, content).toString();
+                        String resolvedUrl = new URL(baseUrl, fLine).toString();
                         if (resolvedUrl.toLowerCase().contains(".m3u8") && !resolvedUrl.startsWith(proxyUrlPrefix)) {
                             result.append(proxyUrlPrefix).append(URLEncoder.encode(resolvedUrl, "UTF-8")).append("&.m3u8\n");
                         } else {
@@ -102,7 +117,10 @@ public class M3U8 implements Process {
                         finalM3u8 = "#EXTM3U\n" + finalM3u8;
                     }
                 }
-                urlCache.put(targetUrl, new CacheItem(finalM3u8));
+                // Only cache if it's a complete VOD
+                if (raw.contains("#EXT-X-ENDLIST")) {
+                    urlCache.put(targetUrl, new CacheItem(finalM3u8));
+                }
                 return finalM3u8;
             }
         } catch (Exception e) {

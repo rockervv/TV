@@ -21,6 +21,7 @@ dependencies {
     implementation libs.gson
     implementation libs.okhttp
     implementation 'com.alibaba:fastjson:1.2.83'
+    implementation libs.slf4j
     //implementation 'org.glassfish.jersey.core:jersey-server:2.46'
     //implementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     //implementation('org.junit.jupiter:')

@@ -191,6 +191,7 @@ public class LiveViewModel extends ViewModel {
     }
 
     public void getUrl(Channel item, long startPositionMs) {
+        android.util.Log.d("LiveDebug", ">>> [getUrl] Channel: " + item.getName() + " | URL: " + item.getCurrent());
         requestUrl(() -> LiveApi.getUrl(item), startPositionMs);
     }
 
@@ -207,6 +208,7 @@ public class LiveViewModel extends ViewModel {
     }
 
     private void postUrl(Result result, long startPositionMs) {
+        android.util.Log.d("LiveDebug", ">>> [postUrl] Success: " + !result.getRealUrl().isEmpty() + " | Final URL: " + result.getRealUrl() + (result.hasMsg() ? " | Msg: " + result.getMsg() : ""));
         if (startPositionMs != C.TIME_UNSET) result.setPosition(startPositionMs);
         url.postValue(result);
     }

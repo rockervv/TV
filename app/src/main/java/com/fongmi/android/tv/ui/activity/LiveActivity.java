@@ -102,6 +102,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     private Clock mClock;
     private View mFocus2;
     private int count;
+    private long mExitTime;
 
     public static void start(Context context) {
         context.startActivity(new Intent(context, LiveActivity.class).putExtra("empty", LiveConfig.isEmpty()));
@@ -215,6 +216,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void setVideoView() {
+        mBinding.player.setUseArtwork(false);
         setScale(LiveSetting.getScale());
         setSeekNextFocusDown(R.id.config);
         setActionFocusBoundary(mBinding.control.action.getRoot());
@@ -294,6 +296,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void getLive() {
+        android.util.Log.d("LiveDebug", ">>> [getLive] Loading Home: " + getHome().getName());
         mBinding.control.action.home.setText(LiveConfig.isOnly() ? getString(R.string.live_refresh) : getHome().getName());
         mViewModel.parse(getHome());
         showProgress();
@@ -530,6 +533,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     protected void onSizeChanged(VideoSize size) {
+        android.util.Log.d("LiveActivity", ">>> [Surface Size] " + size.width + "x" + size.height);
         mBinding.widget.size.setText(player().getSizeText());
     }
 
@@ -570,6 +574,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mBinding.widget.error.setVisibility(View.VISIBLE);
         mBinding.widget.text.setText(text);
         hideProgress();
+        showInfo();
     }
 
     private void hideError() {
@@ -584,7 +589,6 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mBinding.control.getRoot().setZ(100f);
         mBinding.widget.top.setElevation(24f);
         mBinding.widget.top.setZ(100f);
-        mBinding.video.bringToFront();
         mBinding.control.getRoot().bringToFront();
         mBinding.widget.top.bringToFront();
         mBinding.control.getRoot().requestLayout();
@@ -610,7 +614,6 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mBinding.widget.bottom.setVisibility(View.VISIBLE);
         mBinding.widget.bottom.setElevation(24f);
         mBinding.widget.bottom.setZ(100f);
-        mBinding.video.bringToFront();
         mBinding.widget.bottom.bringToFront();
         mBinding.widget.bottom.requestLayout();
         setR3Callback();
@@ -742,6 +745,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void start(Result result, long startPositionMs) {
         mPlaybackKey = result.getRealUrl();
+        if (player() != null) player().setLive(true);
         startPlayer(mPlaybackKey, result, false, getHome().getTimeout(), startPositionMs, buildMetadata());
     }
 
@@ -831,6 +835,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     @Override
     public void renderChannelSelection(Channel channel) {
         mChannel = channel;
+        showInfo();
     }
 
     @Override
@@ -1075,11 +1080,14 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
             hideControl();
         } else if (isVisible(mBinding.widget.bottom)) {
             hideInfo();
-        } else if (isVisible(mBinding.recycler)) {
-            hideUI();
-        } else {
+        } else if (isGone(mBinding.recycler) && mGroupAdapter.getItemCount() > 0) {
+            showUI();
+        } else if (System.currentTimeMillis() - mExitTime < 2000) {
             if (isTaskRoot()) startActivity(new Intent(this, HomeActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
             finish();
+        } else {
+            mExitTime = System.currentTimeMillis();
+            Notify.show(R.string.app_exit);
         }
     }
 

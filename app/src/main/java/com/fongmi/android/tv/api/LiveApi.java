@@ -67,9 +67,36 @@ public class LiveApi {
     }
 
     private static void fetchEpgDay(@NonNull Channel item, @NonNull ZoneId zoneId, int offset) {
-        String date = LocalDate.now(zoneId).plusDays(offset).format(Formatters.DATE);
-        String url = item.getEpg().replace("{date}", date);
-        boolean need = url.startsWith("http") && item.getDataList().stream().noneMatch(epg -> epg.equal(date));
-        if (need) item.setData(Epg.objectFrom(OkHttp.string(url), item.getTvgId(), zoneId));
+        try {
+            String date = LocalDate.now(zoneId).plusDays(offset).format(Formatters.DATE);
+            String url = item.getEpg().replace("{date}", date);
+            boolean need = url.startsWith("http") && item.getDataList().stream().noneMatch(epg -> epg.equal(date));
+            if (!need) return;
+            try (okhttp3.Response response = OkHttp.newCall(url).execute()) {
+                byte[] bytes = response.body().bytes();
+                if (bytes.length == 0) return;
+                String content = bytesToContent(bytes);
+                Epg epg = Epg.objectFrom(content, item.getTvgId(), zoneId);
+                if (epg.getList().isEmpty()) epg = EpgParser.getEpg(content, item.getTvgName(), zoneId);
+                if (epg.getList().isEmpty()) epg = EpgParser.getEpg(content, item.getName(), zoneId);
+                item.setData(epg);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static String bytesToContent(byte[] bytes) throws Exception {
+        if (bytes.length < 2) return new String(bytes);
+        if ((bytes[0] & 0xFF | (bytes[1] & 0xFF) << 8) == 0x8B1F) {
+            java.io.ByteArrayInputStream bis = new java.io.ByteArrayInputStream(bytes);
+            java.util.zip.GZIPInputStream gis = new java.util.zip.GZIPInputStream(bis);
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = gis.read(buffer)) != -1) bos.write(buffer, 0, len);
+            return bos.toString();
+        }
+        return new String(bytes);
     }
 }

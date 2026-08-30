@@ -76,7 +76,15 @@ public class EpgParser {
             String rawDate = tv.getDate();
             String date = rawDate.isEmpty() ? LocalDate.now(zoneId).format(Formatters.DATE) : parseFull(rawDate, zoneId).atZoneSameInstant(zoneId).format(Formatters.DATE);
             Epg epg = Epg.create(key, date);
-            tv.getProgramme().forEach(programme -> epg.getList().add(getEpgData(programme, zoneId)));
+            Set<String> ids = new HashSet<>();
+            ids.add(key);
+            for (Tv.Channel ch : tv.getChannel()) {
+                if (ch.getId().equals(key)) ids.add(ch.getId());
+                for (Tv.DisplayName dn : ch.getDisplayName()) if (dn.getText().equals(key)) ids.add(ch.getId());
+            }
+            tv.getProgramme().forEach(programme -> {
+                if (ids.contains(programme.getChannel())) epg.getList().add(getEpgData(programme, zoneId));
+            });
             return epg;
         } catch (Exception e) {
             Log.w(TAG, "getEpg parse failed key=" + key + ": " + e.getMessage());

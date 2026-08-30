@@ -74,8 +74,66 @@ public class ChannelActionDialog extends BaseAlertDialog implements ActionAdapte
             showGroupDialog();
         } else if (resId == R.string.keep) {
             toggleKeep();
+        } else if (resId == R.string.channel_edit) {
+            showEditDialog();
+        } else if (resId == R.string.channel_delete) {
+            deleteChannel();
+        } else if (resId == R.string.channel_move) {
+            showMoveDialog();
+        } else if (resId == R.string.channel_group) {
+            showGroupDialog();
+        } else if (resId == R.string.channel_epg) {
+            showEpgDialog();
         }
         dismiss();
+    }
+
+    private void showEditDialog() {
+        android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setText(channel.getName());
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.channel_edit)
+                .setView(input)
+                .setPositiveButton(R.string.dialog_positive, (dialog, which) -> {
+                    String name = input.getText().toString().trim();
+                    if (name.isEmpty()) return;
+                    Channel old = Channel.create(channel);
+                    channel.setName(name);
+                    LiveUtil.updateChannel(old, channel);
+                    com.fongmi.android.tv.event.RefreshEvent.live();
+                })
+                .setNegativeButton(R.string.dialog_negative, null)
+                .show();
+    }
+
+    private void deleteChannel() {
+        LiveUtil.removeChannel(channel);
+        com.fongmi.android.tv.event.RefreshEvent.live();
+    }
+
+    private void showMoveDialog() {
+        String[] items = {ResUtil.getString(R.string.favorite_move_up), ResUtil.getString(R.string.favorite_move_down)};
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.channel_move)
+                .setItems(items, (dialog, which) -> {
+                    LiveUtil.moveChannel(channel, which == 0);
+                    com.fongmi.android.tv.event.RefreshEvent.live();
+                }).show();
+    }
+
+    private void showEpgDialog() {
+        android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setText(channel.getEpg());
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.channel_epg)
+                .setView(input)
+                .setPositiveButton(R.string.dialog_positive, (dialog, which) -> {
+                    channel.setEpg(input.getText().toString().trim());
+                    LiveUtil.updateChannel(channel, channel);
+                    com.fongmi.android.tv.event.RefreshEvent.live();
+                })
+                .setNegativeButton(R.string.dialog_negative, null)
+                .show();
     }
 
     private void toggleKeep() {
@@ -109,7 +167,9 @@ public class ChannelActionDialog extends BaseAlertDialog implements ActionAdapte
                     if (which == items.size() - 1) {
                         showNewGroupDialog();
                     } else {
+                        if (virtual) LiveUtil.removeChannel(channel);
                         LiveUtil.addChannel(items.get(which), channel);
+                        com.fongmi.android.tv.event.RefreshEvent.live();
                         Notify.show(R.string.keep_add);
                     }
                 }).show();
@@ -123,7 +183,9 @@ public class ChannelActionDialog extends BaseAlertDialog implements ActionAdapte
                 .setPositiveButton(R.string.dialog_positive, (dialog, which) -> {
                     String name = input.getText().toString().trim();
                     if (name.isEmpty()) return;
+                    if (virtual) LiveUtil.removeChannel(channel);
                     LiveUtil.addChannel(name, channel);
+                    com.fongmi.android.tv.event.RefreshEvent.live();
                     Notify.show(R.string.keep_add);
                 })
                 .setNegativeButton(R.string.dialog_negative, null)

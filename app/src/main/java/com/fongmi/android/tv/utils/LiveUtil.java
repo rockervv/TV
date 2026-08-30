@@ -59,4 +59,52 @@ public class LiveUtil {
             save(myLive);
         }
     }
+
+    public static void removeChannel(Channel channel) {
+        Live myLive = getMyLive();
+        for (Group g : myLive.getGroups()) {
+            if (g.getName().equals(channel.getGroup().getName())) {
+                g.getChannel().remove(channel);
+                break;
+            }
+        }
+        save(myLive);
+    }
+
+    public static void updateChannel(Channel old, Channel item) {
+        Live myLive = getMyLive();
+        for (Group g : myLive.getGroups()) {
+            if (g.getName().equals(old.getGroup().getName())) {
+                int index = g.getChannel().indexOf(old);
+                if (index != -1) {
+                    g.getChannel().set(index, item);
+                    break;
+                }
+            }
+        }
+        save(myLive);
+    }
+
+    public static void moveChannel(Channel channel, boolean up) {
+        Live myLive = getMyLive();
+        for (Group g : myLive.getGroups()) {
+            if (g.getName().equals(channel.getGroup().getName())) {
+                int index = -1;
+                for (int i = 0; i < g.getChannel().size(); i++) {
+                    if (g.getChannel().get(i).getName().equals(channel.getName())) {
+                        index = i;
+                        break;
+                    }
+                }
+                if (index != -1) {
+                    int target = up ? index - 1 : index + 1;
+                    if (target >= 0 && target < g.getChannel().size()) {
+                        java.util.Collections.swap(g.getChannel(), index, target);
+                    }
+                }
+                break;
+            }
+        }
+        save(myLive);
+    }
 }

@@ -269,6 +269,13 @@ public class LiveConfig extends BaseConfig {
     }
 
     public Live getHome() {
+        if (home != null && home.getType().equals("virtual")) {
+            Live myLive = LiveUtil.getMyLive();
+            myLive.setSelected(true);
+            int index = getLives().indexOf(home);
+            if (index != -1) getLives().set(index, myLive);
+            return home = myLive;
+        }
         return home == null ? new Live() : home;
     }
 

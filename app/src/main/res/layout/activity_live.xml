@@ -51,6 +51,17 @@
         tools:visibility="visible">
 
         <com.fongmi.android.tv.ui.custom.CustomLiveListView
+            android:id="@+id/nav"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:padding="12dp"
+            android:visibility="gone"
+            tools:itemCount="3"
+            tools:listitem="@layout/adapter_nav" />
+
+        <com.fongmi.android.tv.ui.custom.CustomLiveListView
             android:id="@+id/group"
             android:layout_width="0dp"
             android:layout_height="match_parent"

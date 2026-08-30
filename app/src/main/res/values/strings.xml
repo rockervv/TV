@@ -117,6 +117,11 @@
     <string name="live_refresh">重新整理</string>
     <string name="live_line">線路 %1$s</string>
 
+    <!-- Nav -->
+    <string name="nav_source">切換倉源</string>
+    <string name="nav_manage">管理頻道</string>
+    <string name="nav_setting">偏好設定</string>
+
     <!-- Detail -->
     <string name="detail_title">%1$s : %2$s</string>
     <string name="detail_site">站源：%1$s</string>

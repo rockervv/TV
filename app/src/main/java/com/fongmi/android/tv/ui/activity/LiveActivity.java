@@ -56,6 +56,7 @@ import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.adapter.ChannelAdapter;
 import com.fongmi.android.tv.ui.adapter.EpgDataAdapter;
 import com.fongmi.android.tv.ui.adapter.GroupAdapter;
+import com.fongmi.android.tv.ui.adapter.NavAdapter;
 import com.fongmi.android.tv.ui.custom.CustomKeyDownLive;
 import com.fongmi.android.tv.ui.custom.CustomLiveListView;
 import com.fongmi.android.tv.ui.dialog.HistoryDialog;
@@ -67,6 +68,7 @@ import com.fongmi.android.tv.ui.dialog.TrackDialog;
 import com.fongmi.android.tv.playback.PlaybackAction;
 import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.ImgUtil;
+import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Traffic;
@@ -79,12 +81,13 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
-public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnClickListener, ChannelAdapter.OnClickListener, EpgDataAdapter.OnClickListener, CustomKeyDownLive.Listener, CustomLiveListView.Callback, TrackDialog.Listener, PassListener, ConfigListener, LiveListener, LivePlaybackHost {
+public class LiveActivity extends PlaybackActivity implements NavAdapter.OnClickListener, GroupAdapter.OnClickListener, ChannelAdapter.OnClickListener, EpgDataAdapter.OnClickListener, CustomKeyDownLive.Listener, CustomLiveListView.Callback, TrackDialog.Listener, PassListener, ConfigListener, LiveListener, LivePlaybackHost {
 
     private ActivityLiveBinding mBinding;
     private ChannelAdapter mChannelAdapter;
     private EpgDataAdapter mEpgDataAdapter;
     private GroupAdapter mGroupAdapter;
+    private NavAdapter mNavAdapter;
     private LivePlaybackController mLive;
     private Observer<Result> mObserveUrl;
     private CustomKeyDownLive mKeyDown;
@@ -207,12 +210,15 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void setRecyclerView() {
+        mBinding.nav.setItemAnimator(null);
         mBinding.group.setItemAnimator(null);
         mBinding.channel.setItemAnimator(null);
         mBinding.epgData.setItemAnimator(null);
+        mBinding.nav.setAdapter(mNavAdapter = new NavAdapter(this));
         mBinding.group.setAdapter(mGroupAdapter = new GroupAdapter(this));
         mBinding.channel.setAdapter(mChannelAdapter = new ChannelAdapter(this));
         mBinding.epgData.setAdapter(mEpgDataAdapter = new EpgDataAdapter(this));
+        setWidth(mBinding.nav, ResUtil.dp2px(100));
     }
 
     private void setVideoView() {
@@ -426,6 +432,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void hideUI() {
         App.removeCallbacks(mR4);
+        mBinding.nav.setVisibility(View.GONE);
         if (isGone(mBinding.recycler)) return;
         mBinding.recycler.setVisibility(View.GONE);
         setPosition();
@@ -661,6 +668,17 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                 mBinding.player.setDefaultArtwork(errorDrawable);
             }
         });
+    }
+
+    @Override
+    public void onItemClick(int resId) {
+        if (resId == R.string.nav_source) {
+            LiveDialog.create().show(this);
+        } else if (resId == R.string.nav_manage) {
+            // TODO: 管理頻道
+        } else if (resId == R.string.nav_setting) {
+            // TODO: 偏好設定
+        }
     }
 
     @Override
@@ -974,8 +992,28 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (isVisible(mBinding.control.getRoot())) setR1Callback();
         if (isVisible(mBinding.control.getRoot())) mFocus2 = getCurrentFocus();
+        if (KeyUtil.isLeftKey(event) && event.getAction() == KeyEvent.ACTION_DOWN && mBinding.group.hasFocus()) {
+            showNav();
+            return true;
+        }
+        if (KeyUtil.isRightKey(event) && event.getAction() == KeyEvent.ACTION_DOWN && mBinding.nav.hasFocus()) {
+            hideNav();
+            return true;
+        }
         if (mKeyDown.hasEvent(event) && service() != null && mKeyDown.onKeyDown(event)) return true;
         return super.dispatchKeyEvent(event);
+    }
+
+    private void showNav() {
+        if (isVisible(mBinding.nav)) return;
+        mBinding.nav.setVisibility(View.VISIBLE);
+        mBinding.nav.requestFocus();
+    }
+
+    private void hideNav() {
+        if (isGone(mBinding.nav)) return;
+        mBinding.nav.setVisibility(View.GONE);
+        mBinding.group.requestFocus();
     }
 
     @Override

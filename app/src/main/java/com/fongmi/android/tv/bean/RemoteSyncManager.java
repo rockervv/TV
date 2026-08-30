@@ -7,6 +7,7 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.LiveUtil;
 import com.fongmi.android.tv.utils.Task;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -31,6 +32,7 @@ public class RemoteSyncManager {
     private static final AtomicBoolean isHistorySyncing = new AtomicBoolean(false);
     private static final AtomicBoolean isKeepSyncing = new AtomicBoolean(false);
     private static final AtomicBoolean isFavoriteSyncing = new AtomicBoolean(false);
+    private static final AtomicBoolean isMyLiveSyncing = new AtomicBoolean(false);
 
     public static void init(String uri, String username, String password, boolean isFTP) {
         String urikeep = uri + ".k.txt";
@@ -230,10 +232,71 @@ public class RemoteSyncManager {
         }
     }
 
+    private static void syncMyLive() {
+        if (!useFTP && !useGist) return;
+        if (!isMyLiveSyncing.compareAndSet(false, true)) return;
+
+        try {
+            String jsonData = null;
+            String remotePath = null;
+            if (useFTP) {
+                String path = ftpManager.getPath();
+                if (path.contains(".")) {
+                    remotePath = path.substring(0, path.lastIndexOf("/") + 1) + "my_live.json";
+                } else {
+                    remotePath = (path.isEmpty() ? "" : path + "/") + "my_live.json";
+                }
+                try {
+                    jsonData = ftpManager.downloadJsonFileAsString(remotePath);
+                } catch (IOException e) {
+                    Log.e("MyLiveSync", "FTP download failed", e);
+                }
+            }
+            if (useGist && jsonData == null) {
+                try {
+                    jsonData = ftpManager.downloadGistJsonFileAsString("my_live.json");
+                } catch (Exception e) {
+                    Log.e("MyLiveSync", "Gist download failed", e);
+                }
+            }
+
+            if (jsonData != null) {
+                Live remoteLive = Live.objectFrom(App.gson().fromJson(jsonData, JsonObject.class), "");
+                if (!remoteLive.isEmpty()) {
+                    LiveUtil.save(remoteLive);
+                    RefreshEvent.live();
+                }
+            }
+
+            Live localLive = LiveUtil.getMyLive();
+            String updatedJsonString = App.gson().toJson(localLive);
+
+            if (useFTP && remotePath != null) {
+                try {
+                    ftpManager.uploadJsonString(updatedJsonString, remotePath);
+                } catch (IOException e) {
+                    Log.e("MyLiveSync", "FTP upload failed", e);
+                }
+            }
+            if (useGist) {
+                try {
+                    ftpManager.uploadGistJsonString(updatedJsonString, "my_live.json");
+                } catch (IOException e) {
+                    Log.e("MyLiveSync", "Gist upload failed", e);
+                }
+            }
+        } catch (Exception e) {
+            Log.e("MyLiveSync", "Sync error", e);
+        } finally {
+            isMyLiveSyncing.set(false);
+        }
+    }
+
     public static void SyncAll() {
         SyncHistory();
         SyncKeep();
         SyncFavorite();
+        SyncMyLive();
     }
 
     public static void SyncHistory() {
@@ -251,6 +314,12 @@ public class RemoteSyncManager {
     public static void SyncFavorite() {
         if (useFTP || useGist) {
             Task.execute(RemoteSyncManager::syncFavorite);
+        }
+    }
+
+    public static void SyncMyLive() {
+        if (useFTP || useGist) {
+            Task.execute(RemoteSyncManager::syncMyLive);
         }
     }
 

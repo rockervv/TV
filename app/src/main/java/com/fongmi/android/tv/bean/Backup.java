@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.db.AppDatabase;
+import com.fongmi.android.tv.utils.LiveUtil;
 import com.github.catvod.utils.Prefers;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -40,6 +41,8 @@ public class Backup {
     private List<FlagScore> flagScore;
     @SerializedName("favorite")
     private List<Favorite> favorite;
+    @SerializedName("myLive")
+    private Live myLive;
     @SerializedName("prefers")
     private Map<String, ?> prefers;
 
@@ -56,6 +59,7 @@ public class Backup {
         backup.setDownload(AppDatabase.get().getDownloadDao().find());
         backup.setFlagScore(AppDatabase.get().getFlagScoreDao().findAll());
         backup.setFavorite(AppDatabase.get().getFavoriteDao().findAll());
+        backup.setMyLive(LiveUtil.getMyLive());
         return backup;
     }
 
@@ -71,7 +75,7 @@ public class Backup {
     }
 
     public boolean isEmpty() {
-        return getConfig().isEmpty() && getSite().isEmpty() && getLive().isEmpty() && getKeep().isEmpty() && getHistory().isEmpty() && getPrefers().isEmpty();
+        return getConfig().isEmpty() && getSite().isEmpty() && getLive().isEmpty() && getKeep().isEmpty() && getHistory().isEmpty() && getPrefers().isEmpty() && getMyLive().isEmpty();
     }
 
     public void restore() {
@@ -88,6 +92,7 @@ public class Backup {
             AppDatabase.get().getDownloadDao().insertOrUpdate(getDownload());
             AppDatabase.get().getFlagScoreDao().insertOrUpdate(getFlagScore());
             AppDatabase.get().getFavoriteDao().insertOrUpdate(getFavorite());
+            LiveUtil.save(getMyLive());
         });
         android.util.Log.d("Backup", "database restore SUCCESS, updating prefers");
         SharedPreferences.Editor editor = Prefers.getPrefers().edit();
@@ -190,6 +195,14 @@ public class Backup {
 
     public void setFavorite(List<Favorite> favorite) {
         this.favorite = favorite;
+    }
+
+    public Live getMyLive() {
+        return myLive == null ? new Live() : myLive;
+    }
+
+    public void setMyLive(Live myLive) {
+        this.myLive = myLive;
     }
 
     public Map<String, ?> getPrefers() {

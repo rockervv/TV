@@ -1,6 +1,9 @@
 package com.fongmi.android.tv.utils;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.api.config.LiveConfig;
+import com.fongmi.android.tv.bean.Channel;
+import com.fongmi.android.tv.bean.Group;
 import com.fongmi.android.tv.bean.Live;
 import com.github.catvod.utils.Path;
 import com.google.gson.JsonObject;
@@ -31,6 +34,29 @@ public class LiveUtil {
             File file = new File(Path.tv(), "my_live.json");
             Path.write(file, App.gson().toJson(live));
         } catch (Exception ignored) {
+        }
+    }
+
+    public static void addChannel(String groupName, Channel channel) {
+        Live myLive = getMyLive();
+        Group targetGroup = null;
+        for (Group g : myLive.getGroups()) {
+            if (g.getName().equals(groupName)) {
+                targetGroup = g;
+                break;
+            }
+        }
+        if (targetGroup == null) {
+            targetGroup = Group.create(groupName, false);
+            myLive.getGroups().add(targetGroup);
+        }
+        if (targetGroup.find(channel.getName()) == -1) {
+            Channel copy = Channel.create(channel);
+            copy.setOriginConfig(LiveConfig.getUrl());
+            copy.setOriginGroup(channel.getGroup().getName());
+            copy.setOriginName(channel.getName());
+            targetGroup.getChannel().add(copy);
+            save(myLive);
         }
     }
 }

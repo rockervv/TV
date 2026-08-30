@@ -59,6 +59,7 @@ import com.fongmi.android.tv.ui.adapter.GroupAdapter;
 import com.fongmi.android.tv.ui.adapter.NavAdapter;
 import com.fongmi.android.tv.ui.custom.CustomKeyDownLive;
 import com.fongmi.android.tv.ui.custom.CustomLiveListView;
+import com.fongmi.android.tv.ui.dialog.ChannelActionDialog;
 import com.fongmi.android.tv.ui.dialog.HistoryDialog;
 import com.fongmi.android.tv.ui.dialog.LiveDialog;
 import com.fongmi.android.tv.ui.dialog.PassDialog;
@@ -704,10 +705,7 @@ public class LiveActivity extends PlaybackActivity implements NavAdapter.OnClick
     @Override
     public boolean onLongClick(Channel item) {
         if (mGroup.isHidden()) return false;
-        boolean exist = Keep.exist(item.getName());
-        Notify.show(exist ? R.string.keep_del : R.string.keep_add);
-        if (exist) delKeep(item);
-        else addKeep(item);
+        ChannelActionDialog.create().channel(item).show(this);
         return true;
     }
 

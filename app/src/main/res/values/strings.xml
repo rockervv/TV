@@ -122,6 +122,13 @@
     <string name="nav_manage">管理頻道</string>
     <string name="nav_setting">偏好設定</string>
 
+    <!-- Channel Action -->
+    <string name="channel_edit">編輯名稱</string>
+    <string name="channel_move">移動位置</string>
+    <string name="channel_delete">刪除頻道</string>
+    <string name="channel_group">更改分類</string>
+    <string name="channel_epg">更換 EPG</string>
+
     <!-- Detail -->
     <string name="detail_title">%1$s : %2$s</string>
     <string name="detail_site">站源：%1$s</string>

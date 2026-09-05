@@ -8,7 +8,6 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
-import androidx.media3.common.MimeTypes;
 import androidx.media3.database.StandaloneDatabaseProvider;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.datasource.DefaultDataSource;
@@ -24,10 +23,8 @@ import androidx.media3.exoplayer.dash.manifest.AdaptationSet;
 import androidx.media3.exoplayer.dash.manifest.DashManifest;
 import androidx.media3.exoplayer.dash.manifest.DashManifestParser;
 import androidx.media3.exoplayer.dash.manifest.Period;
-import androidx.media3.exoplayer.dash.manifest.RangedUri;
 import androidx.media3.exoplayer.dash.manifest.Representation;
 import androidx.media3.exoplayer.dash.manifest.SegmentBase;
-import androidx.media3.exoplayer.dash.manifest.UrlTemplate;
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
@@ -41,8 +38,8 @@ import com.fongmi.android.tv.setting.PreloadSetting;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 
-import java.io.File;
 import java.io.InputStream;
+import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -60,11 +57,11 @@ public class MediaSourceFactory implements MediaSource.Factory {
     private static StandaloneDatabaseProvider databaseProvider;
     private static Cache cache;
 
-    private static long anchoredAst = -1;
     private static String anchoredVideoId = "";
+    private static long anchoredAST = -1;
+    private static long anchoredPTO = -1;
     private static final Map<String, TreeMap<Long, Long>> timelineT = new HashMap<>();
     private static final Map<String, TreeMap<Long, Long>> timelineD = new HashMap<>();
-    private static final Map<String, Long> itagPto = new HashMap<>();
 
     private final DefaultMediaSourceFactory defaultMediaSourceFactory;
     private HttpDataSource.Factory httpDataSourceFactory;
@@ -136,7 +133,7 @@ public class MediaSourceFactory implements MediaSource.Factory {
         String url = (mediaItem.localConfiguration != null) ? mediaItem.localConfiguration.uri.toString() : "";
 
         if (url.contains("googlevideo.com/api/manifest/dash")) {
-            Log.d("ExoUtil", ">>> YT_STABLE_V23: IN-PLACE MUTATION...");
+            Log.d("ExoUtil", ">>> YT_STABLE_V37: DUAL-ANCHOR SYNC...");
             DefaultDashChunkSource.Factory chunkSourceFactory = new DefaultDashChunkSource.Factory(getDataSourceFactory(), 4);
             DashMediaSource.Factory factory = new DashMediaSource.Factory(chunkSourceFactory, getDataSourceFactory());
             
@@ -158,96 +155,109 @@ public class MediaSourceFactory implements MediaSource.Factory {
                         
                         synchronized (timelineT) {
                             if (!anchoredVideoId.equals(videoId)) {
-                                anchoredAst = manifest.availabilityStartTimeMs;
                                 anchoredVideoId = videoId;
-                                timelineT.clear(); timelineD.clear(); itagPto.clear();
-                                Log.d("ExoUtil", ">>> YT_STABLE_V23: ANCHOR " + videoId + " AST:" + anchoredAst);
+                                anchoredAST = System.currentTimeMillis() - 60000;
+                                anchoredPTO = -1; // 會在第一個 Rep 裡初始化
+                                timelineT.clear(); timelineD.clear();
+                                Log.d("ExoUtil", ">>> YT_STABLE_V37: NEW VIDEO ANCHOR AST: " + anchoredAST);
                             }
                         }
 
-                        for (int i = 0; i < manifest.getPeriodCount(); i++) {
-                            Period period = manifest.getPeriod(i);
-                            for (AdaptationSet set : period.adaptationSets) {
-                                for (Representation rep : set.representations) {
-                                    mutateInPlace(rep, manifest.availabilityStartTimeMs, period.startMs);
-                                }
-                            }
+                        List<AdaptationSet> sets = new ArrayList<>();
+                        Period firstPeriod = manifest.getPeriod(0);
+                        for (AdaptationSet set : firstPeriod.adaptationSets) {
+                            List<Representation> reps = new ArrayList<>();
+                            for (Representation rep : set.representations) reps.add(solder(rep));
+                            sets.add(new AdaptationSet(set.id, set.type, reps, set.accessibilityDescriptors, set.essentialProperties, set.supplementalProperties));
                         }
 
-                        return manifest;
+                        Period infinitePeriod = new Period("dual_anchor_track", 0, sets, firstPeriod.eventStreams);
+                        return new DashManifest(anchoredAST, -1, 5000L, true, 5000L, 86400000L, 15000L, manifest.publishTimeMs, manifest.programInformation, manifest.utcTiming, manifest.serviceDescription, manifest.location, Collections.singletonList(infinitePeriod));
                     } catch (Exception e) {
-                        Log.e("ExoUtil", ">>> YT_STABLE_V23: MUTATE FAIL", e);
                         return manifest;
                     }
                 }
 
-                private void mutateInPlace(Representation rep, long currentAst, long periodStartMs) {
+                private Representation solder(Representation rep) {
                     try {
                         Field baseField = findField(rep.getClass(), "segmentBase");
-                        if (baseField == null) return;
+                        if (baseField == null) return rep;
                         baseField.setAccessible(true);
                         Object base = baseField.get(rep);
-                        if (base == null) return;
+                        if (base == null) return rep;
 
                         Field tlField = findField(base.getClass(), "segmentTimeline");
-                        if (tlField == null) return;
+                        if (tlField == null) return rep;
                         tlField.setAccessible(true);
 
                         @SuppressWarnings("unchecked")
                         List<SegmentBase.SegmentTimelineElement> update = (List<SegmentBase.SegmentTimelineElement>) tlField.get(base);
-                        if (update == null || update.isEmpty()) return;
+                        if (update == null || update.isEmpty()) return rep;
 
-                        long timescale = getLongSafe(base, "timescale", 1000);
-                        long manifestPto = getLongSafe(base, "presentationTimeOffset", 0);
-                        long startNumber = getLongSafe(base, "startNumber", 1);
                         String itag = rep.format.id;
+                        long manifestStartNum = getLongSafe(base, "startNumber", 1);
 
                         synchronized (timelineT) {
                             if (!timelineT.containsKey(itag)) timelineT.put(itag, new TreeMap<>());
                             if (!timelineD.containsKey(itag)) timelineD.put(itag, new TreeMap<>());
-                            if (!itagPto.containsKey(itag)) itagPto.put(itag, manifestPto);
 
                             TreeMap<Long, Long> tMap = timelineT.get(itag);
                             TreeMap<Long, Long> dMap = timelineD.get(itag);
-                            Long fixedPto = itagPto.get(itag);
-                            if (tMap == null || dMap == null || fixedPto == null) return;
+                            if (tMap == null || dMap == null) return rep;
 
-                            long driftOffset = ((currentAst - anchoredAst + periodStartMs) * timescale) / 1000;
+                            // 🚀 初始化全局 PTO 錨點：確保所有 Rep 使用統一的零點
+                            if (anchoredPTO == -1) {
+                                anchoredPTO = 1000000L; // 設一個大的固定基數
+                                Log.d("ExoUtil", ">>> YT_STABLE_V37: ANCHORED PTO SET: " + anchoredPTO);
+                            }
+
+                            // 對齊最後一個片段
+                            long currentLastSq = manifestStartNum + update.size() - 1;
+                            if (tMap.isEmpty()) {
+                                // 將最後一個片段對齊到 LiveEdge (60s)
+                                tMap.put(currentLastSq, anchoredPTO + 60000L);
+                                dMap.put(currentLastSq, getLongSafe(update.get(update.size()-1), "duration", 5000));
+                            }
 
                             for (int i = 0; i < update.size(); i++) {
-                                long sq = startNumber + i;
+                                long sq = manifestStartNum + i;
                                 if (!tMap.containsKey(sq)) {
-                                    SegmentBase.SegmentTimelineElement el = update.get(i);
-                                    long d = getLongSafe(el, "duration", 5000);
-                                    long t;
-                                    if (!tMap.isEmpty()) {
-                                        long lastSq = tMap.lastKey();
-                                        t = tMap.get(lastSq) + (dMap.get(lastSq) * (sq - lastSq));
-                                    } else {
-                                        t = (getLongSafe(el, "startTime", 0) - manifestPto + fixedPto) + driftOffset;
+                                    Long refSq = tMap.lastKey();
+                                    Long refT = tMap.get(refSq);
+                                    Long refD = dMap.get(refSq);
+                                    if (refT != null && refD != null) {
+                                        tMap.put(sq, refT + refD * (sq - refSq));
+                                        dMap.put(sq, getLongSafe(update.get(i), "duration", 5000));
                                     }
-                                    tMap.put(sq, t); dMap.put(sq, d);
                                 }
                             }
 
-                            while (tMap.size() > 1000) { Long fk = tMap.firstKey(); tMap.remove(fk); dMap.remove(fk); }
+                            while (tMap.size() > 500) { Long fk = tMap.firstKey(); tMap.remove(fk); dMap.remove(fk); }
 
-                            // 🚀 暴力修改現有對象
-                            List<SegmentBase.SegmentTimelineElement> solderedTimeline = new ArrayList<>();
+                            List<SegmentBase.SegmentTimelineElement> soldered = new ArrayList<>();
                             for (Long sq : tMap.keySet()) {
-                                solderedTimeline.add(new SegmentBase.SegmentTimelineElement(tMap.get(sq), dMap.get(sq)));
+                                Long tv = tMap.get(sq); Long dv = dMap.get(sq);
+                                if (tv != null && dv != null) soldered.add(new SegmentBase.SegmentTimelineElement(tv, dv));
                             }
 
-                            // 強行塞回原對象
-                            setFinalField(base, "segmentTimeline", solderedTimeline);
-                            setFinalField(base, "startNumber", tMap.firstKey());
-                            setFinalField(base, "presentationTimeOffset", fixedPto);
+                            // 未來填充 (12段/60s)
+                            long lastSq = tMap.lastKey();
+                            long lastT = tMap.get(lastSq);
+                            long lastD = dMap.get(lastSq);
+                            for (int j = 1; j <= 12; j++) {
+                                soldered.add(new SegmentBase.SegmentTimelineElement(lastT + (lastD * j), lastD));
+                            }
 
-                            Log.d("ExoUtil", ">>> YT_STABLE_V23: [" + itag + "] SOLDERED SQ: " + tMap.firstKey() + "-" + tMap.lastKey());
+                            setFinalField(base, "segmentTimeline", soldered);
+                            setFinalField(base, "startNumber", tMap.firstKey());
+                            // 🚀 核心：PTO 絕對固定！不隨刷新改變。
+                            setFinalField(base, "presentationTimeOffset", anchoredPTO);
+                            setFinalField(base, "timescale", 1000L);
+                            
+                            Log.d("ExoUtil", ">>> YT_STABLE_V37: [" + itag + "] Window:" + tMap.firstKey() + "-" + tMap.lastKey() + " RelEnd:" + (lastT - anchoredPTO));
                         }
-                    } catch (Exception e) {
-                        Log.e("ExoUtil", ">>> YT_STABLE_V23: MUTATE CRASH", e);
-                    }
+                    } catch (Exception ignored) {}
+                    return rep;
                 }
 
                 private void setFinalField(Object obj, String fieldName, Object value) {
@@ -262,12 +272,12 @@ public class MediaSourceFactory implements MediaSource.Factory {
                     } catch (Exception ignored) {}
                 }
 
-                private long getLongSafe(Object obj, String fieldName, long defValue) {
+                private long getLongSafe(Object obj, String fieldName, long def) {
                     try {
                         Field f = findField(obj.getClass(), fieldName);
                         if (f != null) { f.setAccessible(true); return f.getLong(obj); }
                     } catch (Exception ignored) {}
-                    return defValue;
+                    return def;
                 }
 
                 private Field findField(Class<?> startClass, String name) {

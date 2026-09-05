@@ -173,6 +173,19 @@
                 android:textColor="@color/white"
                 android:textSize="14sp" />
 
+            <TextView
+                android:id="@+id/adMark"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/selector_text"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:nextFocusDown="@id/timeBar"
+                android:text="@string/play_ad_mark"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
             <com.fongmi.android.tv.ui.custom.CustomUpDownView
                 android:id="@+id/player"
                 android:layout_width="wrap_content"

@@ -175,6 +175,7 @@ public class SiteApi {
         HashMap<String, String> params = new HashMap<>();
         for (String k : extend.keySet()) {
             String val = extend.get(k);
+
             params.put(k, key.startsWith("loc_") ? val : com.github.catvod.utils.Trans.z2p(val));
         }
         

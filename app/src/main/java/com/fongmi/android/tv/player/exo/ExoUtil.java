@@ -199,6 +199,14 @@ public class ExoUtil {
             @Override
             public void onLoadStarted(@NonNull EventTime eventTime, @NonNull LoadEventInfo loadEventInfo, @NonNull MediaLoadData mediaLoadData) {
                 Log.d("ExoUtil", "onLoadStarted: " + loadEventInfo.uri);
+                String url = loadEventInfo.uri.toString();
+                if (url.startsWith("http")) {
+                    Map<String, String> headers = loadEventInfo.dataSpec.httpRequestHeaders;
+                    com.fongmi.android.tv.player.util.AdAudioDetector.get().onLoadStarted(url, headers);
+                    if (url.contains("ad_check=1")) {
+                        com.fongmi.android.tv.player.util.AdAudioDetector.get().detect(url, headers);
+                    }
+                }
             }
 
             @Override

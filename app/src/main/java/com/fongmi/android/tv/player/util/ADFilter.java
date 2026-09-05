@@ -269,12 +269,23 @@ public class ADFilter {
             if (isAd) {
                 adCount++;
                 adDuration += block.duration;
-                Log.d("M3U8Parser", "Filtered Block (AD): Duration=" + block.duration + ", Segments=" + block.segmentCount + ", Cue=" + block.hasCueAd + ", Sandwich=" + isSandwichAd + ", SequenceJump=" + sequenceJump);
-                if (block.segmentCount > 0) {
-                    needDiscontinuity = true;
+                Log.d("M3U8Parser", "Marked Block (AD): Duration=" + block.duration + ", Segments=" + block.segmentCount + ", Cue=" + block.hasCueAd + ", Sandwich=" + isSandwichAd + ", SequenceJump=" + sequenceJump);
+                
+                // Tag URLs in the ad block instead of skipping them
+                for (String line : block.lines) {
+                    if (isMediaSegment(line)) {
+                        String taggedLine = line;
+                        String tag = "ad_type=static&ad_dur=" + (int)(block.duration * 1000);
+                        taggedLine = line.contains("?") ? line + "&" + tag : line + "?" + tag;
+                        output.append(taggedLine).append("\n");
+                    } else {
+                        output.append(line).append("\n");
+                    }
                 }
-                if (block.hasEndList) {
-                    output.append("#EXT-X-ENDLIST\n");
+                
+                if (block.segmentCount > 0) {
+                    processedFirstMediaBlock = true;
+                    if (block.lastNum != null) globalLastNum = block.lastNum;
                 }
             } else {
                 if (block.segmentCount > 0) {
@@ -300,8 +311,18 @@ public class ADFilter {
                     }
                 }
 
+                boolean firstMediaInBlock = true;
                 for (String line : block.lines) {
-                    output.append(line).append("\n");
+                    if (isMediaSegment(line) && (block.hasStartDiscontinuity || firstMediaInBlock) && block.segmentCount > 0) {
+                        String taggedLine = line;
+                        if (!line.contains("ad_check=1")) {
+                            taggedLine = line.contains("?") ? line + "&ad_check=1" : line + "?ad_check=1";
+                        }
+                        output.append(taggedLine).append("\n");
+                        firstMediaInBlock = false;
+                    } else {
+                        output.append(line).append("\n");
+                    }
                     if (line.startsWith("#EXT-X-KEY") || line.startsWith("#EXT-X-MAP")) {
                         lastEmittedConfig = line;
                     }
@@ -439,12 +460,12 @@ public class ADFilter {
                     }
 
                     if (adCount > 0) {
-                        Notify.showTop("過濾 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
+                        Notify.showTop("標記 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
                         lastCount = adCount;
                         lastSeconds = adSeconds;
                         lastTime = currentTime;
                     } else if (adCount < 0 && (currentTime - lastTime) > 60000) {
-                        Notify.showTop("廣告過濾失敗");
+                        Notify.showTop("廣告標記失敗");
                         lastCount = adCount;
                         lastTime = currentTime;
                     }

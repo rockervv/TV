@@ -307,6 +307,8 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         mBinding.control.loop.setOnClickListener(view -> onRepeat());
         mBinding.control.opening.setOnClickListener(view -> onOpening());
         mBinding.control.save.setOnClickListener(view -> onSave());
+        mBinding.control.adMark.setOnClickListener(view -> onAdMark());
+        mBinding.control.adMark.setOnLongClickListener(view -> onAdManage());
         mBinding.control.favorite.setOnFocusChangeListener((v, f) -> { if (f) mBinding.control.actionScroll.smoothScrollTo(0, 0); });
         mBinding.control.ending.setOnLongClickListener(view -> onEndingReset());
         mBinding.control.opening.setOnLongClickListener(view -> onOpeningReset());
@@ -484,6 +486,9 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         setArtwork(item.getPic());
         updateKeep(item);
         setText(item);
+        if (player() != null && player().getPlayer() instanceof androidx.media3.exoplayer.ExoPlayer exo) {
+            com.fongmi.android.tv.player.util.AdAudioDetector.get().init(exo, getHistoryKey(), item.getName());
+        }
     }
 
     @Override
@@ -985,6 +990,22 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     private void onSpeedSub() {
         mViewModel.setSpeed(PlaybackAction.subSpeed(player(), mBinding.control.speed, 0.25f));
+    }
+
+    private void onAdMark() {
+        com.fongmi.android.tv.player.util.AdAudioDetector.get().onAdMarkClick(player().getPosition());
+        updateAdMarkText();
+    }
+
+    private void updateAdMarkText() {
+        boolean recording = com.fongmi.android.tv.player.util.AdAudioDetector.get().isRecording();
+        mBinding.control.adMark.setText(recording ? R.string.play_ad_mark_end : R.string.play_ad_mark);
+    }
+
+    private boolean onAdManage() {
+        com.fongmi.android.tv.ui.dialog.AdManagerDialog.create().sourceId(getHistoryKey()).show(this);
+        hideControl();
+        return true;
     }
 
     @Override

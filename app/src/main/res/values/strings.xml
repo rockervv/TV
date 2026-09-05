@@ -181,6 +181,9 @@
     <string name="render_high">強</string>
     <string name="play_save">儲存 M3U8</string>
     <string name="play_save_success">M3U8 已儲存至：%1$s</string>
+    <string name="play_ad_mark">標記廣告</string>
+    <string name="play_ad_mark_end">標記為廣告結尾</string>
+    <string name="play_ad_mark_new">標記為新廣告</string>
     <string name="play_display">顯示</string>
     <string name="play_speed">倍速</string>
     <string name="play_change">切換</string>

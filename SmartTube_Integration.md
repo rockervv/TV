@@ -75,5 +75,24 @@
 
 ---
 
-**紀錄日期**：2026-09-02
+## 4. 進階優化：解決 YouTube Live DASH 時間軸抖動 (Timeline Jitter)
+YouTube DASH 直播每隔 5 秒刷新一次 Manifest，其 AvailabilityStartTime (AST) 與片段起始時間會發生毫秒級的隨機偏移。這會導致 ExoPlayer 認為時間軸「斷裂」，觸發回跳、卡死或意外進入 `STATE_ENDED` 狀態。
+
+### A. 解決方案：坦克履帶式焊接法 (Tank-Track Timeline)
+#### 檔案：`app/src/main/java/com/fongmi/android/tv/player/exo/MediaSourceFactory.java`
+- **修改內容 (Version 35.0 - 牆鐘同步法)**：
+    1. **絕對時間坐標系 (Wall-Clock Sync)**：將開播時間 (AST) 強行設為 `0` (1970年)，並將 Manifest 中所有片段的時間戳 `T` 對齊 Android 系統當前毫秒時間戳 `System.currentTimeMillis()`。
+    2. **物理序號接龍**：徹底無視 Manifest 提供的 `startTime`。強制執行 `T(sq) = T(sq-1) + Duration(sq-1)`。確保只要序號連續，時間軸就是一條絕對直線。
+    3. **未來填充保護 (Future Padding)**：在 Manifest 的 `segmentTimeline` 末尾人為追加 12 個虛構片段（約 60 秒）。這解決了 ExoPlayer 因「追到直播邊緣」而誤判流結束並進入 `STATE_ENDED` 的致命問題。
+    4. **定位對齊 (Target Alignment)**：設置建議延遲為 15 秒。配合牆鐘同步，播放器會精準定位在 `Now - 15s` 處，而真實數據範圍在 `[Now - 25s, Now]`，保證播放頭始終有物理緩衝支撐。
+    5. **反射繞過 Final 限制**：使用反射強制修改 `SegmentBase` 中的 `segmentTimeline`、`startNumber` 和 `presentationTimeOffset`，實現「原地焊接」。
+
+### B. 優化後的表現
+- **消除回跳**：不再出現因為 AST 抖動導致的 `onPositionDiscontinuity`。
+- **杜絕結束循環**：未來填充確保播放器始終認為「還有 1 分鐘才播完」，永遠不會觸發自動切台或重啟。
+- **穩定播放**：狀態始終保持在 `STATE_READY`，實現了與官方 App 一致的流暢感。
+
+---
+
+**紀錄日期**：2026-09-05
 **維護者**：AI Assistant / Expert Android Developer

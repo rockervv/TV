@@ -11,6 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.bean.Ad;
 import com.fongmi.android.tv.bean.Backup;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.bean.Config;
@@ -23,6 +24,7 @@ import com.fongmi.android.tv.bean.Keep;
 import com.fongmi.android.tv.bean.Live;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Track;
+import com.fongmi.android.tv.db.dao.AdDao;
 import com.fongmi.android.tv.db.dao.ConfigDao;
 import com.fongmi.android.tv.db.dao.DeviceDao;
 import com.fongmi.android.tv.db.dao.DownloadDao;
@@ -50,10 +52,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-@Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class, Favorite.class}, version = AppDatabase.VERSION)
+@Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class, Favorite.class, Ad.class}, version = AppDatabase.VERSION)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public static final int VERSION = 41;
+    public static final int VERSION = 42;
     public static final String NAME = "tv";
     public static final String SYMBOL = "@@@";
     public static final String BACKUP_SUFFIX = "bk.gz";
@@ -186,6 +188,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 .addMigrations(wrap(MIGRATION_38_39))
                 .addMigrations(wrap(MIGRATION_39_40))
                 .addMigrations(wrap(MIGRATION_40_41))
+                .addMigrations(wrap(MIGRATION_41_42))
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
     }
 
@@ -218,6 +221,8 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract FlagScoreDao getFlagScoreDao();
 
     public abstract FavoriteDao getFavoriteDao();
+
+    public abstract AdDao getAdDao();
 
     static final Migration MIGRATION_11_12 = new Migration(11, 12) {
         @Override
@@ -453,6 +458,13 @@ public abstract class AppDatabase extends RoomDatabase {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             database.execSQL("ALTER TABLE Favorite ADD COLUMN vodTotal TEXT DEFAULT NULL");
+        }
+    };
+
+    static final Migration MIGRATION_41_42 = new Migration(41, 42) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("CREATE TABLE IF NOT EXISTS `Ad` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `fingerprint` TEXT, `sourceId` TEXT, `seriesName` TEXT, `adName` TEXT, `startTimeOffset` INTEGER NOT NULL, `tsCount` INTEGER NOT NULL, `duration` INTEGER NOT NULL, `hitCount` INTEGER NOT NULL, `lastHitTime` INTEGER NOT NULL)");
         }
     };
 }

@@ -130,7 +130,10 @@ public class ProgressLayout extends RelativeLayout {
                 Integer original = mVisibilities.get(view);
                 if (original != null && original != GONE) view.setVisibility(VISIBLE);
             } else {
-                mVisibilities.put(view, view.getVisibility());
+                int currentVisibility = view.getVisibility();
+                if (currentVisibility != GONE) {
+                    mVisibilities.put(view, currentVisibility);
+                }
                 view.setVisibility(GONE);
             }
         }

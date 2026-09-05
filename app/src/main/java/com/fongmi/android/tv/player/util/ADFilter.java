@@ -304,17 +304,14 @@ public class ADFilter {
             if (isAd) {
                 adCount++;
                 adDuration += block.duration;
-                Log.d("M3U8Parser", "Marked Block (AD): Duration=" + block.duration + ", Segments=" + block.segmentCount + ", Cue=" + block.hasCueAd + ", Sandwich=" + isSandwichAd + ", SequenceJump=" + sequenceJump);
+                needDiscontinuity = true; // 標記需要插入不連續標記，確保播放器能處理時間跳躍
+                Log.d("ADFilter", "Physically Removed Ad Block: Time=" + com.fongmi.android.tv.utils.Util.timeMs((long)(totalDuration - block.duration) * 1000) + ", Duration=" + block.duration + "s");
                 
-                // Tag URLs in the ad block instead of skipping them
+                // 物理刪除：不將此區塊的媒體片段（TS/M4S）加入輸出內容
+                // 但我們仍需掃描是否有配置資訊（如 KEY/MAP）在廣告塊中定義，以便後續片段使用
                 for (String line : block.lines) {
-                    if (isMediaSegment(line)) {
-                        String taggedLine = line;
-                        String tag = "ad_type=static&ad_dur=" + (int)(block.duration * 1000);
-                        taggedLine = line.contains("?") ? line + "&" + tag : line + "?" + tag;
-                        output.append(taggedLine).append("\n");
-                    } else {
-                        output.append(line).append("\n");
+                    if (line.startsWith("#EXT-X-KEY") || line.startsWith("#EXT-X-MAP")) {
+                        activeConfig = line;
                     }
                 }
                 
@@ -325,12 +322,13 @@ public class ADFilter {
             } else {
                 if (block.segmentCount > 0) {
                     boolean continuous = globalLastNum != null && block.firstNum != null && Math.abs(block.firstNum - globalLastNum) <= 1;
-                    if (needDiscontinuity && !block.hasStartDiscontinuity && !continuous) {
+                    // 如果之前刪除了廣告，或者原本就有不連續標記，且序號不連續，則補上 DISCONTINUITY
+                    if ((needDiscontinuity || !continuous) && !block.hasStartDiscontinuity && globalLastNum != null) {
                         output.append("#EXT-X-DISCONTINUITY\n");
                     }
                     needDiscontinuity = false;
 
-                    // Ensure KEY/MAP tags are emitted if they changed or were skipped
+                    // 確保加密金鑰 (KEY/MAP) 在刪除廣告後仍能正確銜接
                     if (!block.configFeature.isEmpty() && !block.configFeature.equals(lastEmittedConfig)) {
                         boolean alreadyHasConfig = false;
                         for (String line : block.lines) {
@@ -348,13 +346,15 @@ public class ADFilter {
 
                 boolean firstMediaInBlock = true;
                 for (String line : block.lines) {
-                    if (isMediaSegment(line) && (block.hasStartDiscontinuity || firstMediaInBlock) && block.segmentCount > 0) {
-                        String taggedLine = line;
-                        if (!line.contains("ad_check=1")) {
-                            taggedLine = line.contains("?") ? line + "&ad_check=1" : line + "?ad_check=1";
+                    if (isMediaSegment(line)) {
+                        if (block.segmentCount > 0 && (block.hasStartDiscontinuity || firstMediaInBlock)) {
+                            // 針對非廣告但需要「背景偵測」的片段（每段開頭），標記 ad_check=1 觸發音訊偵測
+                            String taggedLine = line.contains("?") ? line + "&ad_check=1" : line + "?ad_check=1";
+                            output.append(taggedLine).append("\n");
+                            firstMediaInBlock = false;
+                        } else {
+                            output.append(line).append("\n");
                         }
-                        output.append(taggedLine).append("\n");
-                        firstMediaInBlock = false;
                     } else {
                         output.append(line).append("\n");
                     }
@@ -507,12 +507,12 @@ public class ADFilter {
                     }
 
                     if (adCount > 0) {
-                        Notify.showTop("標記 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
+                        Notify.showTop("過濾 " + adCount + " 段廣告，共 " + adSeconds + " 秒");
                         lastCount = adCount;
                         lastSeconds = adSeconds;
                         lastTime = currentTime;
                     } else if (adCount < 0 && (currentTime - lastTime) > 60000) {
-                        Notify.showTop("廣告標記失敗");
+                        Notify.showTop("廣告過濾失敗");
                         lastCount = adCount;
                         lastTime = currentTime;
                     }

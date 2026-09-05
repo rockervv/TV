@@ -477,9 +477,10 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
 
     @Override
     protected void onVodChanged(Vod item) {
+        if (mBinding == null) return;
+        mBinding.progressLayout.showContent();
         mBinding.widget.status.setVisibility(View.VISIBLE);
         mBinding.widget.status.setText(R.string.play_status_success);
-        mBinding.progressLayout.showContent();
         mBinding.name.setText(item.getName());
         mBinding.widget.title.setText(item.getName());
         mViewModel.checkKeep(getHistoryKey());
@@ -489,6 +490,17 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         if (player() != null && player().getPlayer() instanceof androidx.media3.exoplayer.ExoPlayer exo) {
             com.fongmi.android.tv.player.util.AdAudioDetector.get().init(exo, getHistoryKey(), item.getName());
         }
+        resetFocus();
+    }
+
+    private void resetFocus() {
+        if (mBinding == null || isFullscreen()) return;
+        App.post(() -> {
+            View current = getCurrentFocus();
+            if (current == null || current == mBinding.getRoot() || current.getVisibility() != View.VISIBLE) {
+                mBinding.keep.requestFocus();
+            }
+        }, 100);
     }
 
     @Override
@@ -1437,7 +1449,10 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
         if (!isOwner() || player() == null || isUpdatingInfo || isScrubbing() || mSeeking) return;
         if (System.currentTimeMillis() - lastTimeUpdate < 2000) return;
         lastTimeUpdate = System.currentTimeMillis();
-        if (player().isPlaying()) mVod.onTimeChanged(time, player().getPosition(), player().getDuration());
+        if (player().isPlaying()) {
+            mVod.onTimeChanged(time, player().getPosition(), player().getDuration());
+            com.fongmi.android.tv.player.util.AdAudioDetector.get().onPositionChanged(player().getPosition());
+        }
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -1741,27 +1756,24 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     protected void hideProgress() {
         if (mBinding == null) return;
-        boolean countdown = false;
+        mBinding.widget.progress.setVisibility(View.GONE);
+        mBinding.progressLayout.showContent();
+        resetFocus();
         if (mBinding.widget.status.getVisibility() == View.VISIBLE) {
             String currentText = mBinding.widget.status.getText().toString();
             if (currentText.contains("秒") && mDataCountdown > 0) {
                 android.util.Log.d("VideoActivity", "hideProgress: status is currently counting down, skipping status reset");
-                countdown = true;
-            } else {
-                mBinding.widget.status.setText(R.string.play_timeout_success);
-                App.post(() -> {
-                    if (mBinding != null && player() != null && player().getPlaybackState() == Player.STATE_BUFFERING) {
-                        mBinding.widget.status.setText(R.string.play_buffering);
-                    } else if (mBinding != null) {
-                        mBinding.widget.status.setVisibility(View.GONE);
-                    }
-                }, 1000);
+                return;
             }
+            mBinding.widget.status.setText(R.string.play_timeout_success);
+            App.post(() -> {
+                if (mBinding != null && player() != null && player().getPlaybackState() == Player.STATE_BUFFERING) {
+                    mBinding.widget.status.setText(R.string.play_buffering);
+                } else if (mBinding != null) {
+                    mBinding.widget.status.setVisibility(View.GONE);
+                }
+            }, 1000);
         }
-        if (mBinding.widget.progress.getVisibility() == View.GONE && mBinding.progressLayout.isContent()) return;
-        if (!countdown) mBinding.widget.status.setVisibility(View.GONE);
-        mBinding.widget.progress.setVisibility(View.GONE);
-        mBinding.progressLayout.showContent();
     }
 
     @Override

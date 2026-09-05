@@ -150,6 +150,7 @@ public class ExoUtil {
             @Override
             public void onPositionDiscontinuity(@NonNull EventTime eventTime, @NonNull Player.PositionInfo oldPosition, @NonNull Player.PositionInfo newPosition, int reason) {
                 Log.w("ExoUtil", "onPositionDiscontinuity - Reason: " + reason + " | From: " + oldPosition.positionMs + " To: " + newPosition.positionMs);
+                com.fongmi.android.tv.player.util.AdAudioDetector.get().onPositionChanged(newPosition.positionMs);
             }
 
             @Override
@@ -170,6 +171,7 @@ public class ExoUtil {
             @Override
             public void onPlaybackStateChanged(@NonNull EventTime eventTime, int state) {
                 Log.d("ExoUtil", "onPlaybackStateChanged: " + state + " | VideoSize: " + player.getVideoSize().width + "x" + player.getVideoSize().height);
+                com.fongmi.android.tv.player.util.AdAudioDetector.get().onPositionChanged(player.getCurrentPosition());
             }
 
             @Override
@@ -198,11 +200,11 @@ public class ExoUtil {
 
             @Override
             public void onLoadStarted(@NonNull EventTime eventTime, @NonNull LoadEventInfo loadEventInfo, @NonNull MediaLoadData mediaLoadData) {
-                Log.d("ExoUtil", "onLoadStarted: " + loadEventInfo.uri);
+                Log.d("ExoUtil", "onLoadStarted: " + loadEventInfo.uri + " | StartTime: " + mediaLoadData.mediaStartTimeMs + " | EndTime: " + mediaLoadData.mediaEndTimeMs);
                 String url = loadEventInfo.uri.toString();
                 if (url.startsWith("http")) {
                     Map<String, String> headers = loadEventInfo.dataSpec.httpRequestHeaders;
-                    com.fongmi.android.tv.player.util.AdAudioDetector.get().onLoadStarted(url, headers);
+                    com.fongmi.android.tv.player.util.AdAudioDetector.get().onLoadStarted(url, headers, mediaLoadData.mediaStartTimeMs);
                     if (url.contains("ad_check=1")) {
                         com.fongmi.android.tv.player.util.AdAudioDetector.get().detect(url, headers);
                     }

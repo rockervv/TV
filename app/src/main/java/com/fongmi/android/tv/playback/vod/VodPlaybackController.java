@@ -66,6 +66,11 @@ public class VodPlaybackController {
         if (result == null) return;
         if (result.getList().isEmpty()) detailEmpty(result.hasMsg());
         else {
+            // 🛡️ 防抖檢查：如果當前已經正在播放該影片（或正在加載中），且來源 ID 相同，則忽略重複的詳情回調
+            if (state.getVod() != null && state.getVod().getId().equals(result.getVod().getId()) && !state.getVod().getSiteKey().isEmpty()) {
+                android.util.Log.d("TV_FATAL", "VodPlaybackController: Ignoring redundant detail result for " + result.getVod().getVodName());
+                return;
+            }
             detailLoaded(result.getVod());
             host.showDetailMessage(result.getMsg());
         }

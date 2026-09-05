@@ -24,11 +24,13 @@ public class AdAudioDetector {
     private String sourceId;
     private String seriesName;
     private List<Ad> adCache;
+    private final List<AdRange> dynamicRanges;
     private final Handler handler;
     private boolean detecting;
 
     private AdAudioDetector() {
         this.handler = new Handler(Looper.getMainLooper());
+        this.dynamicRanges = new ArrayList<>();
     }
 
     public static AdAudioDetector get() {
@@ -45,6 +47,7 @@ public class AdAudioDetector {
         this.sourceId = sourceId;
         this.seriesName = seriesName;
         this.adCache = Ad.get(sourceId);
+        this.dynamicRanges.clear();
         Log.d(TAG, "Initialized for source: " + sourceId + ", cached ads: " + (adCache != null ? adCache.size() : 0));
     }
 
@@ -54,7 +57,7 @@ public class AdAudioDetector {
     private int recordingTsCount;
     private long lastSkipTime;
 
-    public void onLoadStarted(String url, Map<String, String> headers) {
+    public void onLoadStarted(String url, Map<String, String> headers, long segmentStartTimeMs) {
         this.lastUrl = url;
         this.lastHeaders = headers;
         if (recordingAd != null) {
@@ -63,20 +66,75 @@ public class AdAudioDetector {
         }
         
         if (url.contains("ad_type=static")) {
-            if (System.currentTimeMillis() - lastSkipTime < 2000) return;
-            long duration = 0;
             try {
-                String durStr = url.split("ad_dur=")[1].split("&")[0];
-                duration = Long.parseLong(durStr);
+                long start = -1;
+                long target = -1;
+                if (url.contains("ad_start=")) start = Long.parseLong(url.split("ad_start=")[1].split("&")[0]);
+                if (url.contains("ad_target=")) target = Long.parseLong(url.split("ad_target=")[1].split("&")[0]);
+                
+                if (start != -1 && target != -1) {
+                    registerAdRange(start, target);
+                    checkImmediateJump(start, target);
+                }
             } catch (Exception ignored) {}
-            skipAd(duration);
-        } else if (player != null && adCache != null) {
-            // Fallback time-based check if M3U8 wasn't pre-tagged
-            long currentPos = player.getCurrentPosition();
+        }
+    }
+
+    private void registerAdRange(long start, long target) {
+        for (AdRange range : dynamicRanges) {
+            if (range.start == start && range.target == target) return;
+        }
+        Log.d(TAG, "Registered Dynamic Ad Range: " + Util.timeMs(start) + " -> " + Util.timeMs(target));
+        dynamicRanges.add(new AdRange(start, target));
+        
+        // Use ExoPlayer's Message system for sub-millisecond precision
+        if (player != null) {
+            player.createMessage((messageType, payload) -> {
+                Log.d(TAG, "Precise Message Jump triggered at " + Util.timeMs(start));
+                jumpTo(target);
+            })
+            .setPosition(start)
+            .setDeleteAfterDelivery(true)
+            .send();
+        }
+    }
+
+    private void checkImmediateJump(long start, long target) {
+        if (player == null) return;
+        long currentPos = player.getCurrentPosition();
+        long bufferedPos = player.getBufferedPosition();
+        
+        // If we are currently loading an ad segment and our current playback position 
+        // is within 5 seconds of it, we should jump NOW to target to avoid downloading and decoding the ad.
+        if (bufferedPos >= start - 1000 && currentPos < target) {
+            Log.d(TAG, "checkImmediateJump: Buffer is at ad start. Jumping to target to block preload.");
+            jumpTo(target);
+        }
+    }
+
+    /**
+     * Called whenever playback position changes.
+     */
+    public void onPositionChanged(long currentPos) {
+        if (player == null || System.currentTimeMillis() - lastSkipTime < 2000) return;
+
+        // 1. Check Dynamic Ranges (from M3U8 tags)
+        for (AdRange range : dynamicRanges) {
+            if (currentPos >= range.start - 300 && currentPos < range.target) {
+                jumpTo(range.target);
+                return;
+            }
+        }
+
+        // 2. Check Static Cache (from Fingerprinting database)
+        if (adCache != null) {
             for (Ad ad : adCache) {
                 for (Long offset : ad.getTimeOffsetList()) {
-                    if (Math.abs(offset - currentPos) < 5000) {
-                        skipAd(ad);
+                    if (Math.abs(offset - currentPos) < 1000) {
+                        jumpTo(currentPos + (ad.getDuration() > 0 ? ad.getDuration() : 15000));
+                        ad.setHitCount(ad.getHitCount() + 1);
+                        ad.setLastHitTime(System.currentTimeMillis());
+                        App.execute(ad::save);
                         return;
                     }
                 }
@@ -84,76 +142,52 @@ public class AdAudioDetector {
         }
     }
 
-    public void onAdMarkClick(long currentPosition) {
-        if (lastUrl == null) {
-            Notify.show("找不到片段資訊，無法標記");
-            return;
-        }
-        toggleRecord(lastUrl, lastHeaders, currentPosition);
+    private void jumpTo(long targetPosMs) {
+        handler.post(() -> {
+            if (player == null) return;
+            long currentPos = player.getCurrentPosition();
+            if (targetPosMs <= currentPos + 200) return;
+            
+            Log.d(TAG, "Executing jumpTo: currentPos=" + currentPos + ", target=" + targetPosMs);
+            player.seekTo(targetPosMs);
+            Notify.show("正在跳過廣告，跳轉至 " + Util.timeMs(targetPosMs));
+            lastSkipTime = System.currentTimeMillis();
+        });
     }
+
+    // --- Fingerprint Detection ---
 
     public void detect(String url, Map<String, String> headers) {
         if (detecting) return;
         detecting = true;
-        Log.d(TAG, "Starting detection for URL: " + url);
-        
         AudioExtractor.extract(url, headers, new AudioExtractor.Callback() {
             @Override
             public void onSuccess(byte[] pcmData) {
                 String fingerprint = AudioFingerprinter.generateFingerprint(pcmData);
-                checkAd(fingerprint, url);
+                checkAd(fingerprint);
                 detecting = false;
             }
-
             @Override
             public void onError(Exception e) {
-                Log.e(TAG, "Extraction error: " + e.getMessage());
                 detecting = false;
             }
         });
     }
 
-    private void checkAd(String fingerprint, String url) {
+    private void checkAd(String fingerprint) {
         if (adCache == null) return;
         for (Ad ad : adCache) {
             float similarity = AudioFingerprinter.compare(fingerprint, ad.getFingerprint());
             if (similarity > 0.9f) {
-                Log.d(TAG, "Ad detected by fingerprint! Similarity: " + similarity);
-                // Update pattern and hit count
-                ad.addTimeOffset(player.getCurrentPosition());
-                skipAd(ad);
+                long pos = player.getCurrentPosition();
+                ad.addTimeOffset(pos);
+                jumpTo(pos + (ad.getDuration() > 0 ? ad.getDuration() : 15000));
                 return;
             }
         }
     }
 
-    private void skipAd(long durationMs) {
-        handler.post(() -> {
-            if (player == null) return;
-            long currentPos = player.getCurrentPosition();
-            long skip = durationMs > 0 ? durationMs : 15000;
-            player.seekTo(currentPos + skip);
-            Notify.show("正在跳過 " + Util.timeMs(skip) + " 廣告");
-            lastSkipTime = System.currentTimeMillis();
-        });
-    }
-
-    private void skipAd(Ad ad) {
-        if (System.currentTimeMillis() - lastSkipTime < 2000) return;
-        handler.post(() -> {
-            if (player == null) return;
-            long currentPos = player.getCurrentPosition();
-            long skipDuration = ad.getDuration() > 0 ? ad.getDuration() : 15000; // Default 15s if unknown
-            player.seekTo(currentPos + skipDuration);
-            Notify.show("正在跳過 " + Util.timeMs(skipDuration) + " 廣告");
-            lastSkipTime = System.currentTimeMillis();
-            
-            // Update hit count
-            ad.setHitCount(ad.getHitCount() + 1);
-            ad.setLastHitTime(System.currentTimeMillis());
-            App.execute(ad::save);
-        });
-    }
+    // --- Recording Logic ---
 
     private Ad recordingAd;
 
@@ -161,16 +195,19 @@ public class AdAudioDetector {
         return recordingAd != null;
     }
 
-    public void toggleRecord(String url, Map<String, String> headers, long startTimeOffset) {
+    public void onAdMarkClick(long currentPosition) {
+        if (lastUrl == null) {
+            Notify.show("找不到片段資訊，無法標記");
+            return;
+        }
         if (recordingAd == null) {
-            startRecording(url, headers, startTimeOffset);
+            startRecording(lastUrl, lastHeaders, currentPosition);
         } else {
-            stopRecording(startTimeOffset);
+            stopRecording(currentPosition);
         }
     }
 
     private void startRecording(String url, Map<String, String> headers, long startTimeOffset) {
-        Log.d(TAG, "Start recording ad for URL: " + url);
         recordingTsCount = 1;
         recordingUrlPatterns = new ArrayList<>();
         recordingUrlPatterns.add(ADFilter.extractUrlFeature(url));
@@ -178,18 +215,10 @@ public class AdAudioDetector {
             @Override
             public void onSuccess(byte[] pcmData) {
                 String fingerprint = AudioFingerprinter.generateFingerprint(pcmData);
-                
-                // Check if this ad already exists in cache
                 Ad existing = null;
                 if (adCache != null) {
-                    for (Ad a : adCache) {
-                        if (AudioFingerprinter.compare(fingerprint, a.getFingerprint()) > 0.95f) {
-                            existing = a;
-                            break;
-                        }
-                    }
+                    for (Ad a : adCache) if (AudioFingerprinter.compare(fingerprint, a.getFingerprint()) > 0.95f) { existing = a; break; }
                 }
-
                 if (existing != null) {
                     recordingAd = existing;
                     recordingAd.addTimeOffset(startTimeOffset);
@@ -201,13 +230,12 @@ public class AdAudioDetector {
                     recordingAd.setSeriesName(seriesName);
                     recordingAd.addTimeOffset(startTimeOffset);
                     recordingAd.setAdName("廣告 " + (adCache != null ? adCache.size() + 1 : 1));
-                    handler.post(() -> Notify.show("已標記廣告開始，播放結束後請點擊「標記結尾」"));
+                    handler.post(() -> Notify.show("已標記廣告開始"));
                 }
             }
-
             @Override
             public void onError(Exception e) {
-                handler.post(() -> Notify.show("標記廣告失敗: " + e.getMessage()));
+                handler.post(() -> Notify.show("標記失敗: " + e.getMessage()));
             }
         });
     }
@@ -217,26 +245,27 @@ public class AdAudioDetector {
         long startTime = recordingAd.getTimeOffsetList().isEmpty() ? 0 : recordingAd.getTimeOffsetList().get(recordingAd.getTimeOffsetList().size() - 1);
         long duration = endTimeOffset - startTime;
         if (duration <= 0 || duration > 60000) {
-            Notify.show("廣告時長不合法 (" + (duration / 1000) + "秒)，已取消標記");
+            Notify.show("廣告時長不合法，已取消");
             recordingAd = null;
             return;
         }
-
         recordingAd.setDuration(duration);
         recordingAd.setTsCount(recordingTsCount);
-        recordingAd.setLastHitTime(System.currentTimeMillis());
-        
         StringBuilder patterns = new StringBuilder();
         for (int i = 0; i < recordingUrlPatterns.size(); i++) patterns.append(recordingUrlPatterns.get(i)).append(i == recordingUrlPatterns.size() - 1 ? "" : ",");
         recordingAd.setUrlPatterns(patterns.toString());
-        
         final Ad finalAd = recordingAd;
         App.execute(() -> {
             finalAd.save();
             adCache = Ad.get(sourceId);
-            int count = finalAd.getTimeOffsetList().size();
-            handler.post(() -> Notify.show("已紀錄廣告特徵 (長度 " + (duration / 1000) + "秒, TS數 " + finalAd.getTsCount() + ")，該影片已出現 " + count + " 次"));
+            handler.post(() -> Notify.show("廣告特徵已紀錄 (" + (duration / 1000) + "秒)"));
         });
         recordingAd = null;
+    }
+
+    private static class AdRange {
+        long start;
+        long target;
+        AdRange(long start, long target) { this.start = start; this.target = target; }
     }
 }

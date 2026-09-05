@@ -480,11 +480,10 @@ public abstract class AppDatabase extends RoomDatabase {
     static final Migration MIGRATION_43_44 = new Migration(43, 44) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
-            database.execSQL("ALTER TABLE Ad ADD COLUMN urlPatterns TEXT DEFAULT NULL");
-            database.execSQL("ALTER TABLE Ad ADD COLUMN segmentDurations TEXT DEFAULT NULL");
-            database.execSQL("ALTER TABLE Ad ADD COLUMN timeOffsets TEXT DEFAULT NULL");
-            // Basic data migration if old columns existed
-            database.execSQL("UPDATE Ad SET urlPatterns = urlPattern, timeOffsets = CAST(startTimeOffset AS TEXT) WHERE urlPatterns IS NULL");
+            database.execSQL("CREATE TABLE IF NOT EXISTS `Ad_New` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `fingerprint` TEXT, `sourceId` TEXT, `seriesName` TEXT, `adName` TEXT, `urlPatterns` TEXT, `segmentDurations` TEXT, `timeOffsets` TEXT, `tsCount` INTEGER NOT NULL, `duration` INTEGER NOT NULL, `hitCount` INTEGER NOT NULL, `lastHitTime` INTEGER NOT NULL)");
+            database.execSQL("INSERT INTO `Ad_New` (`id`, `fingerprint`, `sourceId`, `seriesName`, `adName`, `urlPatterns`, `timeOffsets`, `tsCount`, `duration`, `hitCount`, `lastHitTime`) SELECT `id`, `fingerprint`, `sourceId`, `seriesName`, `adName`, `urlPattern`, CAST(`startTimeOffset` AS TEXT), `tsCount`, `duration`, `hitCount`, `lastHitTime` FROM `Ad` ");
+            database.execSQL("DROP TABLE `Ad` ");
+            database.execSQL("ALTER TABLE `Ad_New` RENAME TO `Ad` ");
         }
     };
 }

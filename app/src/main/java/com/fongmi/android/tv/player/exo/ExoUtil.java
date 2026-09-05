@@ -76,14 +76,81 @@ public class ExoUtil {
     @SuppressWarnings("RestrictedApi")
     public static ExoPlayer buildPlayer(int decode, Player.Listener listener) {
         Log.d("ExoUtil", "buildPlayer decode: " + decode);
+
+        // 🛠️ 建立共享的 Allocator
+        androidx.media3.exoplayer.upstream.DefaultAllocator allocator = new androidx.media3.exoplayer.upstream.DefaultAllocator(true, androidx.media3.common.C.DEFAULT_BUFFER_SEGMENT_SIZE);
+
+        // 🛡️ 建立單一穩健的 LoadControl 實例，避免多實例導致的線程衝突
+        androidx.media3.exoplayer.DefaultLoadControl internal = new androidx.media3.exoplayer.DefaultLoadControl.Builder()
+                .setAllocator(allocator)
+                .setBufferDurationsMs(60000, 120000, 1000, 3000) // 加大緩衝區上限至 120s
+                .setBackBuffer(30000, true)
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build();
+
+        // 🛠️ 優化解碼器性能
+        RenderersFactory renderersFactory = buildPlaybackRenderersFactory(decode);
+        if (renderersFactory instanceof DefaultRenderersFactory factory) {
+            factory.setEnableDecoderFallback(true);
+        }
+
+        androidx.media3.exoplayer.LoadControl loadControl = new androidx.media3.exoplayer.LoadControl() {
+            private volatile boolean isMpd;
+
+            @Override public void onPrepared(@NonNull androidx.media3.exoplayer.analytics.PlayerId playerId) { internal.onPrepared(playerId); }
+
+            @Override public void onTracksSelected(@NonNull androidx.media3.exoplayer.analytics.PlayerId playerId, @NonNull androidx.media3.common.Timeline timeline, @NonNull androidx.media3.exoplayer.source.MediaSource.MediaPeriodId mediaPeriodId, @NonNull androidx.media3.exoplayer.Renderer[] renderers, @NonNull androidx.media3.exoplayer.source.TrackGroupArray trackGroups, @NonNull androidx.media3.exoplayer.trackselection.ExoTrackSelection[] trackSelections) {
+                if (!timeline.isEmpty()) {
+                    androidx.media3.common.Timeline.Period period = new androidx.media3.common.Timeline.Period();
+                    try {
+                        int windowIndex = timeline.getPeriodByUid(mediaPeriodId.periodUid, period).windowIndex;
+                        androidx.media3.common.Timeline.Window window = new androidx.media3.common.Timeline.Window();
+                        timeline.getWindow(windowIndex, window);
+                        isMpd = window.mediaItem != null && window.mediaItem.localConfiguration != null && MimeTypes.APPLICATION_MPD.equals(window.mediaItem.localConfiguration.mimeType);
+                    } catch (Exception ignored) {}
+                }
+                internal.onTracksSelected(playerId, timeline, mediaPeriodId, renderers, trackGroups, trackSelections);
+            }
+
+            @Override public void onStopped(@NonNull androidx.media3.exoplayer.analytics.PlayerId playerId) { internal.onStopped(playerId); }
+            @Override public void onReleased(@NonNull androidx.media3.exoplayer.analytics.PlayerId playerId) { internal.onReleased(playerId); }
+            @Override public androidx.media3.exoplayer.upstream.Allocator getAllocator() { return internal.getAllocator(); }
+            @Override public long getBackBufferDurationUs(@NonNull androidx.media3.exoplayer.analytics.PlayerId playerId) { return internal.getBackBufferDurationUs(playerId); }
+            @Override public boolean retainBackBufferFromKeyframe(@NonNull androidx.media3.exoplayer.analytics.PlayerId playerId) { return internal.retainBackBufferFromKeyframe(playerId); }
+
+            @Override
+            public boolean shouldContinueLoading(@NonNull androidx.media3.exoplayer.LoadControl.Parameters parameters) {
+                return internal.shouldContinueLoading(parameters);
+            }
+
+            @Override
+            public boolean shouldStartPlayback(@NonNull androidx.media3.exoplayer.LoadControl.Parameters parameters) {
+                // 🚀 核心優化：如果是 YouTube (DASH)，強制 0ms 起始，消除切換 Period 時的緩衝圈圈
+                if (isMpd) return true;
+                return internal.shouldStartPlayback(parameters);
+            }
+        };
+
         ExoPlayer player = new ExoPlayer.Builder(App.get())
                 .setTrackSelector(buildTrackSelector())
-                .setRenderersFactory(buildPlaybackRenderersFactory(decode))
+                .setRenderersFactory(renderersFactory)
                 .setMediaSourceFactory(buildMediaSourceFactory())
+                .setLoadControl(loadControl)
+                .setUseLazyPreparation(false)
                 .build();
         if (BuildConfig.DEBUG) player.addAnalyticsListener(new EventLogger());
         player.addAnalyticsListener(new AnalyticsListener() {
             private LoudnessEnhancer loudnessEnhancer;
+
+            @Override
+            public void onTimelineChanged(@NonNull EventTime eventTime, int reason) {
+                Log.d("ExoUtil", "onTimelineChanged - Periods: " + eventTime.timeline.getPeriodCount() + " | Reason: " + reason);
+            }
+
+            @Override
+            public void onPositionDiscontinuity(@NonNull EventTime eventTime, @NonNull Player.PositionInfo oldPosition, @NonNull Player.PositionInfo newPosition, int reason) {
+                Log.w("ExoUtil", "onPositionDiscontinuity - Reason: " + reason + " | From: " + oldPosition.positionMs + " To: " + newPosition.positionMs);
+            }
 
             @Override
             public void onAudioSessionIdChanged(@NonNull EventTime eventTime, int audioSessionId) {
@@ -132,6 +199,16 @@ public class ExoUtil {
             @Override
             public void onLoadStarted(@NonNull EventTime eventTime, @NonNull LoadEventInfo loadEventInfo, @NonNull MediaLoadData mediaLoadData) {
                 Log.d("ExoUtil", "onLoadStarted: " + loadEventInfo.uri);
+            }
+
+            @Override
+            public void onLoadCompleted(@NonNull EventTime eventTime, @NonNull LoadEventInfo loadEventInfo, @NonNull MediaLoadData mediaLoadData) {
+                Log.d("ExoUtil", "onLoadCompleted: " + loadEventInfo.uri + " | Duration: " + loadEventInfo.loadDurationMs + "ms | Size: " + loadEventInfo.bytesLoaded);
+            }
+
+            @Override
+            public void onLoadError(@NonNull EventTime eventTime, @NonNull LoadEventInfo loadEventInfo, @NonNull MediaLoadData mediaLoadData, @NonNull java.io.IOException error, boolean wasCanceled) {
+                Log.e("ExoUtil", "onLoadError: " + loadEventInfo.uri + " | Error: " + error.getMessage());
             }
 
             @Override
@@ -199,7 +276,7 @@ public class ExoUtil {
 
     public static String getMimeType(int errorCode) {
         if (errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED || errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED || errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED) return MimeTypes.APPLICATION_M3U8;
-        if (errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED || errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED) return "application/octet-stream";
+        if (errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED || errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED || errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) return "application/octet-stream";
         return null;
     }
 
@@ -223,10 +300,20 @@ public class ExoUtil {
         DefaultTrackSelector.Parameters.Builder builder = trackSelector.buildUponParameters();
         if (PlayerSetting.isPreferAAC()) builder.setPreferredAudioMimeType(MimeTypes.AUDIO_AAC);
         builder.setPreferredTextLanguages(LangUtil.getPreferredTextLanguages());
-        builder.setTunnelingEnabled(PlayerSetting.isTunnelingEnabled());
+        // 🛠️ 穩定性優化：YouTube DASH 直播不建議開啟隧道模式
+        builder.setTunnelingEnabled(false); 
+        // 🛠️ 軌道銜接優化：防止因微小格式變動導致重置
         builder.setForceHighestSupportedBitrate(true);
         builder.setExceedVideoConstraintsIfNecessary(true);
         builder.setExceedRendererCapabilitiesIfNecessary(true);
+        builder.setAllowVideoMixedMimeTypeAdaptiveness(true);
+        builder.setAllowAudioMixedMimeTypeAdaptiveness(true);
+        builder.setAllowVideoNonSeamlessAdaptiveness(true);
+        // 🛠️ 增加解碼器適應性：允許在不同解碼能力間切換，減少 0 groups 情況
+        builder.setAllowVideoMixedDecoderSupportAdaptiveness(true);
+        builder.setAllowAudioMixedDecoderSupportAdaptiveness(true);
+        // 🛠️ 核心：允許在 Period 切換時跨 MIME 類型適配，模擬 Period Unification
+        builder.setAllowMultipleAdaptiveSelections(true);
         trackSelector.setParameters(builder.build());
         return trackSelector;
     }
@@ -248,6 +335,8 @@ public class ExoUtil {
         };
         factory.setExtensionRendererMode(renderMode);
         factory.setEnableDecoderFallback(true);
+        // 🛠️ 銜接優化：允許視頻在切換 Period 時有更長的等待時間，避免因同步微調導致的重置
+        factory.setAllowedVideoJoiningTimeMs(10000);
         return factory;
     }
 

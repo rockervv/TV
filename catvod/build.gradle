@@ -9,6 +9,8 @@ android {
     defaultConfig {
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
+
+        missingDimensionStrategy 'default', 'ststable'
     }
 
     compileOptions {
@@ -22,6 +24,10 @@ android {
 dependencies {
     api project(':common')
     api project(':youtube')
+    api project(':sharedutils')
+    api project(':mediaserviceinterfaces')
+    api project(':youtubeapi')
+
     api libs.annotation
     api libs.brotli
     api libs.bundles.okhttp
@@ -30,6 +36,8 @@ dependencies {
     api libs.juniversalchardet
     api libs.logger
     api libs.preference
+    api libs.rxandroid
+    api libs.rxjava
     api libs.sardine
     api libs.smbj
     api libs.startup

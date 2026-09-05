@@ -117,6 +117,16 @@ public class Result {
         return this;
     }
 
+    public Result dash() {
+        this.format = "application/dash+xml";
+        return this;
+    }
+
+    public Result hls() {
+        this.format = "application/x-mpegURL";
+        return this;
+    }
+
     public String string() {
         return toString();
     }

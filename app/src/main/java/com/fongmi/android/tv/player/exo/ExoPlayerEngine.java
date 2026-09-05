@@ -121,8 +121,11 @@ public class ExoPlayerEngine implements PlayerEngine {
             }
         }
         if (isConnectionRefused(e)) return ErrorAction.FATAL;
+        // 🛠️ 針對 YouTube DASH (MPD) 源的過期處理
+        boolean isMpd = spec != null && androidx.media3.common.MimeTypes.APPLICATION_MPD.equals(spec.getFormat());
         return switch (e.errorCode) {
-            case PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> ErrorAction.SEEK;
+            case PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> isMpd ? ErrorAction.RETRY : ErrorAction.SEEK;
+            case PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE -> isMpd ? ErrorAction.FORMAT : ErrorAction.FATAL;
             case PlaybackException.ERROR_CODE_DECODER_INIT_FAILED, PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED, PlaybackException.ERROR_CODE_DECODING_FAILED, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> ErrorAction.FALLBACK;
             case PlaybackException.ERROR_CODE_IO_UNSPECIFIED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED -> ErrorAction.FORMAT;
             default -> ErrorAction.FATAL;

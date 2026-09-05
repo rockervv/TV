@@ -21,6 +21,8 @@ android {
         versionCode autoVersionCode
         versionName autoVersionName
 
+        missingDimensionStrategy 'default', 'ststable'
+
         externalNativeBuild {
             cmake {
                 cppFlags "-std=c++17"

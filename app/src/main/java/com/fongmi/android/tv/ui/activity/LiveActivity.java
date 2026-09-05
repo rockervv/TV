@@ -798,7 +798,7 @@ public class LiveActivity extends PlaybackActivity implements NavAdapter.OnClick
 
     private void startDataTimer() {
         App.removeCallbacks(mDataTimer);
-        mDataCountdown = 150;
+        mDataCountdown = 300;
         mDataTimer = new Runnable() {
             @Override
             public void run() {

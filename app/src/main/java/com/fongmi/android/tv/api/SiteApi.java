@@ -171,8 +171,12 @@ public class SiteApi {
         SpiderDebug.onSet("SpiderDebug-" + site.getName());
         
         // 🛠️ 核心修復：發送前將所有參數轉化為簡體，確保 Mainland 站點能正確識別
+        // 💡 排除 loc_ 開頭的本地爬蟲，避免破壞其內部繁體邏輯 (如 Douban)
         HashMap<String, String> params = new HashMap<>();
-        for (String k : extend.keySet()) params.put(k, com.github.catvod.utils.Trans.z2p(extend.get(k)));
+        for (String k : extend.keySet()) {
+            String val = extend.get(k);
+            params.put(k, key.startsWith("loc_") ? val : com.github.catvod.utils.Trans.z2p(val));
+        }
         
         String extHash = CacheManager.getExtHash(params);
         android.util.Log.d("FILTER_DEBUG", ">>> [STEP 1: Request Start] Site: " + site.getName() + " | TID: " + tid + " | Page: " + page);

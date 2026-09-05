@@ -115,6 +115,14 @@ public class VodPlaybackController {
 
     public void onSearchResult(Result result) {
         fallbackPolicy.onSearchResult(result);
+        reAggregate();
+    }
+
+    public void reAggregate() {
+        Vod item = state.getVod();
+        if (item == null) return;
+        aggregate(item);
+        if (viewModel != null) viewModel.setVod(item);
     }
 
     public void selectFlag(Flag item) {
@@ -352,6 +360,8 @@ public class VodPlaybackController {
         android.util.Log.d("TV_FATAL", "VodPlaybackController.detailLoaded: " + item.getVodName() + " Flags: " + item.getFlags().size() + " Content: " + (item.getContent().length() > 20 ? item.getContent().substring(0, 20) : item.getContent()));
         item.checkPic(host.getVodPic());
         item.checkName(host.getVodName());
+        state.setVod(item);
+        aggregate(item);
         sortFlags(item.getFlags());
         state.setFlags(item.getFlags());
         History history = historyPolicy.findOrCreate(host.getHistoryKey(), host.getVodMark(), item);
@@ -371,6 +381,23 @@ public class VodPlaybackController {
         } else {
             selectFlag(state.getHistory().getFlag(), true);
             if (state.getHistory().isRevSort()) reverseEpisode(true);
+        }
+    }
+
+    private void aggregate(Vod item) {
+        // 🛠️ 數據融合機制：如果當前站源資料缺失，嘗試從其他搜尋到的來源中提取有效資訊
+        // 這對於那些「只有播放線路、沒有簡介」的站點非常有用
+        for (Vod source : state.getSources()) {
+            if (item.getContent().isEmpty() && !source.getContent().isEmpty()) {
+                android.util.Log.d("Metadata", "Aggregating Content from: " + source.getSiteName());
+                item.setContent(source.getContent());
+            }
+            if (item.getYear().isEmpty() && !source.getYear().isEmpty()) item.setYear(source.getYear());
+            if (item.getDirector().isEmpty() && !source.getDirector().isEmpty()) item.setDirector(source.getDirector());
+            if (item.getActor().isEmpty() && !source.getActor().isEmpty()) item.setActor(source.getActor());
+            if (item.getRemarks().isEmpty() && !source.getRemarks().isEmpty()) item.setRemarks(source.getRemarks());
+            if (item.getArea().isEmpty() && !source.getArea().isEmpty()) item.setArea(source.getArea());
+            if (item.getTypeName().isEmpty() && !source.getTypeName().isEmpty()) item.setTypeName(source.getTypeName());
         }
     }
 

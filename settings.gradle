@@ -33,3 +33,15 @@ include ':quickjs'
 include ':youtube'
 include ':hook'
 include ':mpv'
+
+// 定義 SmartTube 核心模組的路徑
+gradle.ext.sharedModulesRoot = new File(settingsDir, 'SharedModules')
+gradle.ext.sharedModulesConstants = new File(gradle.ext.sharedModulesRoot, 'constants.gradle')
+if (gradle.ext.sharedModulesRoot.exists()) {
+    apply from: new File(gradle.ext.sharedModulesRoot, 'core_settings.gradle')
+}
+
+gradle.ext.mediaServiceCoreRoot = new File(settingsDir, 'MediaServiceCore')
+if (gradle.ext.mediaServiceCoreRoot.exists()) {
+    apply from: new File(gradle.ext.mediaServiceCoreRoot, 'core_settings.gradle')
+}

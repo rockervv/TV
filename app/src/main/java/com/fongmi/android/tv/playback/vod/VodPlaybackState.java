@@ -20,6 +20,7 @@ public class VodPlaybackState {
     private VodPlayRequest playingRequest;
     private History history;
     private Result quality;
+    private Vod vod;
     private boolean selectFirstSource;
     private boolean autoFallback;
     private boolean recovering;
@@ -41,6 +42,7 @@ public class VodPlaybackState {
         flags.clear();
         quality = Result.empty();
         history = null;
+        vod = null;
         clearPlayRequest();
         selectFirstSource = false;
         autoFallback = false;
@@ -132,6 +134,14 @@ public class VodPlaybackState {
 
     public void setHistory(History history) {
         this.history = history;
+    }
+
+    public Vod getVod() {
+        return vod;
+    }
+
+    public void setVod(Vod vod) {
+        this.vod = vod;
     }
 
     public VodPlayRequest getPendingRequest() {

@@ -11,6 +11,8 @@ android {
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
 
+        missingDimensionStrategy 'default', 'ststable'
+
         python {
             version = "3.10"
             pip {

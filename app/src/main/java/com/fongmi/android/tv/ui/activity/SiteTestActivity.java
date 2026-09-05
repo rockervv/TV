@@ -17,6 +17,7 @@ import com.fongmi.android.tv.api.SiteApi;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
+import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.databinding.ActivitySiteTestBinding;
 import com.fongmi.android.tv.ui.adapter.SiteAdapter;
 import com.fongmi.android.tv.ui.base.BaseActivity;
@@ -46,55 +47,77 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
         mBinding.siteRecycler.setAdapter(mAdapter = new SiteAdapter(this));
         mBinding.keywordInput.setText("欧若拉公主");
         
-        // 🛡️ 設置右側面板所有元件往左時回到站台列表
-        mBinding.homeBtn.setNextFocusLeftId(R.id.siteRecycler);
-        mBinding.categoryBtn.setNextFocusLeftId(R.id.siteRecycler);
-        mBinding.detailBtn.setNextFocusLeftId(R.id.siteRecycler);
-        mBinding.searchBtn.setNextFocusLeftId(R.id.siteRecycler);
-        mBinding.playerBtn.setNextFocusLeftId(R.id.siteRecycler);
-        mBinding.tidInput.setNextFocusLeftId(R.id.siteRecycler);
-        mBinding.idInput.setNextFocusLeftId(R.id.siteRecycler);
-        mBinding.keywordInput.setNextFocusLeftId(R.id.siteRecycler);
+        mBinding.homeBtn.setNextFocusRightId(R.id.categoryBtn);
+        mBinding.categoryBtn.setNextFocusLeftId(R.id.homeBtn);
+        mBinding.categoryBtn.setNextFocusRightId(R.id.detailBtn);
+        mBinding.detailBtn.setNextFocusLeftId(R.id.categoryBtn);
+        mBinding.detailBtn.setNextFocusRightId(R.id.searchBtn);
+        mBinding.searchBtn.setNextFocusLeftId(R.id.detailBtn);
+        mBinding.searchBtn.setNextFocusRightId(R.id.playerBtn);
+        mBinding.playerBtn.setNextFocusLeftId(R.id.searchBtn);
 
         if (!VodConfig.get().getSites().isEmpty()) {
             onItemClick(VodConfig.get().getSites().get(0));
         }
     }
 
+    private void focusSelectedSite() {
+        int position = -1;
+        java.util.List<Site> sites = VodConfig.get().getSites();
+        for (int i = 0; i < sites.size(); i++) {
+            if (sites.get(i).isSelected()) {
+                position = i;
+                break;
+            }
+        }
+        if (position != -1) {
+            final int pos = position;
+            mBinding.siteRecycler.scrollToPosition(pos);
+            mBinding.siteRecycler.post(() -> {
+                androidx.recyclerview.widget.RecyclerView.ViewHolder vh = mBinding.siteRecycler.findViewHolderForAdapterPosition(pos);
+                if (vh != null) vh.itemView.requestFocus();
+                else mBinding.siteRecycler.requestFocus();
+            });
+        } else {
+            mBinding.siteRecycler.requestFocus();
+        }
+    }
+
     @Override
     protected void initEvent() {
         mBinding.homeBtn.setOnClickListener(v -> testHome());
-        mBinding.categoryBtn.setOnClickListener(v -> {
-            if (mBinding.tidInput.getText().toString().isEmpty()) pickCategory();
-            else testCategory();
+        mBinding.homeBtn.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                focusSelectedSite();
+                return true;
+            }
+            return false;
         });
+
+        mBinding.categoryBtn.setOnClickListener(v -> pickCategory());
         mBinding.categoryBtn.setOnLongClickListener(v -> {
-            pickCategory();
+            testCategory(mBinding.tidInput.getText().toString());
             return true;
         });
-        mBinding.detailBtn.setOnClickListener(v -> {
-            if (mBinding.idInput.getText().toString().isEmpty()) pickVideo(false);
-            else testDetail();
-        });
+
+        mBinding.detailBtn.setOnClickListener(v -> pickVideo(false));
         mBinding.detailBtn.setOnLongClickListener(v -> {
-            pickVideo(false);
+            testDetail(mBinding.idInput.getText().toString());
             return true;
         });
-        mBinding.playerBtn.setOnClickListener(v -> {
-            if (mBinding.idInput.getText().toString().isEmpty()) pickVideo(true);
-            else testPlayer();
-        });
+
+        mBinding.playerBtn.setOnClickListener(v -> pickVideo(true));
         mBinding.playerBtn.setOnLongClickListener(v -> {
-            pickVideo(true);
+            testPlayerChain(mBinding.idInput.getText().toString());
             return true;
         });
+
         mBinding.searchBtn.setOnClickListener(v -> testSearch());
         mBinding.keywordInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) testSearch();
             return true;
         });
 
-        // 🛡️ 監聽站台列表按右鍵時，焦點移至 Home 按鈕
         mBinding.siteRecycler.setOnKeyListener((v, keyCode, event) -> {
             if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 mBinding.homeBtn.requestFocus();
@@ -104,9 +127,9 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
         });
     }
 
-    private void pickVideo(boolean player) {
+    private void pickVideo(boolean isPlayer) {
         if (mHomeResult == null || mHomeResult.getList().isEmpty()) {
-            Notify.show("請先執行 Home 測試以獲取影片列表");
+            Notify.show("請先執行 Home/Category/Search 以獲取影片列表");
             return;
         }
         String[] names = new String[mHomeResult.getList().size()];
@@ -119,15 +142,15 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
                 .setTitle("選擇影片")
                 .setItems(names, (dialog, which) -> {
                     mBinding.idInput.setText(ids[which]);
-                    if (player) testPlayer();
-                    else testDetail();
+                    if (isPlayer) testPlayerChain(ids[which]);
+                    else testDetail(ids[which]);
                 })
                 .show();
     }
 
     private void pickCategory() {
         if (mHomeResult == null || mHomeResult.getTypes().isEmpty()) {
-            Notify.show("請先執行 Home 測試以獲取分類");
+            Notify.show("請先執行 Home 以獲取分類列表");
             return;
         }
         String[] names = new String[mHomeResult.getTypes().size()];
@@ -140,7 +163,7 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
                 .setTitle("選擇分類")
                 .setItems(names, (dialog, which) -> {
                     mBinding.tidInput.setText(ids[which]);
-                    testCategory();
+                    testCategory(ids[which]);
                 })
                 .show();
     }
@@ -154,7 +177,6 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
         mBinding.siteName.setText(item.getName());
         mBinding.siteConfig.setText(String.format("TYPE: %d | API: %s\nEXT: %s", item.getType(), item.getApi(), item.getExt()));
         mAdapter.notifyDataSetChanged();
-        // 🛡️ 強制恢復焦點到剛才點擊的項目，避免 notifyDataSetChanged 導致焦點丟失
         if (focus != null) focus.requestFocus();
     }
 
@@ -169,70 +191,40 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
 
     private void testHome() {
         if (mSite == null) return;
-        Log.d("SiteTest", ">>> [homeContent] START Site: " + mSite.getName() + " (Type: " + mSite.getType() + ")");
+        Log.d("SiteTest", ">>> [homeContent] START Site: " + mSite.getName());
         new Thread(() -> {
             try {
-                long start = System.currentTimeMillis();
                 Result result = SiteApi.homeContent(mSite);
-                long cost = System.currentTimeMillis() - start;
-                Log.d("SiteTest", ">>> [homeContent] COMPLETED in " + cost + "ms");
                 mHomeResult = result;
-                runOnUiThread(() -> {
-                    if (mBinding.tidInput.getText().toString().isEmpty() && !result.getTypes().isEmpty()) {
-                        mBinding.tidInput.setText(result.getTypes().get(0).getTypeId());
-                    }
-                    if (mBinding.idInput.getText().toString().isEmpty() && !result.getList().isEmpty()) {
-                        mBinding.idInput.setText(result.getList().get(0).getId());
-                    }
-                    showResult("homeContent", result.toString());
-                });
+                showResult("homeContent", result.toString());
             } catch (Exception e) {
-                Log.e("SiteTest", ">>> [homeContent] FAILED: " + e.getMessage(), e);
                 showResult("homeContent", "Error: " + e.getMessage());
             }
         }).start();
     }
 
-    private void testCategory() {
-        if (mSite == null) return;
-        String tid = mBinding.tidInput.getText().toString();
-        if (TextUtils.isEmpty(tid)) {
-            Notify.show("請輸入 TID");
-            return;
-        }
-        Log.d("SiteTest", ">>> [categoryContent] START Site: " + mSite.getName() + " (Type: " + mSite.getType() + ") TID: " + tid);
+    private void testCategory(String tid) {
+        if (mSite == null || TextUtils.isEmpty(tid)) return;
+        Log.d("SiteTest", ">>> [categoryContent] START TID: " + tid);
         new Thread(() -> {
             try {
-                long start = System.currentTimeMillis();
                 Result result = SiteApi.categoryContent(mSite.getKey(), tid, "1", true, new HashMap<>());
-                long cost = System.currentTimeMillis() - start;
-                Log.d("SiteTest", ">>> [categoryContent] COMPLETED in " + cost + "ms");
-                mHomeResult = result; // Update result to allow picking videos from this category
+                mHomeResult = result; 
                 showResult("categoryContent", result.toString());
             } catch (Exception e) {
-                Log.e("SiteTest", ">>> [categoryContent] FAILED: " + e.getMessage(), e);
                 showResult("categoryContent", "Error: " + e.getMessage());
             }
         }).start();
     }
 
-    private void testDetail() {
-        if (mSite == null) return;
-        String id = mBinding.idInput.getText().toString();
-        if (TextUtils.isEmpty(id)) {
-            Notify.show("請輸入 VID");
-            return;
-        }
-        Log.d("SiteTest", ">>> [detailContent] START Site: " + mSite.getName() + " (Type: " + mSite.getType() + ") ID: " + id);
+    private void testDetail(String id) {
+        if (mSite == null || TextUtils.isEmpty(id)) return;
+        Log.d("SiteTest", ">>> [detailContent] START VID: " + id);
         new Thread(() -> {
             try {
-                long start = System.currentTimeMillis();
                 Result result = SiteApi.detailContent(mSite.getKey(), id);
-                long cost = System.currentTimeMillis() - start;
-                Log.d("SiteTest", ">>> [detailContent] COMPLETED in " + cost + "ms");
                 showResult("detailContent", result.toString());
             } catch (Exception e) {
-                Log.e("SiteTest", ">>> [detailContent] FAILED: " + e.getMessage(), e);
                 showResult("detailContent", "Error: " + e.getMessage());
             }
         }).start();
@@ -241,42 +233,57 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
     private void testSearch() {
         if (mSite == null) return;
         String keyword = mBinding.keywordInput.getText().toString();
-        if (TextUtils.isEmpty(keyword)) {
-            Notify.show("請輸入關鍵字");
-            return;
-        }
-        Log.d("SiteTest", ">>> [searchContent] START Site: " + mSite.getName() + " (Type: " + mSite.getType() + ") KEYWORD: " + keyword);
+        Log.d("SiteTest", ">>> [searchContent] START KEYWORD: " + keyword);
         new Thread(() -> {
             try {
-                long start = System.currentTimeMillis();
                 Result result = SiteApi.searchContent(mSite, keyword, false, "1");
-                long cost = System.currentTimeMillis() - start;
-                Log.d("SiteTest", ">>> [searchContent] COMPLETED in " + cost + "ms");
+                if (!result.getList().isEmpty()) mHomeResult = result;
                 showResult("searchContent", result.toString());
             } catch (Exception e) {
-                Log.e("SiteTest", ">>> [searchContent] FAILED: " + e.getMessage(), e);
                 showResult("searchContent", "Error: " + e.getMessage());
             }
         }).start();
     }
 
-    private void testPlayer() {
-        if (mSite == null) return;
-        String id = mBinding.idInput.getText().toString();
-        if (TextUtils.isEmpty(id)) {
-            Notify.show("請輸入 VID (Player 測試使用 ID 欄位)");
-            return;
-        }
-        Log.d("SiteTest", ">>> [playerContent] START Site: " + mSite.getName() + " (Type: " + mSite.getType() + ") ID: " + id);
+    private void testPlayerChain(String id) {
+        if (mSite == null || TextUtils.isEmpty(id)) return;
         new Thread(() -> {
             try {
-                long start = System.currentTimeMillis();
-                Result result = SiteApi.playerContent(mSite.getKey(), "", id);
-                long cost = System.currentTimeMillis() - start;
-                Log.d("SiteTest", ">>> [playerContent] COMPLETED in " + cost + "ms");
+                Result detail = SiteApi.detailContent(mSite.getKey(), id);
+                if (detail.getList().isEmpty()) {
+                    showResult("playerContent", "Error: Detail empty");
+                    return;
+                }
+                Vod vod = detail.getVod();
+                String[] flags = vod.getPlayFrom().split("\\$\\$\\$");
+                String[] urlRows = vod.getPlayUrl().split("\\$\\$\\$");
+                runOnUiThread(() -> {
+                    new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                            .setTitle("選擇線路")
+                            .setItems(flags, (d1, whichFlag) -> {
+                                String flag = flags[whichFlag];
+                                String[] episodes = urlRows[whichFlag].split("#");
+                                new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                                        .setTitle("選擇集數")
+                                        .setItems(episodes, (d2, whichEp) -> {
+                                            String[] epInfo = episodes[whichEp].split("\\$");
+                                            String finalUrl = epInfo.length > 1 ? epInfo[1] : epInfo[0];
+                                            executePlayerTest(flag, finalUrl);
+                                        }).show();
+                            }).show();
+                });
+            } catch (Exception e) {
+                showResult("playerContent", "Error: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private void executePlayerTest(String flag, String url) {
+        new Thread(() -> {
+            try {
+                Result result = SiteApi.playerContent(mSite.getKey(), flag, url);
                 showResult("playerContent", result.toString());
             } catch (Exception e) {
-                Log.e("SiteTest", ">>> [playerContent] FAILED: " + e.getMessage(), e);
                 showResult("playerContent", "Error: " + e.getMessage());
             }
         }).start();

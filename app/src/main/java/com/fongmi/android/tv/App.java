@@ -26,6 +26,8 @@ import com.github.catvod.Init;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.bean.Doh;
 import com.github.catvod.net.OkHttp;
+import com.liskovsoft.sharedutils.prefs.GlobalPreferences;
+import com.liskovsoft.youtubeapi.service.YouTubeServiceManager;
 import com.google.gson.Gson;
 import com.orhanobut.logger.AndroidLogAdapter;
 import com.orhanobut.logger.LogAdapter;
@@ -173,6 +175,8 @@ public class App extends Application implements Application.ActivityLifecycleCal
 
     private void initTools() {
         Logger.addLogAdapter(getLogAdapter());
+        GlobalPreferences.instance(this);
+        App.execute(YouTubeServiceManager::instance);
         SpiderDebug.init();
         OkHttp.get().setProxy(Setting.getProxy());
         OkHttp.get().setDoh(Doh.objectFrom(Setting.getDoh()));

@@ -22,7 +22,7 @@ public class Constant {
     //嗅探超時時間
     public static final int TIMEOUT_PARSE_WEB = 30 * 1000;
     //直播解析時間
-    public static final int TIMEOUT_PARSE_LIVE = 10 * 1000;
+    public static final int TIMEOUT_PARSE_LIVE = 30 * 1000;
     //同步超時時間
     public static final int TIMEOUT_SYNC = 2 * 1000;
     //传送超時時間

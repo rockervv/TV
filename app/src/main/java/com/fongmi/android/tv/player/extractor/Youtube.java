@@ -2,9 +2,11 @@ package com.fongmi.android.tv.player.extractor;
 
 import android.net.Uri;
 import androidx.media3.common.MimeTypes;
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.bean.Episode;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.utils.UrlUtil;
+import com.github.catvod.spider.SmartTube;
 import com.github.kiulian.downloader.YoutubeDownloader;
 import com.github.kiulian.downloader.downloader.request.RequestPlaylistInfo;
 import com.github.kiulian.downloader.downloader.request.RequestVideoInfo;
@@ -20,9 +22,18 @@ import java.util.concurrent.Callable;
 public class Youtube implements Source.Extractor {
 
     private final YoutubeDownloader downloader;
+    private SmartTube smartTube;
 
     public Youtube() {
         this.downloader = new YoutubeDownloader();
+    }
+
+    private SmartTube getSmartTube() {
+        if (smartTube == null) {
+            smartTube = new SmartTube();
+            smartTube.init(App.get(), "");
+        }
+        return smartTube;
     }
 
     @Override
@@ -44,6 +55,29 @@ public class Youtube implements Source.Extractor {
         if (videoId == null) return "";
 
         android.util.Log.d("Youtube", ">>> [fetch] videoId: " + videoId);
+
+        try {
+            String smartTubeResult = getSmartTube().playerContent("", videoId, null);
+            Result temp = Result.objectFrom(smartTubeResult);
+            if (temp != null && !temp.getRealUrl().isEmpty()) {
+                android.util.Log.d("Youtube", ">>> SmartTube Success! URL: " + temp.getRealUrl());
+                android.util.Log.d("Youtube", ">>> SmartTube Headers: " + temp.getHeader());
+                android.util.Log.d("Youtube", ">>> SmartTube Format: " + temp.getFormat());
+                
+                // 🛠️ 關鍵修正：確保 format 被正確設置
+                // 如果是 DASH，必須設置對應的 MimeType，否則會被內部的 M3U8 代理攔截
+                if (temp.getFormat() != null) {
+                    result.setFormat(temp.getFormat());
+                } else if (temp.getRealUrl().contains("dash")) {
+                    result.setFormat(MimeTypes.APPLICATION_MPD);
+                }
+                
+                result.getHeader().putAll(temp.getHeader());
+                return temp.getRealUrl();
+            }
+        } catch (Exception e) {
+            android.util.Log.e("Youtube", ">>> SmartTube Error: " + e.getMessage());
+        }
 
         VideoInfo video = null;
         try {

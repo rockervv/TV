@@ -1741,23 +1741,25 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     @Override
     protected void hideProgress() {
         if (mBinding == null) return;
+        boolean countdown = false;
         if (mBinding.widget.status.getVisibility() == View.VISIBLE) {
             String currentText = mBinding.widget.status.getText().toString();
             if (currentText.contains("秒") && mDataCountdown > 0) {
-                 android.util.Log.d("VideoActivity", "hideProgress: status is currently counting down, ignoring hide request");
-                 return;
+                android.util.Log.d("VideoActivity", "hideProgress: status is currently counting down, skipping status reset");
+                countdown = true;
+            } else {
+                mBinding.widget.status.setText(R.string.play_timeout_success);
+                App.post(() -> {
+                    if (mBinding != null && player() != null && player().getPlaybackState() == Player.STATE_BUFFERING) {
+                        mBinding.widget.status.setText(R.string.play_buffering);
+                    } else if (mBinding != null) {
+                        mBinding.widget.status.setVisibility(View.GONE);
+                    }
+                }, 1000);
             }
-            mBinding.widget.status.setText(R.string.play_timeout_success);
-            App.post(() -> {
-                if (mBinding != null && player() != null && player().getPlaybackState() == Player.STATE_BUFFERING) {
-                    mBinding.widget.status.setText(R.string.play_buffering);
-                } else if (mBinding != null) {
-                    mBinding.widget.status.setVisibility(View.GONE);
-                }
-            }, 1000);
         }
         if (mBinding.widget.progress.getVisibility() == View.GONE && mBinding.progressLayout.isContent()) return;
-        mBinding.widget.status.setVisibility(View.GONE);
+        if (!countdown) mBinding.widget.status.setVisibility(View.GONE);
         mBinding.widget.progress.setVisibility(View.GONE);
         mBinding.progressLayout.showContent();
     }

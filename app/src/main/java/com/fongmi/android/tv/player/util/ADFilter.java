@@ -1,11 +1,12 @@
 package com.fongmi.android.tv.player.util;
 
-import androidx.media3.common.util.Log;
-
 import android.os.Handler;
 import android.os.Looper;
 import android.util.LruCache;
 
+import androidx.media3.common.util.Log;
+
+import com.fongmi.android.tv.bean.Ad;
 import com.fongmi.android.tv.utils.Notify;
 
 import java.io.BufferedReader;
@@ -14,7 +15,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,36 +24,36 @@ public class ADFilter {
     private static final Pattern PATTERN_SEGMENT = Pattern.compile("(\\d+)\\.(ts|jpe?g|m4s|mp4)", Pattern.CASE_INSENSITIVE);
     private static final Pattern PATTERN_URL_CLEAN = Pattern.compile("[\\s\\u200B\\u00A0]+");
 
-    public static String Process(String url, BufferedReader reader) {
-        M3U8AdFilterResult result = parseAndFilterM3U8(url, readLines(reader));
+    public static String Process(String url, BufferedReader reader, String sourceId) {
+        M3U8AdFilterResult result = parseAndFilterM3U8(url, readLines(reader), sourceId);
         notifyAdSegmentsFiltered(result.adSegmentCount, result.adDurationSeconds);
         return result.filteredContent;
     }
 
-    public static String Process(String url, BufferedReader reader, Handler handler) {
-        M3U8AdFilterResult result = parseAndFilterM3U8(url, readLines(reader));
+    public static String Process(String url, BufferedReader reader, Handler handler, String sourceId) {
+        M3U8AdFilterResult result = parseAndFilterM3U8(url, readLines(reader), sourceId);
         handler.post(() -> notifyAdSegmentsFiltered(result.adSegmentCount, result.adDurationSeconds));
         return result.filteredContent;
     }
 
-    public static String Process(String url, String content) {
-        M3U8AdFilterResult result = parseAndFilterM3U8(url, content);
+    public static String Process(String url, String content, String sourceId) {
+        M3U8AdFilterResult result = parseAndFilterM3U8(url, content, sourceId);
         notifyAdSegmentsFiltered(result.adSegmentCount, result.adDurationSeconds);
         return result.filteredContent;
     }
 
-    public static String Process(String url, String content, Handler handler) {
-        M3U8AdFilterResult result = parseAndFilterM3U8(url, content);
+    public static String Process(String url, String content, Handler handler, String sourceId) {
+        M3U8AdFilterResult result = parseAndFilterM3U8(url, content, sourceId);
         handler.post(() -> notifyAdSegmentsFiltered(result.adSegmentCount, result.adDurationSeconds));
         return result.filteredContent;
     }
 
     public static String Process(BufferedReader reader) {
-        return Process("", reader);
+        return Process("", reader, "");
     }
 
     public static String Process(BufferedReader reader, Handler handler) {
-        return Process("", reader, handler);
+        return Process("", reader, handler, "");
     }
 
     private static final String[] AD_KEYWORDS = {
@@ -82,30 +82,33 @@ public class ADFilter {
         return lines;
     }
 
-    private static M3U8AdFilterResult parseAndFilterM3U8(String url, String content) {
+    private static M3U8AdFilterResult parseAndFilterM3U8(String url, String content, String sourceId) {
         List<String> lines = new ArrayList<>();
         if (content != null) {
             for (String line : content.split("\n")) {
                 lines.add(line.trim());
             }
         }
-        return parseAndFilterM3U8(url, lines);
+        return parseAndFilterM3U8(url, lines, sourceId);
     }
 
-    private static M3U8AdFilterResult parseAndFilterM3U8(String url, List<String> lines) {
-        Log.d("M3U8Parser", "Analyzing M3U8 Content: " + url);
+    private static M3U8AdFilterResult parseAndFilterM3U8(String url, List<String> lines, String sourceId) {
+        Log.d("ADFilter", "Analyzing M3U8 Content: " + url + " | Source: " + sourceId);
         String rawContent = String.join("\n", lines);
         if (rawContent.contains("#EXT-X-STREAM-INF")) {
-            Log.d("M3U8Parser", "Master Playlist detected, skipping filter.");
+            Log.d("ADFilter", "Bypass ADFilter: Master Playlist detected.");
             return new M3U8AdFilterResult(rawContent, 0, 0.0);
         }
 
-        String cacheKey = url + "_" + rawContent.hashCode();
+        String cacheKey = url + "_" + rawContent.hashCode() + "_" + sourceId;
         M3U8AdFilterResult cached = cache.get(cacheKey);
         if (cached != null) {
-            Log.d("M3U8Parser", "ADFilter Result Cache Hit for: " + url);
+            Log.d("ADFilter", "ADFilter Result Cache Hit for: " + url);
             return cached;
         }
+
+        // Fetch saved ads for this source
+        List<Ad> savedAds = sourceId.isEmpty() ? new ArrayList<>() : Ad.get(sourceId);
 
         // 1. Calculate main path feature and main config feature
         Map<String, Integer> pathCountMap = new HashMap<>();
@@ -229,39 +232,71 @@ public class ADFilter {
             boolean sequenceJump = false;
 
             if (block.segmentCount > 0) {
-                boolean configMismatch = !mainConfig.isEmpty() && !block.configFeature.equals(mainConfig);
-                boolean isLikelyLongVideo = block.duration > 120 || block.segmentCount > 30;
-                boolean continuous = globalLastNum != null && block.firstNum != null && Math.abs(block.firstNum - globalLastNum) <= 1;
-                sequenceJump = globalLastNum != null && block.firstNum != null && !continuous;
-
-                // Sandwich Ad detection: if current block is a jump, but a future block is continuous with previous
-                if (sequenceJump) {
-                    for (int j = i + 1; j < Math.min(i + 4, blocks.size()); j++) {
-                        M3U8Block futureBlock = blocks.get(j);
-                        if (futureBlock.firstNum != null && globalLastNum != null && Math.abs(futureBlock.firstNum - globalLastNum) <= 1) {
-                            isSandwichAd = true;
+                // Time-based check (if current block start time matches a saved ad)
+                long currentOffset = (long) (totalDuration - block.duration) * 1000;
+                for (Ad ad : savedAds) {
+                    // Check all occurrences (time offsets)
+                    for (Long offset : ad.getTimeOffsetList()) {
+                        if (Math.abs(offset - currentOffset) < 5000) { // 5s tolerance
+                            isAd = true;
                             break;
                         }
                     }
+                    if (isAd) break;
+
+                    // Check URL patterns
+                    if (ad.getUrlPatterns() != null && !ad.getUrlPatterns().isEmpty()) {
+                        String[] patterns = ad.getUrlPatterns().split(",");
+                        // Simple check: if any segment in block matches the first pattern
+                        // (Improved check could match the whole sequence)
+                        for (String line : block.lines) {
+                            if (isMediaSegment(line)) {
+                                String currentP = extractUrlFeature(line);
+                                if (currentP != null && !currentP.isEmpty() && currentP.equals(patterns[0])) {
+                                    isAd = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (isAd) break;
                 }
 
-                if (block.hasCueAd) {
-                    isAd = true;
-                } else if (block.hasAdUrl) {
-                    isAd = true;
-                } else if (isLikelyLongVideo) {
-                    isAd = false;
-                } else if (isSandwichAd || block.hasSequenceJump || configMismatch || sequenceJump) {
-                    isAd = true;
-                } else if (block.duration > 0 && block.duration < 25) {
-                    if (block.hasStartDiscontinuity && processedFirstMediaBlock) {
-                        if (continuous) {
-                            isAd = false;
-                        } else {
+                if (!isAd) {
+                    boolean configMismatch = !mainConfig.isEmpty() && !block.configFeature.equals(mainConfig);
+                    boolean isLikelyLongVideo = block.duration > 120 || block.segmentCount > 30;
+                    boolean continuous = globalLastNum != null && block.firstNum != null && Math.abs(block.firstNum - globalLastNum) <= 1;
+                    sequenceJump = globalLastNum != null && block.firstNum != null && !continuous;
+
+                    // Sandwich Ad detection: if current block is a jump, but a future block is continuous with previous
+                    if (sequenceJump) {
+                        for (int j = i + 1; j < Math.min(i + 4, blocks.size()); j++) {
+                            M3U8Block futureBlock = blocks.get(j);
+                            if (futureBlock.firstNum != null && globalLastNum != null && Math.abs(futureBlock.firstNum - globalLastNum) <= 1) {
+                                isSandwichAd = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (block.hasCueAd) {
+                        isAd = true;
+                    } else if (block.hasAdUrl) {
+                        isAd = true;
+                    } else if (isLikelyLongVideo) {
+                        isAd = false;
+                    } else if (isSandwichAd || block.hasSequenceJump || configMismatch || sequenceJump) {
+                        isAd = true;
+                    } else if (block.duration > 0 && block.duration < 25) {
+                        if (block.hasStartDiscontinuity && processedFirstMediaBlock) {
+                            if (continuous) {
+                                isAd = false;
+                            } else {
+                                isAd = true;
+                            }
+                        } else if (block.hasEndList && processedFirstMediaBlock) {
                             isAd = true;
                         }
-                    } else if (block.hasEndList && processedFirstMediaBlock) {
-                        isAd = true;
                     }
                 }
             }
@@ -337,18 +372,18 @@ public class ADFilter {
 
         adDuration = Math.round(adDuration * 10.0) / 10.0;
         double adRatio = adDuration / (totalDuration > 0 ? totalDuration : 1.0);
-        Log.d("M3U8Parser", "=== Summary ===");
-        Log.d("M3U8Parser", "Total: " + totalDuration + ", AD Total: " + adDuration + ", AD Count: " + adCount + ", AD Ratio: " + (Math.round(adRatio * 100.0) / 100.0));
+        Log.d("ADFilter", "=== Summary ===");
+        Log.d("ADFilter", "Total: " + totalDuration + ", AD Total: " + adDuration + ", AD Count: " + adCount + ", AD Ratio: " + (Math.round(adRatio * 100.0) / 100.0));
 
         M3U8AdFilterResult result;
         if (adRatio > 0.5 && totalDuration > 0) {
-             Log.w("M3U8Parser", "Warning: AD ratio > 50%, returning raw content to avoid false positive");
+             Log.w("ADFilter", "Bypass ADFilter: AD ratio > 50%, returning raw content to avoid false positive");
              result = new M3U8AdFilterResult(rawContent, 0, 0.0);
         } else if (adDuration > 0 && adRatio > 0.15 && totalDuration > 300) {
-            Log.w("M3U8Parser", "Warning: AD ratio > 15% in long video, dropping video (-1)");
+            Log.w("ADFilter", "Bypass ADFilter: AD ratio > 15% in long video, dropping video (-1)");
             result = new M3U8AdFilterResult(rawContent, -1, 0.0);
         } else {
-            Log.d("M3U8Parser", "Successfully filtered M3U8");
+            Log.d("ADFilter", "Successfully marked/filtered M3U8");
             result = new M3U8AdFilterResult(output.toString(), adCount, adDuration);
         }
 
@@ -361,6 +396,20 @@ public class ADFilter {
         String lower = line.toLowerCase();
         return lower.endsWith(".ts") || lower.endsWith(".jpeg") || lower.endsWith(".jpg") || lower.endsWith(".m4s") || lower.endsWith(".mp4") ||
                 lower.contains(".ts?") || lower.contains(".jpeg?") || lower.contains(".jpg?") || lower.contains(".m4s?") || lower.contains(".mp4?");
+    }
+
+    public static String extractUrlFeature(String url) {
+        if (url == null || url.isEmpty()) return "";
+        try {
+            int queryIdx = url.indexOf('?');
+            String path = queryIdx > 0 ? url.substring(0, queryIdx) : url;
+            int lastSlash = path.lastIndexOf('/');
+            if (lastSlash >= 0) {
+                String filename = path.substring(lastSlash + 1);
+                return filename.replaceAll("\\d+", "");
+            }
+        } catch (Exception ignored) {}
+        return "";
     }
 
     private static String getUrlFeature(String url) {
@@ -451,10 +500,8 @@ public class ADFilter {
 
             @Override
             public void onAdSegmentsFiltered(int adCount, double adSeconds) {
-                // 利用 Looper 確保吐回主線程彈出 UI 通知
                 new Handler(Looper.getMainLooper()).post(() -> {
                     long currentTime = System.currentTimeMillis();
-                    // 如果跟上次過濾的數量/時間一樣，或間隔小於 10 分鐘，就不重複提示
                     if (adCount == lastCount && Math.abs(adSeconds - lastSeconds) < 0.1 || (currentTime - lastTime) < 600000) {
                         return;
                     }

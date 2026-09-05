@@ -468,7 +468,7 @@ public class PlayerManager implements ParseCallback {
 
     public void start(PlaySpec spec, long timeout, long startPositionMs) {
         this.spec = spec;
-        spec.setLive(isLive());
+        spec.setLive(live);
         setMediaItem(timeout, startPositionMs);
     }
 
@@ -481,7 +481,7 @@ public class PlayerManager implements ParseCallback {
         startTimeout(Constant.TIMEOUT_PLAY);
         pendingStartPositionMs = startPositionMs;
         spec = PlaySpec.fromParse(result, key, metadata);
-        spec.setLive(isLive());
+        spec.setLive(live);
         parseJob = ParseJob.create(this).start(result, useParse);
     }
 

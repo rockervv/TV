@@ -72,9 +72,12 @@ public class M3U8 implements Process {
                 String raw = sb.toString().trim();
 
                 String filtered;
-                if (Setting.isAdblockLive() || isVod(targetUrl, raw)) {
-                    filtered = ADFilter.Process(targetUrl, raw).trim();
+                String sourceId = Server.get().getPlayer() != null ? Server.get().getPlayer().getKey() : "";
+                boolean isVod = isVod(targetUrl, raw);
+                if (Setting.isAdblockLive() || isVod) {
+                    filtered = ADFilter.Process(targetUrl, raw, sourceId).trim();
                 } else {
+                    Log.d("ADFilter", "Bypass ADFilter: Not VOD and Live Adblock is OFF");
                     filtered = raw;
                 }
 

@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.google.gson.annotations.SerializedName;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -22,8 +23,12 @@ public class Ad {
     private String seriesName;
     @SerializedName("adName")
     private String adName;
-    @SerializedName("startTimeOffset")
-    private long startTimeOffset;
+    @SerializedName("urlPatterns")
+    private String urlPatterns;
+    @SerializedName("segmentDurations")
+    private String segmentDurations;
+    @SerializedName("timeOffsets")
+    private String timeOffsets;
     @SerializedName("tsCount")
     private int tsCount;
     @SerializedName("duration")
@@ -84,12 +89,28 @@ public class Ad {
         this.adName = adName;
     }
 
-    public long getStartTimeOffset() {
-        return startTimeOffset;
+    public String getUrlPatterns() {
+        return urlPatterns;
     }
 
-    public void setStartTimeOffset(long startTimeOffset) {
-        this.startTimeOffset = startTimeOffset;
+    public void setUrlPatterns(String urlPatterns) {
+        this.urlPatterns = urlPatterns;
+    }
+
+    public String getSegmentDurations() {
+        return segmentDurations;
+    }
+
+    public void setSegmentDurations(String segmentDurations) {
+        this.segmentDurations = segmentDurations;
+    }
+
+    public String getTimeOffsets() {
+        return timeOffsets;
+    }
+
+    public void setTimeOffsets(String timeOffsets) {
+        this.timeOffsets = timeOffsets;
     }
 
     public int getTsCount() {
@@ -106,6 +127,23 @@ public class Ad {
 
     public void setDuration(long duration) {
         this.duration = duration;
+    }
+
+    public List<Long> getTimeOffsetList() {
+        List<Long> items = new ArrayList<>();
+        if (timeOffsets == null || timeOffsets.isEmpty()) return items;
+        for (String s : timeOffsets.split(",")) try { items.add(Long.parseLong(s)); } catch (Exception ignored) {}
+        return items;
+    }
+
+    public void addTimeOffset(long offset) {
+        List<Long> list = getTimeOffsetList();
+        if (!list.contains(offset)) {
+            list.add(offset);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < list.size(); i++) sb.append(list.get(i)).append(i == list.size() - 1 ? "" : ",");
+            this.timeOffsets = sb.toString();
+        }
     }
 
     public int getHitCount() {

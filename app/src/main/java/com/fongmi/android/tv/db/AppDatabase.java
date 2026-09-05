@@ -55,7 +55,7 @@ import java.util.Locale;
 @Database(entities = {Keep.class, Site.class, Live.class, Track.class, Config.class, Device.class, History.class, Download.class, FlagScore.class, Favorite.class, Ad.class}, version = AppDatabase.VERSION)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public static final int VERSION = 42;
+    public static final int VERSION = 44;
     public static final String NAME = "tv";
     public static final String SYMBOL = "@@@";
     public static final String BACKUP_SUFFIX = "bk.gz";
@@ -189,6 +189,8 @@ public abstract class AppDatabase extends RoomDatabase {
                 .addMigrations(wrap(MIGRATION_39_40))
                 .addMigrations(wrap(MIGRATION_40_41))
                 .addMigrations(wrap(MIGRATION_41_42))
+                .addMigrations(wrap(MIGRATION_42_43))
+                .addMigrations(wrap(MIGRATION_43_44))
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
     }
 
@@ -465,6 +467,24 @@ public abstract class AppDatabase extends RoomDatabase {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             database.execSQL("CREATE TABLE IF NOT EXISTS `Ad` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `fingerprint` TEXT, `sourceId` TEXT, `seriesName` TEXT, `adName` TEXT, `startTimeOffset` INTEGER NOT NULL, `tsCount` INTEGER NOT NULL, `duration` INTEGER NOT NULL, `hitCount` INTEGER NOT NULL, `lastHitTime` INTEGER NOT NULL)");
+        }
+    };
+
+    static final Migration MIGRATION_42_43 = new Migration(42, 43) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE Ad ADD COLUMN urlPattern TEXT DEFAULT NULL");
+        }
+    };
+
+    static final Migration MIGRATION_43_44 = new Migration(43, 44) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE Ad ADD COLUMN urlPatterns TEXT DEFAULT NULL");
+            database.execSQL("ALTER TABLE Ad ADD COLUMN segmentDurations TEXT DEFAULT NULL");
+            database.execSQL("ALTER TABLE Ad ADD COLUMN timeOffsets TEXT DEFAULT NULL");
+            // Basic data migration if old columns existed
+            database.execSQL("UPDATE Ad SET urlPatterns = urlPattern, timeOffsets = CAST(startTimeOffset AS TEXT) WHERE urlPatterns IS NULL");
         }
     };
 }

@@ -50,8 +50,11 @@ public class AdAdapter extends RecyclerView.Adapter<AdAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Ad item = mItems.get(position);
+        List<Long> offsets = item.getTimeOffsetList();
+        String timeText = offsets.isEmpty() ? "未知" : Util.timeMs(offsets.get(0));
+        if (offsets.size() > 1) timeText += " (+" + (offsets.size() - 1) + ")";
         holder.binding.name.setText(item.getSeriesName() + " - " + item.getAdName());
-        holder.binding.time.setText("發生時間: " + Util.timeMs(item.getStartTimeOffset()) + " | 時長: " + (item.getDuration() / 1000) + "s");
+        holder.binding.time.setText("發生時間: " + timeText + " | 時長: " + (item.getDuration() / 1000) + "s");
         holder.binding.hits.setText("跳過次數: " + item.getHitCount());
         holder.binding.delete.setOnClickListener(v -> mListener.onDelete(item));
     }

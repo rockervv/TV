@@ -124,13 +124,13 @@ public class PlaySpec {
         if (url.contains("googlevideo.com")) {
             this.format = url.contains("dash") ? androidx.media3.common.MimeTypes.APPLICATION_MPD : androidx.media3.common.MimeTypes.APPLICATION_M3U8;
             return this; // 🛠️ YouTube 網址絕對不能進 M3U8 Proxy
-        } else if (url.contains(".php") || url.contains("/live/")) {
+        } else if (url.contains(".php") || (url.contains("/live/") && !url.contains("vod"))) {
             this.format = androidx.media3.common.MimeTypes.APPLICATION_M3U8;
-            this.live = true;
         }
         
-        // 🛠️ 修改邏輯：只有非 YouTube 且明確包含 .m3u8 的網址才進 Proxy
-        if (!live && url.toLowerCase().contains(".m3u8")) {
+        // 🛠️ 只有非 YouTube 且包含 .m3u8 的網址才進 Proxy
+        // 🛡️ 強化判定：如果是 VOD (!live)，或者開啟了「直播廣告過濾」，則進入 Proxy 以支援 ADFilter
+        if ((!live || Setting.isAdblockLive()) && url.toLowerCase().contains(".m3u8")) {
             String proxyurl = Server.get().getAddress("/m3u8?url=");
             if (!url.startsWith(proxyurl)) {
                 try {

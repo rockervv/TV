@@ -619,26 +619,55 @@ ExoPlayer 檢測到這種偏移後，會認為當前緩衝的時間軸失效，�
 - **原因分析**: 
     1. **Header PTO 殘留**: YouTube Manifest 在 `<Period>` 下方定義了全域 `SegmentList`，V460 漏掉了此部分的消毒，導致 ExoPlayer 繼承了原始 153 億的 PTO，StartTime 出現負數。
 
-### V470: 全域時空同步器 (已實現)
-- **思路**: **「全路徑消毒與跨層級橋接」**。
-- **核心修復**:
-    - **Header 穿透消毒**: 將消毒邏輯延伸至 Period Header，確保全域 `SegmentList/Template` 也能被 PTO 橋接。
-    - **萬能 SQ 探針 3.0**: 優化了 `startNumber` 的抓取邏輯，確保在任何層級都能精準獲取基準序號。
-    - **Snapshot 診斷升級**: 專門標註「Header」與「Representation」的處理狀態，便於觀察層級繼承關係。
-- **結果**: 待測試。目標是徹底消滅負數 StartTime，實現真正的全域同步。
+### V480: 零偏移線性化 (The Zero-Offset Linearizer)
+- **思路**: 放棄複雜的 PTO 橋接，改用**絕對線性化**。強制 `presentationTimeOffset = 0`，並將媒體時間戳映射為一個穩定增長的大數字。
+- **結果**: 成功將 `StartTime` 轉正，黑屏問題消失。
+
+### V490: 時長感知線性化 (Duration-Aware)
+- **思路**: 引入 `sessionStep` 探針動態獲取 XML 中的 `d` 屬性。
+- **解決**: 解決了部分流並非精確 5000ms（如 5005ms）導致的長效播映偏移。
+
+### V491: 終極時長鎖定與步進對齊 (Duration Lock - **最終成功版本**)
+- **核心問題**: YouTube 片段時長常為 `5005ms` 而非 `5000ms`。每次 Manifest 更新時，若使用預估值會產生 5ms 的微小跳變，觸發 ExoPlayer 的重置機制（Reason 4 Discontinuity）。
+- **解決方案**:
+    - **動態時長鎖定**: 從 Manifest 的第一個分片中提取真實 `d` 屬性並快取為 `sessionStep`。
+    - **精準步進推算**: 使用鎖定的 `realD` 計算 `stableT = anchorT + (realSN - anchorSQ) * realD`。
+    - **無縫同步**: 確保生成的虛擬時間軸與媒體內部時間戳、XML 累加值完全一致，消除了 Manifest 更新時的相位差。
+- **結果**: **完美穩定**。播放器不再進入 Buffering 死循環，A/V 同步極其精準。
 
 ---
 
 ## 最終解決方案總結 (Final Solution Summary)
 
-1. **全局 DNA 拾荒掃描 (Global DNA Scavenging)**: 透過深度遞迴掃描 `DashManifest` 整個物件圖，將所有包含 `googlevideo` 的字串（無論是否在陣列或清單中）進行 `$Number$` 模板化，繞過 R8 對 `UrlTemplate` 的混淆。
-2. **原始媒體座標系 (Raw Media Timeline)**: 捨棄從 0 開始的虛擬時間，直接映射 YouTube 媒體內部的大數字時間戳。配合 `PTO=0` 策略，消除解碼器時間軸偏移。
-3. **動態 AST 錨定法**: 根據當前 manifests 第一個片段的序號動態計算 `availabilityStartTime`，人為創造一個穩定、正向的 30 秒「數據緩衝墊」。
-4. **時標特徵識別 (TS Heuristics)**: 通過數值特徵（90000/44100）而非欄位名稱鎖定時標，並在掃描失敗時根據軌道類型自動強制恢復，解決 A/V 不同步。
+1. **XML 降維攔截 (XML Rewriting)**: 繞過 Java 物件混淆，直接在 `DashManifestParser` 層級攔截並重寫原始 XML 文本。
+2. **零偏移策略 (Zero PTO)**: 強制所有層級的 `presentationTimeOffset` 歸零，直接映射媒體內部大數字時間戳。
+3. **序號錨定與線性化 (SQ Anchor & Linearization)**: 以換台後首個序號作為基準，根據動態鎖定的分片時長 `d` 進行絕對線性推算。
+4. **動態 AST 時鐘同步**: 根據 `AST = Now - (stableT) - 45s` 動態建立穩定的掛鐘時間，提供 45 秒的正向緩衝墊。
+5. **VOD/Live 自動識別**: 僅針對 `type="dynamic"` 的直播流應用修復，確保 VOD 內容保持原始播放邏輯。
+
+---
+
+## 關鍵代碼實現 (Key Implementation)
+
+```java
+// 核心線性化邏輯 (MediaSourceFactory.java)
+long realD = extractAttr(body, "d", 0L);
+if (realD > 0 && !sessionStep.containsKey(trackKey)) {
+    sessionStep.put(trackKey, realD); // 鎖定真實步進
+}
+if (realD == 0) {
+    Long lockedD = sessionStep.get(trackKey);
+    realD = (lockedD != null) ? lockedD : (5000L * realTS / 1000L);
+}
+long stableT = anchorT + (realSN - anchorSQ) * realD;
+mod = mod.replaceAll("presentationTimeOffset=\"-?\\d+\"", "presentationTimeOffset=\"0\"");
+mod = injectT(mod, stableT);
+```
 
 ---
 
 ## 關鍵日誌觀察點 (Monitoring)
-1. `>>> YT_STABLE_V312: SESSION START`: 確保會話正常啟動。
-2. `STITCHED - SQ:XXXXXX TS:90000 Edge:152... Wall:152...`: 看到 150 億級別的大數字表示對位成功。
-3. `Buf: 25000ms+`: 確保緩衝值為正且穩定。
+1. `>>> YT_SILK_V491: SESSION START`: 確保會話正常啟動。
+2. `>>> YT_SILK_V491: Locked duration for ... = 5005`: 確保成功鎖定分片步進。
+3. `onPlaybackStateChanged: 3`: 播放器進入 READY 狀態。
+4. `onPositionDiscontinuity`: 此日誌應完全消失（不再有 Reason 4 重置）。

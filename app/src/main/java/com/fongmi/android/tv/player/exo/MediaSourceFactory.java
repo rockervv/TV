@@ -69,16 +69,16 @@ public class MediaSourceFactory implements MediaSource.Factory {
     @Override public int[] getSupportedTypes() { return new int[]{C.CONTENT_TYPE_DASH, C.CONTENT_TYPE_HLS, C.CONTENT_TYPE_OTHER, C.CONTENT_TYPE_RTSP, C.CONTENT_TYPE_SS}; }
 
     /**
-     * V480: The Zero-Offset Linearizer
-     * Force PTO=0 and sync AST to linearized raw media timestamps.
+     * V491: Linearizer with Duration Lock
+     * Detects and locks segment duration 'd' to prevent manifest update drifts.
      */
     private static class YoutubeDashParser extends androidx.media3.exoplayer.dash.manifest.DashManifestParser {
         private static final Map<String, Long> sessionAnchorSQ = new HashMap<>();
         private static final Map<String, Long> sessionAnchorT = new HashMap<>();
+        private static final Map<String, Long> sessionStep = new HashMap<>(); 
         private static String currentSessionId = "";
         private static long sessionFixedAST_ms = 0;
-        private static final Map<String, Long> sessionStep = new HashMap<>();
-        private static final String VERSION = "V490";
+        private static final String VERSION = "V491";
 
         @Override
         public DashManifest parse(Uri uri, InputStream inputStream) throws java.io.IOException {
@@ -117,10 +117,8 @@ public class MediaSourceFactory implements MediaSource.Factory {
             Log.d("ExoUtil", ">>> YT_SILK_" + VERSION + ": Parsing DASH (isDynamic=" + isDynamic + ") - " + vId);
 
             if (isDynamic) {
-                // 1. Robust Global Reconstruction (Live only)
                 xml = absoluteSanitize(xml, vId);
 
-                // 2. Final Metadata Polish (AST/Delay/Period)
                 if (sessionFixedAST_ms > 0) {
                     SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
                     fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -133,7 +131,6 @@ public class MediaSourceFactory implements MediaSource.Factory {
                 xml = xml.replaceAll("<Period[^>]*>", "<Period id=\"stable_period\" start=\"PT0S\">");
             }
 
-            // 3. Smart XML Dump
             dumpKeyXml(xml);
 
             return super.parse(uri, new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
@@ -143,7 +140,6 @@ public class MediaSourceFactory implements MediaSource.Factory {
             String[] adaptationSets = xml.split("<AdaptationSet");
             if (adaptationSets.length <= 1) return xml;
 
-            // Sanitize Header
             String header = sanitizeFragment(adaptationSets[0], sessionId, 1000L, 1L);
             
             StringBuilder newXml = new StringBuilder(header);
@@ -169,7 +165,6 @@ public class MediaSourceFactory implements MediaSource.Factory {
         }
 
         private String sanitizeFragment(String body, String sessionId, long ts, long sn) {
-            // SQ Probe
             long realSN = extractAttr(body, "startNumber", extractAttr(body, "start_number", sn));
             if (realSN == 1L) {
                 Matcher m = Pattern.compile("sq/(\\d+)").matcher(body);
@@ -179,15 +174,26 @@ public class MediaSourceFactory implements MediaSource.Factory {
                 }
             }
             
-            // Timescale Probe
             long realTS = extractAttr(body, "timescale", ts);
             if (realTS == 1000L) {
                 if (body.contains("video/") || body.contains("width=")) realTS = 90000L;
                 else if (body.contains("audio/")) realTS = 44100L;
             }
 
-            // Linearization Logic
+            // Lock Duration d
+            long realD = extractAttr(body, "d", 0L);
             String trackKey = sessionId + "_" + realTS;
+            synchronized (sessionAnchorSQ) {
+                if (realD > 0 && !sessionStep.containsKey(trackKey)) {
+                    sessionStep.put(trackKey, realD);
+                    Log.d("ExoUtil", ">>> YT_SILK_V491: Locked duration for " + trackKey + " = " + realD);
+                }
+                if (realD == 0) {
+                    Long lockedD = sessionStep.get(trackKey);
+                    realD = (lockedD != null) ? lockedD : (5000L * realTS / 1000L);
+                }
+            }
+
             long anchorSQ, anchorT;
             synchronized (sessionAnchorSQ) {
                 if (!sessionAnchorSQ.containsKey(trackKey)) {
@@ -196,15 +202,14 @@ public class MediaSourceFactory implements MediaSource.Factory {
                     if (rawT == 0L) rawT = (realTS == 1000L) ? 15000000000L : (realTS * 15000000L / 1000L);
                     sessionAnchorT.put(trackKey, rawT);
                 }
-                    Long valSQ = sessionAnchorSQ.get(trackKey);
-                    Long valT = sessionAnchorT.get(trackKey);
-                    anchorSQ = (valSQ != null) ? valSQ : realSN;
-                    anchorT = (valT != null) ? valT : 0L;
+                Long valSQ = sessionAnchorSQ.get(trackKey);
+                Long valT = sessionAnchorT.get(trackKey);
+                anchorSQ = (valSQ != null) ? valSQ : realSN;
+                anchorT = (valT != null) ? valT : 0L;
             }
 
-            long stableT = anchorT + (realSN - anchorSQ) * 5000L * realTS / 1000L;
+            long stableT = anchorT + (realSN - anchorSQ) * realD;
             
-            // Force PTO = 0
             String mod = body.replaceAll("\\bpresentationTimeOffset\\s*=\\s*\"-?\\d+\"", "presentationTimeOffset=\"0\"");
             if ((body.contains("<SegmentTemplate") || body.contains("<SegmentList")) && !mod.contains("presentationTimeOffset=\"0\"")) {
                 mod = mod.replaceFirst("(<SegmentTemplate|<SegmentList)", "$1 presentationTimeOffset=\"0\"");
@@ -212,10 +217,9 @@ public class MediaSourceFactory implements MediaSource.Factory {
             
             mod = injectT(mod, stableT);
 
-            // Calculate global AST based on the very first segment seen in the session
             synchronized (sessionAnchorSQ) {
                 if (sessionFixedAST_ms == 0) {
-                    sessionFixedAST_ms = System.currentTimeMillis() - (stableT * 1000 / realTS) - 45000L; // 45s lead
+                    sessionFixedAST_ms = System.currentTimeMillis() - (stableT * 1000 / realTS) - 45000L;
                 }
             }
             
@@ -252,7 +256,7 @@ public class MediaSourceFactory implements MediaSource.Factory {
                     }
                     if (inTimeline && trimmed.contains("<S ")) {
                         dump.append("      ").append(trimmed).append("\n");
-                        inTimeline = false; // Only show first S
+                        inTimeline = false;
                     }
                 }
                 dump.append("--- END SNAPSHOT ---");

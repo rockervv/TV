@@ -10,6 +10,7 @@ import android.view.accessibility.CaptioningManager;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.AudioAttributes;
+import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
@@ -83,7 +84,7 @@ public class ExoUtil {
         // 🛡️ 建立單一穩健的 LoadControl 實例，避免多實例導致的線程衝突
         androidx.media3.exoplayer.DefaultLoadControl internal = new androidx.media3.exoplayer.DefaultLoadControl.Builder()
                 .setAllocator(allocator)
-                .setBufferDurationsMs(60000, 120000, 1000, 3000) // 加大緩衝區上限至 120s
+                .setBufferDurationsMs(5000, 60000, 1000, 2000) // 🚀 V70.0: 低門檻啟播 (5s)，解決 YouTube 緩衝不足問題
                 .setBackBuffer(30000, true)
                 .setPrioritizeTimeOverSizeThresholds(true)
                 .build();
@@ -282,6 +283,14 @@ public class ExoUtil {
         } catch (Exception e) {
             Log.e("ExoUtil", "setVideoEffects error: ", e);
         }
+    }
+
+    public static int getType(String url, String mimeType) {
+        if (MimeTypes.APPLICATION_MPD.equals(mimeType) || url.contains(".mpd")) return C.CONTENT_TYPE_DASH;
+        if (MimeTypes.APPLICATION_M3U8.equals(mimeType) || url.contains(".m3u8")) return C.CONTENT_TYPE_HLS;
+        if (MimeTypes.APPLICATION_SS.equals(mimeType) || url.contains(".isml")) return C.CONTENT_TYPE_SS;
+        if (url.startsWith("rtsp://")) return C.CONTENT_TYPE_RTSP;
+        return C.CONTENT_TYPE_OTHER;
     }
 
     public static String getMimeType(int errorCode) {

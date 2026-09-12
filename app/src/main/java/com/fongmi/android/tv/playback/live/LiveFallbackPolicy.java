@@ -24,7 +24,15 @@ class LiveFallbackPolicy {
         controller.nextLine(true);
     }
 
+    private long lastEndedTime;
+
     void playbackEnded() {
+        long now = System.currentTimeMillis();
+        if (now - lastEndedTime < 3000) {
+            android.util.Log.w("LiveDebug", ">>> [playbackEnded] Loop detected! Ignoring to prevent infinite refresh.");
+            return;
+        }
+        lastEndedTime = now;
         if (host.isPlayerLive()) checkNext();
         else controller.nextChannel();
     }

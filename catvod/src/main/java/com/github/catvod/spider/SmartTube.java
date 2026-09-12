@@ -28,15 +28,23 @@ public class SmartTube extends Spider {
         ServiceManager service = YouTubeServiceManager.instance();
         mContentService = service.getContentService();
         mItemService = service.getMediaItemService();
+        android.util.Log.i("SmartTube", ">>> [init] Guest Mode Ready. isSigned: " + service.getSignInService().isSigned());
     }
 
     @Override
     public String homeContent(boolean filter) throws Exception {
+        boolean signed = YouTubeServiceManager.instance().getSignInService().isSigned();
+        android.util.Log.d("SmartTube", ">>> [homeContent] isSigned: " + signed);
+
         List<Class> classes = new ArrayList<>();
         classes.add(new Class("TYPE_HOME", "首页"));
         classes.add(new Class("TYPE_TRENDING", "趋势"));
-        classes.add(new Class("TYPE_SUBSCRIPTIONS", "订阅"));
-        classes.add(new Class("TYPE_HISTORY", "历史"));
+        
+        if (signed) {
+            classes.add(new Class("TYPE_SUBSCRIPTIONS", "订阅"));
+            classes.add(new Class("TYPE_HISTORY", "历史"));
+        }
+
         classes.add(new Class("TYPE_MUSIC", "音乐"));
         classes.add(new Class("TYPE_GAMING", "游戏"));
         classes.add(new Class("TYPE_NEWS", "新闻"));
@@ -50,6 +58,7 @@ public class SmartTube extends Spider {
 
     @Override
     public String categoryContent(String tid, String pg, boolean filter, HashMap<String, String> extend) throws Exception {
+        android.util.Log.d("SmartTube", ">>> [categoryContent] tid: " + tid + ", pg: " + pg);
         Observable<List<MediaGroup>> rowObs = null;
         Observable<MediaGroup> gridObs = null;
 
@@ -65,19 +74,35 @@ public class SmartTube extends Spider {
 
         List<MediaItem> allItems = new ArrayList<>();
         if (rowObs != null) {
-            List<MediaGroup> groups = rowObs.blockingFirst();
-            for (MediaGroup group : groups) {
-                if (group.getMediaItems() != null) {
-                    allItems.addAll(group.getMediaItems());
+            try {
+                // 🛠️ 改回 blockingFirst() 並增加逾時保護。
+                // 因為 RxHelper 會強制 observeOn(MainThread)，我們不能等太久，否則會跟 UI 爭搶資源。
+                List<MediaGroup> groups = rowObs.timeout(10, java.util.concurrent.TimeUnit.SECONDS).blockingFirst();
+                android.util.Log.d("SmartTube", ">>> [categoryContent] Got first emission groups: " + (groups != null ? groups.size() : 0));
+                if (groups != null) {
+                    for (MediaGroup group : groups) {
+                        if (group != null && group.getMediaItems() != null) {
+                            android.util.Log.d("SmartTube", ">>> [categoryContent] Group: " + group.getTitle() + ", Items: " + group.getMediaItems().size());
+                            allItems.addAll(group.getMediaItems());
+                        }
+                    }
                 }
+            } catch (Exception e) {
+                android.util.Log.e("SmartTube", ">>> [categoryContent] Error collecting rowObs (Timeout or Interrupt)", e);
             }
         } else if (gridObs != null) {
-            MediaGroup group = gridObs.blockingFirst();
-            if (group.getMediaItems() != null) {
-                allItems.addAll(group.getMediaItems());
+            try {
+                MediaGroup group = gridObs.timeout(10, java.util.concurrent.TimeUnit.SECONDS).blockingFirst();
+                if (group != null && group.getMediaItems() != null) {
+                    android.util.Log.d("SmartTube", ">>> [categoryContent] Grid Group Items: " + group.getMediaItems().size());
+                    allItems.addAll(group.getMediaItems());
+                }
+            } catch (Exception e) {
+                android.util.Log.e("SmartTube", ">>> [categoryContent] Error collecting gridObs", e);
             }
         }
 
+        android.util.Log.d("SmartTube", ">>> [categoryContent] Total Items converted: " + allItems.size());
         return Result.string(toVods(allItems));
     }
 

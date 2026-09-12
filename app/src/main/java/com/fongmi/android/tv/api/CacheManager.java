@@ -69,7 +69,7 @@ public class CacheManager {
                 if (!data.isEmpty()) return Result.fromJson(data);
             }
             // 雲端同步僅針對第一頁與首頁
-            if (page.equals("1")) {
+            if (page.equals("1") && android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
                 Log.d(TAG, "Local cache not found for " + site.getName() + ", checking cloud...");
                 String cloudData = RemoteSyncManager.downloadCache(local.getName());
                 if (cloudData != null && !cloudData.isEmpty()) {
@@ -77,6 +77,8 @@ public class CacheManager {
                     Path.write(local, cloudData);
                     return Result.fromJson(cloudData);
                 }
+            } else if (page.equals("1")) {
+                Log.w(TAG, "Local cache not found for " + site.getName() + ", skipping cloud sync (On Main Thread)");
             }
         } catch (Exception e) {
             Log.e(TAG, "Load cache error", e);
@@ -110,7 +112,11 @@ public class CacheManager {
             Path.write(local, json);
             // 僅同步第一頁與無篩選的首頁到雲端
             if (page.equals("1") && TextUtils.isEmpty(extHash)) {
-                RemoteSyncManager.uploadCache(local.getName(), json);
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                    com.fongmi.android.tv.utils.Task.execute(() -> RemoteSyncManager.uploadCache(local.getName(), json));
+                } else {
+                    RemoteSyncManager.uploadCache(local.getName(), json);
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Save cache error", e);

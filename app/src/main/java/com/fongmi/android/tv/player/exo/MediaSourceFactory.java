@@ -1,315 +1,284 @@
 package com.fongmi.android.tv.player.exo;
 
-import static androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS;
-
 import android.net.Uri;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
-import androidx.media3.database.StandaloneDatabaseProvider;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DataSource;
-import androidx.media3.datasource.DefaultDataSource;
-import androidx.media3.datasource.HttpDataSource;
-import androidx.media3.datasource.cache.Cache;
-import androidx.media3.datasource.cache.CacheDataSource;
-import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor;
-import androidx.media3.datasource.cache.SimpleCache;
-import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.dash.DashMediaSource;
-import androidx.media3.exoplayer.dash.DefaultDashChunkSource;
-import androidx.media3.exoplayer.dash.manifest.AdaptationSet;
-import androidx.media3.exoplayer.dash.manifest.DashManifest;
-import androidx.media3.exoplayer.dash.manifest.DashManifestParser;
-import androidx.media3.exoplayer.dash.manifest.Period;
-import androidx.media3.exoplayer.dash.manifest.Representation;
-import androidx.media3.exoplayer.dash.manifest.SegmentBase;
-import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.exoplayer.hls.HlsMediaSource;
+import androidx.media3.exoplayer.rtsp.RtspMediaSource;
+import androidx.media3.exoplayer.smoothstreaming.SsMediaSource;
 import androidx.media3.exoplayer.source.MediaSource;
-import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy;
-import androidx.media3.extractor.DefaultExtractorsFactory;
-import androidx.media3.extractor.ExtractorsFactory;
-import androidx.media3.extractor.ts.TsExtractor;
+import androidx.media3.exoplayer.source.ProgressiveMediaSource;
+import androidx.media3.exoplayer.dash.manifest.DashManifest;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.setting.PreloadSetting;
-import com.github.catvod.net.OkHttp;
-import com.github.catvod.utils.Path;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.io.File;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@UnstableApi
 public class MediaSourceFactory implements MediaSource.Factory {
 
-    private static final int CACHE_SPACE_PERCENT = 80;
-    private static StandaloneDatabaseProvider databaseProvider;
-    private static Cache cache;
-
-    private static String anchoredVideoId = "";
-    private static long anchoredAST = -1;
-    private static long anchoredPTO = -1;
-    private static final Map<String, TreeMap<Long, Long>> timelineT = new HashMap<>();
-    private static final Map<String, TreeMap<Long, Long>> timelineD = new HashMap<>();
-
-    private final DefaultMediaSourceFactory defaultMediaSourceFactory;
-    private HttpDataSource.Factory httpDataSourceFactory;
-    private DataSource.Factory dataSourceFactory;
-    private ExtractorsFactory extractorsFactory;
+    private final DataSource.Factory dataSourceFactory;
 
     public MediaSourceFactory() {
-        defaultMediaSourceFactory = new DefaultMediaSourceFactory(getDataSourceFactory(), getExtractorsFactory());
+        this.dataSourceFactory = new androidx.media3.datasource.DefaultDataSource.Factory(App.get());
     }
 
-    static DataSource.Factory createUpstreamDataSourceFactory(Map<String, String> headers) {
-        HttpDataSource.Factory factory = new OkHttpDataSource.Factory(OkHttp.client());
-        factory.setDefaultRequestProperties(headers);
-        return new DefaultDataSource.Factory(App.get(), factory);
-    }
-
-    static synchronized Cache getCache() {
-        if (cache != null) return cache;
-        File dir = Path.exo();
-        return cache = new SimpleCache(dir, new LeastRecentlyUsedCacheEvictor(getMaxCacheSize(dir)), getDatabaseProvider());
-    }
-
-    private static StandaloneDatabaseProvider getDatabaseProvider() {
-        if (databaseProvider == null) databaseProvider = new StandaloneDatabaseProvider(App.get());
-        return databaseProvider;
-    }
-
-    private static long getMaxCacheSize(File dir) {
-        long usedBytes = getFolderSize(dir);
-        long availableBytes = Math.max(0, dir.getUsableSpace());
-        long storageBudget = (usedBytes + availableBytes) * CACHE_SPACE_PERCENT / 100;
-        return Math.min(PreloadSetting.getPreloadSizeBytes(), storageBudget);
-    }
-
-    private static long getFolderSize(File file) {
-        long size = 0;
-        if (file == null) return 0;
-        if (file.isDirectory()) {
-            File[] files = file.listFiles();
-            if (files != null) for (File f : files) size += getFolderSize(f);
-        } else {
-            size = file.length();
-        }
-        return size;
-    }
-
-    @NonNull
-    @Override
-    public MediaSource.Factory setDrmSessionManagerProvider(@NonNull DrmSessionManagerProvider drmSessionManagerProvider) {
-        return this;
-    }
-
-    @NonNull
-    @Override
-    public MediaSource.Factory setLoadErrorHandlingPolicy(@NonNull LoadErrorHandlingPolicy loadErrorHandlingPolicy) {
-        return this;
-    }
-
-    @NonNull
-    @Override
-    public @C.ContentType int[] getSupportedTypes() {
-        return defaultMediaSourceFactory.getSupportedTypes();
+    public MediaSourceFactory(DataSource.Factory dataSourceFactory) {
+        this.dataSourceFactory = dataSourceFactory;
     }
 
     @NonNull
     @Override
     public MediaSource createMediaSource(@NonNull MediaItem mediaItem) {
-        getHttpDataSourceFactory().setDefaultRequestProperties(ExoUtil.extractHeaders(mediaItem));
-        String url = (mediaItem.localConfiguration != null) ? mediaItem.localConfiguration.uri.toString() : "";
-
-        if (url.contains("googlevideo.com/api/manifest/dash")) {
-            Log.d("ExoUtil", ">>> YT_STABLE_V37: DUAL-ANCHOR SYNC...");
-            DefaultDashChunkSource.Factory chunkSourceFactory = new DefaultDashChunkSource.Factory(getDataSourceFactory(), 4);
-            DashMediaSource.Factory factory = new DashMediaSource.Factory(chunkSourceFactory, getDataSourceFactory());
-            
-            factory.setManifestParser(new DashManifestParser() {
-                private final Pattern idPattern = Pattern.compile("/id/([a-zA-Z0-9_-]{11})");
-
-                private String getYouTubeId(Uri uri) {
-                    Matcher matcher = idPattern.matcher(uri.toString());
-                    return matcher.find() ? matcher.group(1) : uri.toString();
-                }
-
-                @Override
-                @NonNull
-                public DashManifest parse(@NonNull Uri uri, @NonNull InputStream inputStream) throws java.io.IOException {
-                    DashManifest manifest = super.parse(uri, inputStream);
-                    try {
-                        if (manifest.getPeriodCount() < 1) return manifest;
-                        String videoId = getYouTubeId(uri);
-                        
-                        synchronized (timelineT) {
-                            if (!anchoredVideoId.equals(videoId)) {
-                                anchoredVideoId = videoId;
-                                anchoredAST = System.currentTimeMillis() - 60000;
-                                anchoredPTO = -1; // 會在第一個 Rep 裡初始化
-                                timelineT.clear(); timelineD.clear();
-                                Log.d("ExoUtil", ">>> YT_STABLE_V37: NEW VIDEO ANCHOR AST: " + anchoredAST);
-                            }
-                        }
-
-                        List<AdaptationSet> sets = new ArrayList<>();
-                        Period firstPeriod = manifest.getPeriod(0);
-                        for (AdaptationSet set : firstPeriod.adaptationSets) {
-                            List<Representation> reps = new ArrayList<>();
-                            for (Representation rep : set.representations) reps.add(solder(rep));
-                            sets.add(new AdaptationSet(set.id, set.type, reps, set.accessibilityDescriptors, set.essentialProperties, set.supplementalProperties));
-                        }
-
-                        Period infinitePeriod = new Period("dual_anchor_track", 0, sets, firstPeriod.eventStreams);
-                        return new DashManifest(anchoredAST, -1, 5000L, true, 5000L, 86400000L, 15000L, manifest.publishTimeMs, manifest.programInformation, manifest.utcTiming, manifest.serviceDescription, manifest.location, Collections.singletonList(infinitePeriod));
-                    } catch (Exception e) {
-                        return manifest;
-                    }
-                }
-
-                private Representation solder(Representation rep) {
-                    try {
-                        Field baseField = findField(rep.getClass(), "segmentBase");
-                        if (baseField == null) return rep;
-                        baseField.setAccessible(true);
-                        Object base = baseField.get(rep);
-                        if (base == null) return rep;
-
-                        Field tlField = findField(base.getClass(), "segmentTimeline");
-                        if (tlField == null) return rep;
-                        tlField.setAccessible(true);
-
-                        @SuppressWarnings("unchecked")
-                        List<SegmentBase.SegmentTimelineElement> update = (List<SegmentBase.SegmentTimelineElement>) tlField.get(base);
-                        if (update == null || update.isEmpty()) return rep;
-
-                        String itag = rep.format.id;
-                        long manifestStartNum = getLongSafe(base, "startNumber", 1);
-
-                        synchronized (timelineT) {
-                            if (!timelineT.containsKey(itag)) timelineT.put(itag, new TreeMap<>());
-                            if (!timelineD.containsKey(itag)) timelineD.put(itag, new TreeMap<>());
-
-                            TreeMap<Long, Long> tMap = timelineT.get(itag);
-                            TreeMap<Long, Long> dMap = timelineD.get(itag);
-                            if (tMap == null || dMap == null) return rep;
-
-                            // 🚀 初始化全局 PTO 錨點：確保所有 Rep 使用統一的零點
-                            if (anchoredPTO == -1) {
-                                anchoredPTO = 1000000L; // 設一個大的固定基數
-                                Log.d("ExoUtil", ">>> YT_STABLE_V37: ANCHORED PTO SET: " + anchoredPTO);
-                            }
-
-                            // 對齊最後一個片段
-                            long currentLastSq = manifestStartNum + update.size() - 1;
-                            if (tMap.isEmpty()) {
-                                // 將最後一個片段對齊到 LiveEdge (60s)
-                                tMap.put(currentLastSq, anchoredPTO + 60000L);
-                                dMap.put(currentLastSq, getLongSafe(update.get(update.size()-1), "duration", 5000));
-                            }
-
-                            for (int i = 0; i < update.size(); i++) {
-                                long sq = manifestStartNum + i;
-                                if (!tMap.containsKey(sq)) {
-                                    Long refSq = tMap.lastKey();
-                                    Long refT = tMap.get(refSq);
-                                    Long refD = dMap.get(refSq);
-                                    if (refT != null && refD != null) {
-                                        tMap.put(sq, refT + refD * (sq - refSq));
-                                        dMap.put(sq, getLongSafe(update.get(i), "duration", 5000));
-                                    }
-                                }
-                            }
-
-                            while (tMap.size() > 500) { Long fk = tMap.firstKey(); tMap.remove(fk); dMap.remove(fk); }
-
-                            List<SegmentBase.SegmentTimelineElement> soldered = new ArrayList<>();
-                            for (Long sq : tMap.keySet()) {
-                                Long tv = tMap.get(sq); Long dv = dMap.get(sq);
-                                if (tv != null && dv != null) soldered.add(new SegmentBase.SegmentTimelineElement(tv, dv));
-                            }
-
-                            // 未來填充 (12段/60s)
-                            long lastSq = tMap.lastKey();
-                            long lastT = tMap.get(lastSq);
-                            long lastD = dMap.get(lastSq);
-                            for (int j = 1; j <= 12; j++) {
-                                soldered.add(new SegmentBase.SegmentTimelineElement(lastT + (lastD * j), lastD));
-                            }
-
-                            setFinalField(base, "segmentTimeline", soldered);
-                            setFinalField(base, "startNumber", tMap.firstKey());
-                            // 🚀 核心：PTO 絕對固定！不隨刷新改變。
-                            setFinalField(base, "presentationTimeOffset", anchoredPTO);
-                            setFinalField(base, "timescale", 1000L);
-                            
-                            Log.d("ExoUtil", ">>> YT_STABLE_V37: [" + itag + "] Window:" + tMap.firstKey() + "-" + tMap.lastKey() + " RelEnd:" + (lastT - anchoredPTO));
-                        }
-                    } catch (Exception ignored) {}
-                    return rep;
-                }
-
-                private void setFinalField(Object obj, String fieldName, Object value) {
-                    try {
-                        Field f = findField(obj.getClass(), fieldName);
-                        if (f == null) return;
-                        f.setAccessible(true);
-                        Field modifiersField = Field.class.getDeclaredField("accessFlags");
-                        modifiersField.setAccessible(true);
-                        modifiersField.setInt(f, f.getModifiers() & ~Modifier.FINAL);
-                        f.set(obj, value);
-                    } catch (Exception ignored) {}
-                }
-
-                private long getLongSafe(Object obj, String fieldName, long def) {
-                    try {
-                        Field f = findField(obj.getClass(), fieldName);
-                        if (f != null) { f.setAccessible(true); return f.getLong(obj); }
-                    } catch (Exception ignored) {}
-                    return def;
-                }
-
-                private Field findField(Class<?> startClass, String name) {
-                    Class<?> current = startClass;
-                    while (current != null) {
-                        try { return current.getDeclaredField(name); } catch (Exception e) { current = current.getSuperclass(); }
-                    }
-                    return null;
-                }
-            });
-
-            return factory.createMediaSource(mediaItem);
+        String url = mediaItem.localConfiguration != null ? mediaItem.localConfiguration.uri.toString() : "";
+        int type = ExoUtil.getType(url, mediaItem.localConfiguration != null ? mediaItem.localConfiguration.mimeType : "");
+        if (type == C.CONTENT_TYPE_DASH) {
+            return new DashMediaSource.Factory(dataSourceFactory).setManifestParser(new YoutubeDashParser()).createMediaSource(mediaItem);
+        } else if (type == C.CONTENT_TYPE_HLS) {
+            return new HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem);
+        } else if (type == C.CONTENT_TYPE_SS) {
+            return new SsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem);
+        } else if (type == C.CONTENT_TYPE_RTSP) {
+            return new RtspMediaSource.Factory().createMediaSource(mediaItem);
+        } else {
+            return new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem);
         }
-        return defaultMediaSourceFactory.createMediaSource(mediaItem);
     }
 
-    private ExtractorsFactory getExtractorsFactory() {
-        if (extractorsFactory == null) extractorsFactory = new DefaultExtractorsFactory().setTsExtractorFlags(FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS).setTsExtractorTimestampSearchBytes(TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES * 20);
-        return extractorsFactory;
-    }
+    @Override public MediaSource.Factory setDrmSessionManagerProvider(androidx.media3.exoplayer.drm.DrmSessionManagerProvider drm) { return this; }
+    @Override public MediaSource.Factory setLoadErrorHandlingPolicy(androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy policy) { return this; }
+    @Override public int[] getSupportedTypes() { return new int[]{C.CONTENT_TYPE_DASH, C.CONTENT_TYPE_HLS, C.CONTENT_TYPE_OTHER, C.CONTENT_TYPE_RTSP, C.CONTENT_TYPE_SS}; }
 
-    private DataSource.Factory getDataSourceFactory() {
-        if (dataSourceFactory == null) dataSourceFactory = () -> getCacheDataSource(new DefaultDataSource.Factory(App.get(), getHttpDataSourceFactory())).createDataSource();
-        return dataSourceFactory;
-    }
+    /**
+     * V480: The Zero-Offset Linearizer
+     * Force PTO=0 and sync AST to linearized raw media timestamps.
+     */
+    private static class YoutubeDashParser extends androidx.media3.exoplayer.dash.manifest.DashManifestParser {
+        private static final Map<String, Long> sessionAnchorSQ = new HashMap<>();
+        private static final Map<String, Long> sessionAnchorT = new HashMap<>();
+        private static String currentSessionId = "";
+        private static long sessionFixedAST_ms = 0;
+        private static final Map<String, Long> sessionStep = new HashMap<>();
+        private static final String VERSION = "V490";
 
-    private CacheDataSource.Factory getCacheDataSource(DataSource.Factory upstreamFactory) {
-        return new CacheDataSource.Factory().setCache(getCache()).setUpstreamDataSourceFactory(upstreamFactory).setCacheWriteDataSinkFactory(null).setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
-    }
+        @Override
+        public DashManifest parse(Uri uri, InputStream inputStream) throws java.io.IOException {
+            String vId = uri.getQueryParameter("id");
+            if (vId == null) {
+                List<String> segments = uri.getPathSegments();
+                for (int i = 0; i < segments.size(); i++) {
+                    if ("id".equals(segments.get(i)) && i + 1 < segments.size()) {
+                        vId = segments.get(i + 1);
+                        break;
+                    }
+                }
+            }
+            if (vId != null && vId.contains(".")) vId = vId.split("\\.")[0];
+            if (vId == null) vId = "default";
 
-    private HttpDataSource.Factory getHttpDataSourceFactory() {
-        if (httpDataSourceFactory == null) httpDataSourceFactory = new OkHttpDataSource.Factory(OkHttp.client());
-        return httpDataSourceFactory;
+            synchronized (sessionAnchorSQ) {
+                if (!currentSessionId.equals(vId)) {
+                    currentSessionId = vId;
+                    sessionAnchorSQ.clear();
+                    sessionAnchorT.clear();
+                    sessionStep.clear();
+                    sessionFixedAST_ms = 0;
+                    Log.d("ExoUtil", ">>> YT_SILK_" + VERSION + ": SESSION START - " + vId);
+                }
+            }
+
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line).append("\n");
+            }
+            String xml = sb.toString();
+
+            boolean isDynamic = xml.contains("type=\"dynamic\"") || xml.contains("type='dynamic'");
+            Log.d("ExoUtil", ">>> YT_SILK_" + VERSION + ": Parsing DASH (isDynamic=" + isDynamic + ") - " + vId);
+
+            if (isDynamic) {
+                // 1. Robust Global Reconstruction (Live only)
+                xml = absoluteSanitize(xml, vId);
+
+                // 2. Final Metadata Polish (AST/Delay/Period)
+                if (sessionFixedAST_ms > 0) {
+                    SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+                    fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
+                    String astStr = fmt.format(new Date(sessionFixedAST_ms));
+                    xml = xml.replaceAll("availabilityStartTime\\s*=\\s*\"[^\"]+\"", "availabilityStartTime=\"" + astStr + "\"");
+                    xml = xml.replaceAll("publishTime\\s*=\\s*\"[^\"]+\"", "publishTime=\"" + astStr + "\"");
+                }
+                xml = xml.replaceAll("suggestedPresentationDelay\\s*=\\s*\"[^\"]+\"", "suggestedPresentationDelay=\"PT30S\"");
+                xml = xml.replaceAll("minBufferTime\\s*=\\s*\"[^\"]+\"", "minBufferTime=\"PT4S\"");
+                xml = xml.replaceAll("<Period[^>]*>", "<Period id=\"stable_period\" start=\"PT0S\">");
+            }
+
+            // 3. Smart XML Dump
+            dumpKeyXml(xml);
+
+            return super.parse(uri, new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
+        }
+
+        private String absoluteSanitize(String xml, String sessionId) {
+            String[] adaptationSets = xml.split("<AdaptationSet");
+            if (adaptationSets.length <= 1) return xml;
+
+            // Sanitize Header
+            String header = sanitizeFragment(adaptationSets[0], sessionId, 1000L, 1L);
+            
+            StringBuilder newXml = new StringBuilder(header);
+            for (int i = 1; i < adaptationSets.length; i++) {
+                String adSetBody = adaptationSets[i];
+                long adSetTS = extractAttr(adSetBody, "timescale", 1000L);
+                long adSetSN = extractAttr(adSetBody, "startNumber", extractAttr(adSetBody, "start_number", 1L));
+
+                String[] representations = adSetBody.split("<Representation");
+                String adSetHeader = sanitizeFragment(representations[0], sessionId, adSetTS, adSetSN);
+
+                for (int j = 1; j < representations.length; j++) {
+                    String repBody = sanitizeFragment(representations[j], sessionId, adSetTS, adSetSN);
+                    representations[j] = repBody;
+                }
+                
+                newXml.append("<AdaptationSet").append(adSetHeader);
+                for (int j = 1; j < representations.length; j++) {
+                    newXml.append("<Representation").append(representations[j]);
+                }
+            }
+            return newXml.toString();
+        }
+
+        private String sanitizeFragment(String body, String sessionId, long ts, long sn) {
+            // SQ Probe
+            long realSN = extractAttr(body, "startNumber", extractAttr(body, "start_number", sn));
+            if (realSN == 1L) {
+                Matcher m = Pattern.compile("sq/(\\d+)").matcher(body);
+                if (m.find()) {
+                    String g1 = m.group(1);
+                    if (g1 != null) realSN = Long.parseLong(g1);
+                }
+            }
+            
+            // Timescale Probe
+            long realTS = extractAttr(body, "timescale", ts);
+            if (realTS == 1000L) {
+                if (body.contains("video/") || body.contains("width=")) realTS = 90000L;
+                else if (body.contains("audio/")) realTS = 44100L;
+            }
+
+            // Linearization Logic
+            String trackKey = sessionId + "_" + realTS;
+            long anchorSQ, anchorT;
+            synchronized (sessionAnchorSQ) {
+                if (!sessionAnchorSQ.containsKey(trackKey)) {
+                    sessionAnchorSQ.put(trackKey, realSN);
+                    long rawT = extractAttr(body, "t", 0L);
+                    if (rawT == 0L) rawT = (realTS == 1000L) ? 15000000000L : (realTS * 15000000L / 1000L);
+                    sessionAnchorT.put(trackKey, rawT);
+                }
+                    Long valSQ = sessionAnchorSQ.get(trackKey);
+                    Long valT = sessionAnchorT.get(trackKey);
+                    anchorSQ = (valSQ != null) ? valSQ : realSN;
+                    anchorT = (valT != null) ? valT : 0L;
+            }
+
+            long stableT = anchorT + (realSN - anchorSQ) * 5000L * realTS / 1000L;
+            
+            // Force PTO = 0
+            String mod = body.replaceAll("\\bpresentationTimeOffset\\s*=\\s*\"-?\\d+\"", "presentationTimeOffset=\"0\"");
+            if ((body.contains("<SegmentTemplate") || body.contains("<SegmentList")) && !mod.contains("presentationTimeOffset=\"0\"")) {
+                mod = mod.replaceFirst("(<SegmentTemplate|<SegmentList)", "$1 presentationTimeOffset=\"0\"");
+            }
+            
+            mod = injectT(mod, stableT);
+
+            // Calculate global AST based on the very first segment seen in the session
+            synchronized (sessionAnchorSQ) {
+                if (sessionFixedAST_ms == 0) {
+                    sessionFixedAST_ms = System.currentTimeMillis() - (stableT * 1000 / realTS) - 45000L; // 45s lead
+                }
+            }
+            
+            return mod;
+        }
+
+        private String injectT(String body, long virtualT) {
+            String newBody = body.replaceAll("\\bt\\s*=\\s*\"\\d+\"", "t=\"" + virtualT + "\"");
+            if (newBody.equals(body) && body.contains("<S ")) {
+                newBody = body.replaceFirst("<S ", "<S t=\"" + virtualT + "\" ");
+            }
+            return newBody;
+        }
+
+        private void dumpKeyXml(String xml) {
+            try {
+                String[] lines = xml.split("\n");
+                StringBuilder dump = new StringBuilder("\n--- KEY XML SNAPSHOT ---\n");
+                boolean inTimeline = false;
+                for (String line : lines) {
+                    String trimmed = line.trim();
+                    if (trimmed.contains("<MPD") || trimmed.contains("<Period") || trimmed.contains("availabilityStartTime")) {
+                        dump.append(trimmed).append("\n");
+                    }
+                    if (trimmed.contains("<AdaptationSet") || trimmed.contains("<Representation")) {
+                        dump.append("  ").append(trimmed).append("\n");
+                    }
+                    if (trimmed.contains("presentationTimeOffset") || trimmed.contains("startNumber")) {
+                        dump.append("    ").append(trimmed).append("\n");
+                    }
+                    if (trimmed.contains("<SegmentTimeline")) {
+                        inTimeline = true;
+                        dump.append("    ").append(trimmed).append("\n");
+                    }
+                    if (inTimeline && trimmed.contains("<S ")) {
+                        dump.append("      ").append(trimmed).append("\n");
+                        inTimeline = false; // Only show first S
+                    }
+                }
+                dump.append("--- END SNAPSHOT ---");
+                String finalLog = dump.toString();
+                int maxLogSize = 3500;
+                for (int i = 0; i <= finalLog.length() / maxLogSize; i++) {
+                    int start = i * maxLogSize;
+                    int end = Math.min((i + 1) * maxLogSize, finalLog.length());
+                    if (start < end) Log.d("ExoUtil", finalLog.substring(start, end));
+                }
+            } catch (Exception e) {}
+        }
+
+        private String extractAttrString(String text, String attr) {
+            Pattern p = Pattern.compile("\\b" + attr + "\\s*=\\s*[\"'](\\d+)[\"']");
+            Matcher m = p.matcher(text);
+            return m.find() ? m.group(1) : "N/A";
+        }
+
+        private long extractAttr(String text, String attr, long defaultVal) {
+            String val = extractAttrString(text, attr);
+            try {
+                return val.equals("N/A") ? defaultVal : Long.parseLong(val);
+            } catch (Exception e) {
+                return defaultVal;
+            }
+        }
     }
 }

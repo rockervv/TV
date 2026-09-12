@@ -68,6 +68,13 @@
 -keep class org.xmlpull.** { *; }
 -keepclassmembers class org.xmlpull.** { *; }
 
+# Media3 DASH 混淆保護 (修復 YouTube 直播縫合器)
+-keep class androidx.media3.exoplayer.dash.manifest.** { *; }
+-keepclassmembers class androidx.media3.exoplayer.dash.manifest.** { *; }
+-keep class androidx.media3.exoplayer.dash.DashManifestParser { *; }
+-keep class androidx.media3.common.util.UriBySubstitution { *; }
+-dontwarn androidx.media3.exoplayer.dash.manifest.**
+
 # IJK
 
 

@@ -114,15 +114,35 @@ public class PlaySpec {
 
     public PlaySpec checkUa() {
         if (headers == null) headers = new HashMap<>();
-        if (headers.keySet().stream().noneMatch(HttpHeaders.USER_AGENT::equalsIgnoreCase)) headers.put(HttpHeaders.USER_AGENT, Setting.getUa().isEmpty() ? PlayerHelper.getDefaultUa() : Setting.getUa());
-        if (url != null && url.contains("googlevideo.com")) headers.put(HttpHeaders.REFERER, "https://www.youtube.com/");
+        String settingUa = Setting.getUa();
+
+        // 🛠️ 邏輯修正：
+        // 1. 如果是 YouTube 連結 (googlevideo 或 local proxy)，優先保留現有的 UA (不論大小寫)
+        // 這些 UA (如 Cobalt) 對 YouTube 解析至關重要。
+        boolean isYouTube = url != null && (url.contains("googlevideo.com") || url.contains("127.0.0.1:9978") || url.contains("dash?id="));
+        boolean hasUa = headers.keySet().stream().anyMatch(HttpHeaders.USER_AGENT::equalsIgnoreCase);
+        
+        if (isYouTube) {
+            if (!headers.containsKey(HttpHeaders.REFERER)) headers.put(HttpHeaders.REFERER, "https://www.youtube.com/");
+            if (hasUa) return this;
+        }
+
+        // 2. 一般情況：優先採用使用者設定的 UA，若無則檢查現有 headers，最後才採用預設 UA
+        if (!settingUa.isEmpty()) {
+            headers.put(HttpHeaders.USER_AGENT, settingUa);
+        } else if (!hasUa) {
+            headers.put(HttpHeaders.USER_AGENT, PlayerHelper.getDefaultUa());
+        }
         return this;
     }
 
     public PlaySpec checkProxy() {
         if (url == null) return this;
-        if (url.contains("googlevideo.com")) {
-            this.format = url.contains("dash") ? androidx.media3.common.MimeTypes.APPLICATION_MPD : androidx.media3.common.MimeTypes.APPLICATION_M3U8;
+        boolean isYouTube = url.contains("googlevideo.com") || url.contains("127.0.0.1:9978") || url.contains("dash?id=");
+        
+        if (isYouTube) {
+            if (url.contains("dash") || url.contains(".mpd")) this.format = androidx.media3.common.MimeTypes.APPLICATION_MPD;
+            else if (url.contains("m3u8")) this.format = androidx.media3.common.MimeTypes.APPLICATION_M3U8;
             return this; // 🛠️ YouTube 網址絕對不能進 M3U8 Proxy
         } else if (url.contains(".php") || (url.contains("/live/") && !url.contains("vod"))) {
             this.format = androidx.media3.common.MimeTypes.APPLICATION_M3U8;

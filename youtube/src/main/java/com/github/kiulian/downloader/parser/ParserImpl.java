@@ -103,7 +103,7 @@ public class ParserImpl implements Parser {
             JSONObject contentPlaybackContext = new JSONObject();
             contentPlaybackContext.fluentPut("signatureTimestamp", 20265);
             // Fix V29 error: html5Preference is a scalar string field!
-            contentPlaybackContext.fluentPut("html5Preference", "HTML5_PREF_WANTS_HTML5");
+            contentPlaybackContext.fluentPut("html5Preference", "HTML5_PREF_WANTS");
             playbackContext.fluentPut("contentPlaybackContext", contentPlaybackContext);
             body.fluentPut("playbackContext", playbackContext);
         } else {

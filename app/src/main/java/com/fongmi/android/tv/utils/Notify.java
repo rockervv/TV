@@ -139,12 +139,13 @@ public class Notify {
     private void makeText(String message, int gravity, int size, int color) {
         if (mToast != null) mToast.cancel();
         if (TextUtils.isEmpty(message)) return;
-        int xOffset = gravity == (Gravity.TOP | Gravity.END) ? 0 : ResUtil.dp2px(16);
-        int yOffset = gravity == (Gravity.TOP | Gravity.END) ? 0 : ResUtil.dp2px(16);
+        boolean isTop = (gravity == (Gravity.TOP | Gravity.END));
+        int xOffset = isTop ? 0 : ResUtil.dp2px(16);
+        int yOffset = isTop ? 0 : ResUtil.dp2px(64); // 🛠️ 提高底部訊息高度，防止被簡介畫面底部遮擋
         mToast = new Toast(App.get());
         mToast.setDuration(Toast.LENGTH_LONG);
         mToast.setView(createView(message, size, color));
-        if (gravity != Gravity.BOTTOM) mToast.setGravity(gravity, xOffset, yOffset);
+        mToast.setGravity(gravity, xOffset, yOffset);
         mToast.show();
     }
 

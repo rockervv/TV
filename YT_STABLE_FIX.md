@@ -635,6 +635,24 @@ ExoPlayer 檢測到這種偏移後，會認為當前緩衝的時間軸失效，�
     - **無縫同步**: 確保生成的虛擬時間軸與媒體內部時間戳、XML 累加值完全一致，消除了 Manifest 更新時的相位差。
 - **結果**: **完美穩定**。播放器不再進入 Buffering 死循環，A/V 同步極其精準。
 
+### V500: 全域 Period 消毒與 60 秒錨定原點 (Global Period Sanitizer & Stall Recovery)
+- **核心問題**: 發現 YouTube 直播 Manifest 有時將全域 `SegmentList` 和 `SegmentTimeline` 放置在 `<Period>` 級別（個別 track 之外），逃過了先前的 track 局部消毒。且 YouTube DASH Token 具備時效限制作業（約 8 分鐘失效），導致長時間播放或返回串流時偶發 403 或者是 Behind Live Window 錯誤。
+- **修復方案**:
+    - **全域 Period 消毒 (Global Period Sanitizer)**: 在遍歷各音視軌（AdaptationSet / Representation）前，優先對 `<AdaptationSet` 切分前的 `[0]` 區段（即 Period 級別元件）執行完整消毒。
+    - **60 秒坐標系原點鎖定**: 將首個片段的虛擬 `t` 統一錨定在 60 秒（`60L * realTS`）的穩定大數字，並完整追蹤並審計日誌「150億到60,000」的精準過渡。
+    - **強健的防空防護**: 為 `sanitizeFragment` 加上強健的 null 檢查，徹底消除序號提取時可能出現的 NPE 隱患。
+    - **失速重連恢復機制 (Stall Recovery)**: 在 `PlayerManager.java` 的 `onPlayerError` 攔截 403 HTTP 狀態碼與 `ERROR_CODE_BEHIND_LIVE_WINDOW`，針對 YouTube 串流自動執行全量刷新重載，以重獲新鮮的有效簽章 Token。
+    - **智慧分片代理 (Smart Segment Proxy)**: 升級 `DASH.java` 伺服器。現在它會重寫 MPD 中的所有分片網址，將其導向本地代理。當分片下載遭遇 403 錯誤時，代理伺服器會自動呼叫 `MediaServiceCore` 強制重新獲取最新影片資訊與簽章，並自動重試下載，對播放器端完全透明。
+- **結果**: 徹底根除 Period 級別殘留的時間戳異常、8 分鐘 Token 失效卡死，以及普通影片播放中途斷掉的問題，達到極致工業級全時域穩定播放。
+
+### V510 - V511: 直播與點播邏輯解耦 (Live/VOD Decoupling & Negative Timestamp Guard)
+- **核心問題**: 為了相容 YouTube VOD 而引入的全局消毒邏輯，在處理不含序號的 XML 片段（如 Header）時會將序號誤判為 `1`，導致計算出巨大的負數虛擬 `t`（如 `-1398571200000`），觸發 ExoPlayer 3002 解析報錯。
+- **修復方案**:
+    - **序號門檻護衛 (Sequence Threshold Guard)**: 在 `MediaSourceFactory.java` 中增加防護：只有當分片序號 `realSN > 1000` 時才套用 Live 線性化計算。這確保了 Header 和靜態標籤不被污染，徹底消除了負數時間戳。
+    - **VOD 相對座標平移 (Relative VOD Timeline)**: 針對 YouTube VOD，不再強制線性化（以保持變動碼率特性）。改為將 `SegmentTimeline` 的起始時間 `t` 映射到 `0` 並歸零 `PTO`。這完美解決了 VOD 播放約 46 秒時因時間軸跳變導致的播放卡死。
+    - **精準分流識別**: 透過網址參數 `&live=true` 精確區分 YouTube 直播與點播流，實現方案的自動適配。
+- **結果**: 直播穩定性恢復至 V491 水準，同時實現了 YouTube VOD 的流暢播放與「46秒跳變」Bug 的根治。
+
 ---
 
 ## 最終解決方案總結 (Final Solution Summary)

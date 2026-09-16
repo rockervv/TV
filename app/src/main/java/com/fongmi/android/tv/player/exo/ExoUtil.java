@@ -300,13 +300,14 @@ public class ExoUtil {
     }
 
     public static Map<String, String> extractHeaders(MediaItem item) {
-        Bundle extras = item.requestMetadata.extras;
+        Bundle extras = item.requestMetadata != null ? item.requestMetadata.extras : null;
         if (extras == null) return new HashMap<>();
         Map<String, String> headers = new HashMap<>();
         for (String key : extras.keySet()) {
             String value = extras.getString(key);
             if (value != null) headers.put(key, value);
         }
+        Log.d("ExoUtil", "Extracted Headers from MediaItem: " + headers);
         return headers;
     }
 

@@ -8,12 +8,11 @@ import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.player.util.ADFilter;
 import com.fongmi.android.tv.server.Nano;
 import com.fongmi.android.tv.server.Server;
-import com.fongmi.android.tv.setting.Setting;
 import com.github.catvod.net.OkHttp;
+import android.net.Uri;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,9 +62,21 @@ public class M3U8 implements Process {
             if (headersBuilder.build().get("User-Agent") == null) {
                 headersBuilder.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             }
-            try (Response response = OkHttp.newCall(targetUrl, headersBuilder.build()).execute()) {
-                if (!response.isSuccessful() || response.body() == null) return "";
-                BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream()));
+            
+            okhttp3.HttpUrl targetHttpUrl = okhttp3.HttpUrl.parse(targetUrl);
+            if (targetHttpUrl == null) {
+                // 🛠️ 強化編碼：針對包含中文字符的網址進行轉義
+                String encodedUrl = android.net.Uri.encode(targetUrl, "@#&=*+-_.,:;?/'()![]");
+                targetHttpUrl = okhttp3.HttpUrl.parse(encodedUrl);
+                Log.w("M3U8", "HttpUrl.parse failed for raw URL. Attempting encoded: " + encodedUrl);
+            }
+
+            try (Response response = OkHttp.newCall(targetHttpUrl != null ? targetHttpUrl.toString() : targetUrl, headersBuilder.build()).execute()) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    Log.e("M3U8", "Fetch failed with code: " + response.code() + " for: " + targetUrl);
+                    return "";
+                }
+                BufferedReader reader = new BufferedReader(new InputStreamReader(response.body().byteStream(), "UTF-8"));
                 StringBuilder sb = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) sb.append(line).append("\n");
@@ -73,11 +84,18 @@ public class M3U8 implements Process {
 
                 String filtered;
                 String sourceId = Server.get().getPlayer() != null ? Server.get().getPlayer().getKey() : "";
-                boolean isVod = isVod(targetUrl, raw);
-                if (Setting.isAdblockLive() || isVod) {
-                    filtered = ADFilter.Process(targetUrl, raw, sourceId).trim();
-                } else {
-                    Log.d("ADFilter", "Bypass ADFilter: Not VOD and Live Adblock is OFF");
+                // 🛠️ 只有非 YouTube 的 VOD 才進入 ADFilter。YouTube (Live/VOD) 均跳過，避免破壞其特定的分片邏輯。
+                boolean isYouTube = targetUrl.contains("googlevideo.com") || targetUrl.contains("youtube.com") || targetUrl.contains("127.0.0.1:9978");
+                boolean isVod = !isYouTube && isVod(targetUrl, raw);
+                try {
+                    if (isVod) {
+                        filtered = ADFilter.Process(targetUrl, raw, sourceId).trim();
+                    } else {
+                        Log.d("ADFilter", "Bypass ADFilter: " + (isYouTube ? "YouTube detected" : "Live stream detected"));
+                        filtered = raw;
+                    }
+                } catch (Exception e) {
+                    Log.e("M3U8", "ADFilter failed, using raw content", e);
                     filtered = raw;
                 }
 
@@ -89,7 +107,7 @@ public class M3U8 implements Process {
                 }
 
                 StringBuilder result = new StringBuilder();
-                URL baseUrl = new URL(response.request().url().toString());
+                okhttp3.HttpUrl baseUrl = response.request().url();
                 String[] filteredLines = filtered.split("\\n");
                 String proxyUrlPrefix = Server.get().getAddress("/m3u8?url=");
                 for (String fLine : filteredLines) {
@@ -104,7 +122,8 @@ public class M3U8 implements Process {
                         }
                         result.append(fLine).append("\n");
                     } else {
-                        String resolvedUrl = new URL(baseUrl, fLine).toString();
+                        okhttp3.HttpUrl resolvedHttpUrl = baseUrl.resolve(fLine);
+                        String resolvedUrl = resolvedHttpUrl != null ? resolvedHttpUrl.toString() : fLine;
                         if (resolvedUrl.toLowerCase().contains(".m3u8") && !resolvedUrl.startsWith(proxyUrlPrefix)) {
                             result.append(proxyUrlPrefix).append(URLEncoder.encode(resolvedUrl, "UTF-8")).append("&.m3u8\n");
                         } else {
@@ -127,6 +146,7 @@ public class M3U8 implements Process {
                 return finalM3u8;
             }
         } catch (Exception e) {
+            Log.e("M3U8", "Fetch failed: " + targetUrl, e);
             return "";
         }
     }
@@ -158,12 +178,13 @@ public class M3U8 implements Process {
         return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", finalM3u8);
     }
 
-    private static String resolveTagUri(String line, URL baseUrl) {
+    private static String resolveTagUri(String line, okhttp3.HttpUrl baseUrl) {
         try {
             int start = line.indexOf("URI=\"") + 5;
             int end = line.indexOf("\"", start);
             String uri = line.substring(start, end);
-            String resolved = new URL(baseUrl, uri).toString();
+            okhttp3.HttpUrl resolvedHttpUrl = baseUrl.resolve(uri);
+            String resolved = resolvedHttpUrl != null ? resolvedHttpUrl.toString() : uri;
             return line.substring(0, start) + resolved + line.substring(end);
         } catch (Exception e) {
             return line;

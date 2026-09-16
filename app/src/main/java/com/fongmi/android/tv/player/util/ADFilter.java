@@ -376,7 +376,11 @@ public class ADFilter {
         Log.d("ADFilter", "Total: " + totalDuration + ", AD Total: " + adDuration + ", AD Count: " + adCount + ", AD Ratio: " + (Math.round(adRatio * 100.0) / 100.0));
 
         M3U8AdFilterResult result;
-        if (adRatio > 0.5 && totalDuration > 0) {
+        String filteredContent = output.toString().trim();
+        if (filteredContent.isEmpty() && !rawContent.isEmpty()) {
+            Log.e("ADFilter", "Filter returned EMPTY content! Bypassing to avoid total failure.");
+            result = new M3U8AdFilterResult(rawContent, 0, 0.0);
+        } else if (adRatio > 0.5 && totalDuration > 0) {
              Log.w("ADFilter", "Bypass ADFilter: AD ratio > 50%, returning raw content to avoid false positive");
              result = new M3U8AdFilterResult(rawContent, 0, 0.0);
         } else if (adDuration > 0 && adRatio > 0.15 && totalDuration > 300) {
@@ -384,7 +388,7 @@ public class ADFilter {
             result = new M3U8AdFilterResult(rawContent, -1, 0.0);
         } else {
             Log.d("ADFilter", "Successfully marked/filtered M3U8");
-            result = new M3U8AdFilterResult(output.toString(), adCount, adDuration);
+            result = new M3U8AdFilterResult(filteredContent, adCount, adDuration);
         }
 
         cache.put(cacheKey, result);

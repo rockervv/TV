@@ -135,5 +135,21 @@ android {
 1.  **Gradle**: 將 `org.chromium.net` 依賴替換為 `com.google.android.gms:play-services-cronet:18.0.1`。
 2.  **代碼**: 在 `CronetManager.kt` 中，將 `NativeCronetProvider(context).createBuilder()` 替換為標準的 `CronetEngine.Builder(context)`，因為 GMS Cronet 不提供 `NativeCronetProvider` 內部類。
 
+## 7. YouTube 直播與點播 ExoPlayer 解析優化與卡頓修復 (V517 & V518)
+
+**修改內容：** 徹底修復 YouTube 直播與點播在 ExoPlayer 上的解析錯誤 (3002) 與播放中途卡頓問題，確保時間軸線性增長與音畫同步。
+
+### 7.1. 3002 解析錯誤根源修復 (V517)
+*   **問題原因：** 原有的 XML 正則清洗邏輯存在引號歧視，導致在特定情況下重複注入 `start="PT0S" start="PT0S"` 非法語法；且正則過於貪婪，會導致標籤結尾被破壞成 `//>`；此外，未妥善支持包含命名空間的標籤（如 `yt:AdaptationSet`），引發 ExoPlayer 3002 解析崩潰。
+*   **修正方案：** 重新實作乾淨的 Period 標籤重構邏輯與層級式標籤切分（Hierarchical Sanitize），完全相容單雙引號，且支援 `\w+:AdaptationSet` 命名空間格式，消除語法非法引發的崩潰。
+
+### 7.2. 直播播放中途卡頓與時間軸抖動優化 (V518)
+*   **問題原因：** YouTube 直播分片長度不固定（如 5005ms vs 4938ms）。如果每輪 Manifest 刷新都重新計算時間投影，會導致同一個序列號 (SN) 的虛擬時間 `t` 前後不一致，產生「時間倒流」或「時間軸彈簧效應」，迫使 ExoPlayer 清空緩衝重新對齊，造成頻繁的卡頓（Buffering）與 `Audio Sink Discontinuity`。
+*   **修正方案：** 實施 **V518 線性投影算法**。在 Session 開始時鎖定每個軌道的基準步長（Locked `baseStep`），強制執行線性時間投影公式：`t = AnchorT + (SN - AnchorSN) * baseStep`。配合 `injectTimelineTFixed` 算法，徹底消除 Manifest 刷新導致的時間抖動。
+
+### 7.3. IDE Duplicate Class Ghost 定義修復
+*   **問題原因：** 發現項目中意外存在一個帶有連續點號的錯誤目錄 `app/src/main/java/com.fongmi.android.tv/player/exo/`，其中殘留了 `MediaSourceFactory.java` 的舊版定義，導致 IDE 提示 "Duplicate class" 衝突且代碼版本出現混淆。
+*   **修正方案：** 清理並清空該 Ghost 目錄中的類定義，將最新的 V518 鎖定步長核心邏輯統一整合至正確的 nested 目錄結構 `app/src/main/java/com/fongmi/android/tv/player/exo/MediaSourceFactory.java` 中。
+
 ---
-**狀態：** 所有模組已成功同步 (Sync finished successfully)。
+**狀態：** 所有模組已成功同步，核心解析器已進化至 V518，YouTube 解析與直播中途卡頓問題已獲得徹底修復。

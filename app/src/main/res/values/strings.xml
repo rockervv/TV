@@ -221,6 +221,7 @@
     <string name="play_status_data_timeout">線路資料讀取超時</string>
     <string name="play_status_success">資料取得成功</string>
     <string name="play_status_preparing">串流緩存準備中</string>
+    <string name="play_status_recovering">重新取得資料</string>
 
     <!-- Parse -->
     <string name="parse">解析</string>

@@ -461,6 +461,7 @@ public class VideoActivity extends BaseVideoActivity implements CustomKeyDownVod
     public void resetPlaybackForError(String msg) {
         PlaybackReset.afterError(player(), () -> mClock.setCallback(null));
         showError(msg);
+        if (isFullscreen()) exitFullscreen();
     }
 
     @Override

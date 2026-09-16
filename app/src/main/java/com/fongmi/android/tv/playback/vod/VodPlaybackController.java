@@ -215,8 +215,15 @@ public class VodPlaybackController {
         if (!fallbackPolicy.playbackError()) {
             state.setRecovering(false);
             host.resetPlaybackForError(msg);
-            if (!host.isSiteChangeable() || host.isResume()) host.finishVod();
+            if (!isYouTube() && (!host.isSiteChangeable() || host.isResume())) host.finishVod();
         }
+    }
+
+    private boolean isYouTube() {
+        String key = host.getVodKey();
+        Site site = VodConfig.get().getSite(key);
+        if (site == null) site = Site.find(key);
+        return key.toLowerCase().contains("youtube") || key.toLowerCase().contains("smarttube") || (site != null && (site.getApi().contains("SmartTube") || site.getName().toLowerCase().contains("youtube")));
     }
 
     public void playbackEnded() {
@@ -347,8 +354,10 @@ public class VodPlaybackController {
 
     private void detailEmpty(boolean finish) {
         android.util.Log.d("TV_FATAL", "VodPlaybackController.detailEmpty: finish=" + finish + " name=" + host.getVodName());
+        boolean isYouTube = isYouTube();
         if (host.isFromCollect() || finish) {
-            if (!fallbackPolicy.emptyDetail()) host.finishVod();
+            // 🛠️ 穩定性政策：如果是 YouTube 且不是最終結束，則不關閉畫面，讓使用者能手動重試
+            if (!fallbackPolicy.emptyDetail() && (!isYouTube || finish)) host.finishVod();
         } else if (host.getVodName().isEmpty()) {
             if (!fallbackPolicy.emptyDetail()) host.renderEmptyDetail();
         } else {
@@ -356,7 +365,8 @@ public class VodPlaybackController {
             host.onDetailFallbackScheduled();
             if (!fallbackPolicy.emptyDetail()) {
                 host.showDetailMessage(com.fongmi.android.tv.utils.ResUtil.getString(com.fongmi.android.tv.R.string.error_play_flag));
-                if (!host.isSiteChangeable() || host.isResume()) host.finishVod();
+                // 🛠️ 穩定性政策：如果是 YouTube，失敗時留在詳情頁而不回首頁
+                if (!isYouTube && (!host.isSiteChangeable() || host.isResume())) host.finishVod();
             }
         }
     }

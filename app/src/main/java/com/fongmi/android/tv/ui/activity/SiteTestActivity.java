@@ -194,7 +194,10 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
         Log.d("SiteTest", ">>> [homeContent] START Site: " + mSite.getName());
         new Thread(() -> {
             try {
-                Result result = SiteApi.homeContent(mSite);
+                // 🛠️ 給予 init() 背景預熱任務 (指紋同步) 一點緩衝時間
+                Thread.sleep(500);
+                // 🛠️ 在測試模式中強迫不使用快取 (Force Refresh)
+                Result result = SiteApi.homeContent(mSite, true);
                 mHomeResult = result;
                 showResult("homeContent", result.toString());
             } catch (Exception e) {
@@ -208,7 +211,8 @@ public class SiteTestActivity extends BaseActivity implements SiteAdapter.OnClic
         Log.d("SiteTest", ">>> [categoryContent] START TID: " + tid);
         new Thread(() -> {
             try {
-                Result result = SiteApi.categoryContent(mSite.getKey(), tid, "1", true, new HashMap<>());
+                // 🛠️ 在測試模式中強迫不使用快取 (Force Refresh)
+                Result result = SiteApi.categoryContent(mSite.getKey(), tid, "1", true, new HashMap<>(), true);
                 mHomeResult = result; 
                 showResult("categoryContent", result.toString());
             } catch (Exception e) {

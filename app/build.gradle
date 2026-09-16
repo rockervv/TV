@@ -173,7 +173,6 @@ dependencies {
     implementation project(':common')
     implementation project(':chaquo')
     implementation project(':quickjs')
-    implementation project(':youtube')
     implementation project(':hook')
     implementation project(':mpv')
 

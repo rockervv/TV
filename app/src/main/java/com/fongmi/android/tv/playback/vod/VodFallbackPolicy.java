@@ -9,6 +9,8 @@ import com.fongmi.android.tv.model.PlaybackViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class VodFallbackPolicy {
 
@@ -44,11 +46,26 @@ public class VodFallbackPolicy {
     }
 
     public void search(String keyword, boolean autoFallback) {
-        state.setSearchKeyword(keyword);
+        String query = sanitize(keyword);
+        state.setSearchKeyword(query);
         state.setAutoFallback(autoFallback);
         state.setSelectFirstSource(autoFallback);
-        host.onSearchStarted(keyword);
-        host.requestSearch(getSearchableSites(), keyword);
+        host.onSearchStarted(query);
+        host.requestSearch(getSearchableSites(), query);
+    }
+
+    private String sanitize(String keyword) {
+        if (keyword == null) return "";
+        // 🛠️ 優化：如果是超長的 YouTube 標題，嘗試提取括號內的核心劇名
+        if (keyword.length() > 15) {
+            Matcher m = Pattern.compile("《([^》]+)》").matcher(keyword);
+            if (m.find()) return m.group(1);
+            // 🛡️ 備案：移除常見的廢話詞彙，並截斷
+            keyword = keyword.replaceAll("一口氣看完|身手不凡|偵破失蹤案|討厭暴力|精通8國語言|精通8国语言", "");
+            if (keyword.contains("！")) keyword = keyword.split("！")[0];
+            if (keyword.length() > 15) keyword = keyword.substring(0, 15);
+        }
+        return keyword;
     }
 
     public void onSearchResult(Result result) {
@@ -62,10 +79,23 @@ public class VodFallbackPolicy {
     }
 
     private boolean fallbackToNextLineOrSource() {
-        android.util.Log.d("Fallback", "fallbackToNextLineOrSource() - changeable: " + host.isSiteChangeable() + " resume: " + host.isResume());
+        boolean isYouTube = isYouTube();
+        android.util.Log.d("Fallback", "fallbackToNextLineOrSource() - changeable: " + host.isSiteChangeable() + " resume: " + host.isResume() + " isYouTube: " + isYouTube);
+        
+        // 🛠️ 核心修正：針對 YouTube (SmartTube) 來源，如果站點設定不可變更 (isSiteChangeable = false)，則嚴禁任何形式的切換回退。
+        // 這能防止因暫時性的 403 或解析錯誤導致播放器跳轉到完全無關的其他來源，干擾使用者體驗。
+        if (isYouTube && !host.isSiteChangeable()) return false;
+        
         if (!host.isSiteChangeable() && !host.isResume()) return false;
         if (fallbackToNextLine()) return true;
         return fallbackToNextSource(false);
+    }
+
+    private boolean isYouTube() {
+        String key = host.getVodKey();
+        Site site = VodConfig.get().getSite(key);
+        if (site == null) site = Site.find(key);
+        return key.toLowerCase().contains("youtube") || key.toLowerCase().contains("smarttube") || (site != null && (site.getApi().contains("SmartTube") || site.getName().toLowerCase().contains("youtube")));
     }
 
     private boolean fallbackToNextLine() {

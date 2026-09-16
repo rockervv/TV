@@ -33,6 +33,7 @@ import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
 import com.google.common.net.HttpHeaders;
+import com.liskovsoft.youtubeapi.service.YouTubeServiceManager;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -625,9 +626,46 @@ public class PlayerManager implements ParseCallback {
 
         @Override
         public void onPlayerError(@NonNull PlaybackException e) {
-            android.util.Log.d("PlayerManager", ">>> [Playback Error] Code: " + e.errorCode + " | Message: " + e.getMessage() + " | Cause: " + getConciseMsg(e));
+            String conciseMsg = getConciseMsg(e);
+            android.util.Log.d("PlayerManager", ">>> [Playback Error] Code: " + e.errorCode + " | Message: " + e.getMessage() + " | Cause: " + conciseMsg);
             App.removeCallbacks(runnable);
             if (spec == null) return;
+
+            // YouTube Stall Recovery: 403 or behind-live-window triggers full stream reload to refresh signatures
+            String url = spec.getUrl();
+            String key = spec.getKey();
+            boolean isYouTube = (url != null && (url.contains("googlevideo.com") || url.contains("youtube.com") || url.contains("127.0.0.1:9978") || url.contains("dash?id="))) 
+                             || (key != null && key.contains("smarttube"));
+            
+            if (isYouTube) {
+                boolean is403 = conciseMsg.contains("403") || (e.getMessage() != null && e.getMessage().contains("403"));
+                boolean is410 = conciseMsg.contains("410") || (e.getMessage() != null && e.getMessage().contains("410"));
+                boolean isBehind = e.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW;
+                boolean isBadStatus = e.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS;
+                boolean isParsingError = e.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED;
+
+                if (isBehind || (isBadStatus && (is403 || is410)) || is403 || is410 || isParsingError) {
+                    if (++retry > 3) {
+                        android.util.Log.e("PlayerManager", ">>> [YouTube Stall Recovery] Max retries reached (" + retry + "). Reporting fatal error to stop loop.");
+                        callback.onError(engine.getErrorMessage(e));
+                        return;
+                    } else {
+                        android.util.Log.w("PlayerManager", ">>> [YouTube Stall Recovery] Error " + e.errorCode + " (Attempt " + retry + ") detected for " + (live ? "Live" : "VOD") + "! URL: " + url);
+                        
+                        // 🛠️ 嘗試切換 YouTube 客戶端或重置快取，繞過 403 Throttling
+                        if (retry >= 2) {
+                            android.util.Log.w("PlayerManager", ">>> [YouTube Stall Recovery] Switching client to bypass 403...");
+                            YouTubeServiceManager.instance().switchNextClient();
+                        } else {
+                            YouTubeServiceManager.instance().invalidateCache();
+                        }
+
+                        Notify.show(R.string.play_status_recovering);
+                        startCurrent(getPosition());
+                        return;
+                    }
+                }
+            }
 
             // 當發生解析錯誤時，印出 M3U8 內容幫助 Debug
             if (e.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED || e.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED) {

@@ -32,11 +32,16 @@ public class Proxy implements Process {
             // ✅ 若是 JS，嘗試讀取前幾個字元印出
             if ("js".equals(doType) && rs[2] instanceof InputStream) {
                 InputStream is = (InputStream) rs[2];
-                byte[] buf = new byte[100];
-                int len = is.read(buf);
-                String preview = new String(buf, 0, Math.max(0, len));
-                Log.d("ProxyJS", "JS preview: " + preview.replace("\n", "\\n").replace("\r", ""));
-                // reset InputStream for actual usage（這步略過，實際上 proxyLocal 應包裝可重複讀）
+                if (is.markSupported()) {
+                    is.mark(100);
+                    byte[] buf = new byte[100];
+                    int len = is.read(buf);
+                    String preview = new String(buf, 0, Math.max(0, len));
+                    Log.d("ProxyJS", "JS preview: " + preview.replace("\n", "\\n").replace("\r", ""));
+                    is.reset();
+                } else {
+                    Log.d("ProxyJS", "InputStream doesn't support mark/reset, skipping preview.");
+                }
             }
 
 

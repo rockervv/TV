@@ -23,7 +23,6 @@ android {
 
 dependencies {
     api project(':common')
-    api project(':youtube')
     api project(':sharedutils')
     api project(':mediaserviceinterfaces')
     api project(':youtubeapi')

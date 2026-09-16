@@ -30,7 +30,6 @@ include ':common'
 include ':catvod'
 include ':chaquo'
 include ':quickjs'
-include ':youtube'
 include ':hook'
 include ':mpv'
 
